@@ -1,0 +1,5 @@
+SELECT PACKAGE(*) FROM stocks SUCH THAT
+    COUNT(*) BETWEEN l1 AND u1 AND
+    SUM(price) <= u2 AND
+    SUM(profit) >= v1 WITH PROBABILITY >= 0.99
+MAXIMIZED EXPECTED SUM(profit)

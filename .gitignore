@@ -1,0 +1,7 @@
+.vscode
+.ipynb_checkpoints
+_*.spaql
+build
+CMakeUserPresets.json
+test/*.ipynb
+ebnf.txt

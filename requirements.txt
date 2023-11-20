@@ -1,0 +1,5 @@
+conan
+numpy
+QuantLib
+configparser
+psycopg2

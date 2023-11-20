@@ -1,0 +1,15 @@
+SELECT PACKAGE(*) FROM stocks SUCH THAT
+    COUNT(*) BETWEEN l1 AND u1 AND
+    COUNT(*) <= u2 AND
+    COUNT(*) >= u3 AND
+    SUM(a) BETWEEN l1 AND u1 AND
+    SUM(b) <= u2 AND
+    SUM(c) >= u3 AND
+    EXPECTED SUM(a) BETWEEN l1 AND u1 AND
+    EXPECTED SUM(b) <= u2 AND
+    EXPECTED SUM(c) >= u3 AND
+    SUM(a) <= v WITH PROBABILITY >= p AND
+    SUM(a) >= v WITH PROBABILITY >= p AND
+    SUM(a) <= v WITH PROBABILITY >= p AND
+    SUM(a) >= v WITH PROBABILITY >= p
+MAXIMIZE EXPECTED SUM(A)
