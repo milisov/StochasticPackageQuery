@@ -157,7 +157,7 @@ public:
 				>> constraint [phx::bind(&StochasticPackageQuery::addConstraint, spq, _1)]
 				>> *(no_case[lit("AND")] >> constraint [phx::bind(&StochasticPackageQuery::addConstraint, spq, _1)])
 				)
-			>> objective [phx::bind(&StochasticPackageQuery::setObjective, spq, _1)]
+			>> -(objective [phx::bind(&StochasticPackageQuery::setObjective, spq, _1)])
 			;
 	}
 };
@@ -169,9 +169,9 @@ shared_ptr<StochasticPackageQuery> parseSpaql(Iterator first, Iterator last){
 	if (success && first==last){
 		return grammar.spq;
 	}
-	cerr << "Parsing query does not match from: \"";
+	cerr << "Parsing query does not match from: '";
 	for (auto it = first; it != last; ++it) cerr << *it;
-	cerr << "\"\n";
+	cerr << "'\n";
 	grammar.spq.reset();
 	return grammar.spq;
 }

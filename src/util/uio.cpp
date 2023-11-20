@@ -1,6 +1,7 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <fmt/core.h>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/algorithm/string.hpp>
@@ -20,7 +21,7 @@ shared_ptr<StochasticPackageQuery> parseSpaqlFromFile(string filePath){
 	if (spaqlPath.is_relative()) spaqlPath = getProjectDir() / spaqlPath;
 	ifstream in(spaqlPath);
 	if (!in.is_open()) {
-		cerr << "Could not open file " << spaqlPath << endl;
+		cerr << fmt::format("Could not open file '{}'\n", spaqlPath.string());
 		return nullptr;
 	}
 	stringstream buffer;
@@ -62,10 +63,22 @@ string PgManager::conninfo = PgManager::getConnInfo();
 
 Column PgManager::getColumn(string dataType){
 	to_lower(dataType);
-	for (size_t i = 0; i < typeGroups.size(); ++i){
+	for (size_t i = typeGroups.size()-1; i >= 0; --i){
 		for (auto token : typeGroups[i]){
-			if (dataType.find(token) != string::npos)
-				return static_cast<Column>(i);
+			Column column = to_Column(i);
+			if (dataType.find(token) != string::npos){
+				if (column == Column::array_type){
+					bool isNumericColumn = false;
+					for (auto numericToken : typeGroups[to_index(column)]){
+						if (dataType.find(numericToken) != string::npos){
+							isNumericColumn = true;
+							break;
+						}
+					}
+					if (!isNumericColumn) return Column::unsupported;
+				}
+				return column;
+			}
 		}
 	}
 	return Column::unsupported;
@@ -103,7 +116,7 @@ vector<string> PgManager::getTables(){
 
 map<string, Column> PgManager::getColumns(string tableName){
 	string sql = fmt::format(" \
-		SELECT column_name, data_type FROM information_schema.columns \
+		SELECT column_name, udt_name::regtype FROM information_schema.columns \
 		WHERE table_schema = '{}' AND table_name = '{}'", schema, tableName);
 	auto res = PQexec(conn.get(), sql.c_str());
 	map<string, Column> columns;

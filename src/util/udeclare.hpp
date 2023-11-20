@@ -18,8 +18,6 @@ using std::vector;
 using std::ostream;
 using std::map;
 
-using Bound = boost::variant<string, double>;
-
 /**
  * @brief ENUM MACRO
  * 
@@ -28,6 +26,8 @@ using Bound = boost::variant<string, double>;
 #define ENUM(name, ...)  \
     enum name { __VA_ARGS__ };\
     extern string to_string(name value); \
+    extern name to_##name(size_t index); \
+    extern int to_index(name value); \
     extern ostream& operator<<(ostream& os, const name& value);\
     extern map<string, name> to##name
 
@@ -42,6 +42,8 @@ ENUM(Column, numeric_type, string_type, array_type, unsupported);
 
 const double POS_INF = 1.0e30;
 const double NEG_INF = -1.0e30;
+
+using Bound = boost::variant<string, double>;
 
 struct VariantToString : public boost::static_visitor<string> {
     template <typename T>

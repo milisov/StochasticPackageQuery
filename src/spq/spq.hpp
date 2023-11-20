@@ -5,6 +5,7 @@
 #include <string>
 #include <memory>
 #include <ostream>
+#include <map>
 
 #include "cons.hpp"
 #include "obj.hpp"
@@ -12,7 +13,9 @@
 using std::vector;
 using std::string;
 using std::shared_ptr;
+using std::unique_ptr;
 using std::ostream;
+using std::map;
 
 /**
  * @brief Represents SPQ's information connecting database and SPQ solver.
@@ -20,8 +23,14 @@ using std::ostream;
  * It can contains abstract information about the bounds of the constraints.
  * These bounds can be realized after calling StochasticQueryGenerator on this class
  * with appropriate hardness and expected size.
+ * @param repeat if -1 then Stochastic Linear Programming
+ * @param obj if nullptr then no objective, i.e., feasibility test
  */
 class StochasticPackageQuery{
+private:
+	map<string, unique_ptr<double>> varTable;
+private:
+	bool addVariable(Bound bound);
 public:
 	static const int NO_REPEAT = -1;
 	string tableName;
