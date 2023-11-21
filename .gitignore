@@ -1,6 +1,5 @@
 .vscode
 .ipynb_checkpoints
-ebnf.spaql
 _*.spaql
 build
 CMakeUserPresets.json

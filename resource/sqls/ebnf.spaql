@@ -11,5 +11,5 @@ SELECT PACKAGE(*) FROM stocks SUCH THAT
     SUM(profit) <= v WITH PROBABILITY >= 0.05 AND
     SUM(profit) >= v1 WITH PROBABILITY >= 0.1 AND
     SUM(profit) <= v2 WITH PROBABILITY >= 0.3 AND
-    SUM(profit) >= v3 WITH PROBABILITY >= 0.4
+    SUM(profit) >= v5 WITH PROBABILITY >= 0.4
 MAXIMIZE EXPECTED SUM(profit)

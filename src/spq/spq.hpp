@@ -51,5 +51,6 @@ public:
 };
 
 ostream& operator<<(ostream& os, const shared_ptr<StochasticPackageQuery> spq);
+shared_ptr<StochasticPackageQuery> parseSpaqlFromFile(string filePath);
 
 #endif

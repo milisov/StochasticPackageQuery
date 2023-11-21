@@ -1,49 +1,18 @@
-#include <fstream>
-#include <sstream>
-#include <iostream>
 #include <fmt/core.h>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/ini_parser.hpp>
+#include <filesystem>
 #include <boost/algorithm/string.hpp>
 
-#include "spq/parser.hpp"
+#include "uconfig.hpp"
 #include "uio.hpp"
 #include "udebug.hpp"
 
-using std::ifstream;
-using std::endl;
-using std::cerr;
-using std::stringstream;
 using boost::algorithm::to_lower;
-
-shared_ptr<StochasticPackageQuery> parseSpaqlFromFile(string filePath){
-	fs::path spaqlPath (filePath);
-	if (spaqlPath.is_relative()) spaqlPath = getProjectDir() / spaqlPath;
-	ifstream in(spaqlPath);
-	if (!in.is_open()) {
-		cerr << fmt::format("Could not open file '{}'\n", spaqlPath.string());
-		return nullptr;
-	}
-	stringstream buffer;
-	buffer << in.rdbuf();
-	string spaqlQuery = buffer.str();
-	in.close();
-	return parseSpaql(spaqlQuery);
-}
-
-fs::path getProjectDir(){
-	auto currentPath = fs::current_path();
-	return currentPath.parent_path();
-}
 
 string PgManager::id, PgManager::schema;
 vector<vector<string>> PgManager::typeGroups (toColumn.size()-1);
 
 string PgManager::getConnInfo(){
-	fs::path configPath = getProjectDir() / "config.cfg";
-	boost::property_tree::ptree pt;
-	boost::property_tree::ini_parser::read_ini(configPath.string(), pt);
-
+	auto pt = Config::getInstance()->pt;
 	schema = pt.get<string>("postgres.schema");
 	id = pt.get<string>("database.index_column");
 	for (size_t i = 0; i < typeGroups.size(); ++i){
@@ -53,7 +22,7 @@ string PgManager::getConnInfo(){
 
 	return fmt::format("postgresql://{}@{}?port={}&dbname={}&password={}", 
 		pt.get<string>("postgres.username"), 
-		pt.get<string>("postgres.hostname"), 
+		pt.get<string>("postgres.hostname"),
 		pt.get<string>("postgres.port"), 
 		pt.get<string>("postgres.database"), 
 		pt.get<string>("postgres.password"));
@@ -84,11 +53,9 @@ Column PgManager::getColumn(string dataType){
 	return Column::unsupported;
 }
 
-PGconnPtr PgManager::getConn(){
-	return PGconnPtr(PQconnectdb(conninfo.c_str()), PGconnDeleter());
+PgManager::PgManager(){
+	conn = PGconnPtr(PQconnectdb(conninfo.c_str()), PGconnDeleter());
 }
-
-PGconnPtr PgManager::conn = PgManager::getConn();
 
 /**
  * @brief Get the size of the table without throwing error
@@ -120,7 +87,7 @@ map<string, Column> PgManager::getColumns(string tableName){
 		WHERE table_schema = '{}' AND table_name = '{}'", schema, tableName);
 	auto res = PQexec(conn.get(), sql.c_str());
 	map<string, Column> columns;
-	for (int i = 0; i < PQntuples(res); i ++) columns[string(PQgetvalue(res, i, 0))] = getColumn(string(PQgetvalue(res, i, 1)));
+	for (int i = 0; i < PQntuples(res); i ++) columns[string(PQgetvalue(res, i, 0))] = PgManager::getColumn(string(PQgetvalue(res, i, 1)));
 	PQclear(res);
 	return columns;
 }

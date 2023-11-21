@@ -1,16 +1,22 @@
 #include <boost/algorithm/string/join.hpp>
+#include <boost/variant.hpp>
 #include <fmt/core.h>
 #include <algorithm>
 #include <iostream>
-#include <boost/variant.hpp>
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <filesystem>
 
 #include "util/udebug.hpp"
 #include "util/uio.hpp"
+#include "util/uconfig.hpp"
 #include "spq.hpp"
+#include "parser.hpp"
+
+namespace fs = std::filesystem;
 
 using boost::algorithm::join;
-using std::transform;
-using std::back_inserter;
 using std::cerr;
 using std::endl;
 using std::dynamic_pointer_cast;
@@ -52,11 +58,12 @@ void StochasticPackageQuery::setObjective(shared_ptr<Objective> obj){
 }
 
 bool StochasticPackageQuery::validate(){
-	if (!PgManager::existTable(tableName)){
+	auto pg = PgManager();
+	if (!pg.existTable(tableName)){
 		cerr << fmt::format("Table '{}' does not exist\n", tableName);
 		return false;
 	}
-	auto columns = PgManager::getColumns(tableName);
+	auto columns = pg.getColumns(tableName);
 	if (attrList.size()){
 		for (auto attr : attrList){
 			if (!columns.count(attr)){
@@ -146,4 +153,19 @@ string StochasticPackageQuery::strAttrList() const{
 ostream& operator<<(ostream& os, const shared_ptr<StochasticPackageQuery> spq){
 	if (spq) os << static_cast<string>(*spq);
     return os;
+}
+
+shared_ptr<StochasticPackageQuery> parseSpaqlFromFile(string filePath){
+	fs::path spaqlPath (filePath);
+	if (spaqlPath.is_relative()) spaqlPath = getProjectDir() / spaqlPath;
+	std::ifstream in(spaqlPath);
+	if (!in.is_open()) {
+		cerr << fmt::format("Could not open file '{}'\n", spaqlPath.string());
+		return nullptr;
+	}
+	std::stringstream buffer;
+	buffer << in.rdbuf();
+	string spaqlQuery = buffer.str();
+	in.close();
+	return parseSpaql(spaqlQuery);
 }

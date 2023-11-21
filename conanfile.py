@@ -14,8 +14,8 @@ class Conan(ConanFile):
         self.requires("highs/1.6.0")
         self.requires("libpq/15.4")
         self.requires("fmt/10.1.1")
-        self.requires("xtensor/0.24.7")
-        # self.requires("quantlib/1.30")
+        self.requires("pcg-cpp/cci.20220409")
+        self.requires("timsort/2.1.0")
 
     # Define your generators
     generators = "CMakeDeps", "CMakeToolchain"
