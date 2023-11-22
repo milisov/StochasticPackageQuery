@@ -1,4 +1,5 @@
 #include <boost/property_tree/ini_parser.hpp>
+#include <thread>
 
 #include "uconfig.hpp"
 
@@ -11,6 +12,7 @@ fs::path getProjectDir(){
 Config::Config(){
 	fs::path configPath = getProjectDir() / "config.cfg";
 	boost::property_tree::ini_parser::read_ini(configPath.string(), pt);
+    nPhysicalCores = std::thread::hardware_concurrency() / 2;
 }
 
 shared_ptr<Config> Config::config = nullptr;

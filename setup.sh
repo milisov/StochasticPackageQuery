@@ -17,6 +17,12 @@ fi
 conan install . --output-folder=build --build=missing --settings=build_type=$BUILD_TYPE
 
 cd test
-echo "Creating stocks table..."
-python3 stocks.py
+echo "Creating table stocks3..."
+python3 stocks.py 3
+echo "Creating table stocks30..."
+python3 stocks.py 30
+echo "Creating table stocks300..."
+python3 stocks.py 300
+echo "Creating table stocks3000..."
+python3 stocks.py 3000
 cd ..

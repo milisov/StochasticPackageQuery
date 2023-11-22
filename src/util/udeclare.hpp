@@ -7,9 +7,10 @@
 #include <ostream>
 #include <utility>
 #include <vector>
-#include <boost/variant.hpp>
 #include <fmt/core.h>
+#include <boost/variant.hpp>
 #include <boost/preprocessor.hpp>
+#include <boost/multiprecision/gmp.hpp>
 
 using std::string;
 using std::ostringstream;
@@ -17,6 +18,8 @@ using std::pair;
 using std::vector;
 using std::ostream;
 using std::map;
+
+using long_double = boost::multiprecision::number<boost::multiprecision::backends::gmp_float<1<<10>>;
 
 /**
  * @brief ENUM MACRO

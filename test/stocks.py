@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[11]:
+# In[16]:
 
 
 import QuantLib as ql
@@ -10,8 +10,25 @@ import matplotlib.pyplot as plt
 import configparser
 import multiprocessing
 import psycopg2
-import os, random
+import os, random, sys
 from psycopg2 import Error
+
+
+# In[17]:
+
+
+nStocks = 3000
+nPaths = 10000
+
+
+# In[ ]:
+
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        nStocks = int(sys.argv[1])
+    if len(sys.argv) > 2:
+        nPaths = int(sys.argv[2])
 
 
 # In[15]:
@@ -21,13 +38,12 @@ config = configparser.ConfigParser()
 config.read('../config.cfg')
 is_rebuild = config['build']['rebuild_stocks'] == 'true'
 maturity = 1.0
-nPaths = 10000
 nSteps = int(maturity * 365)
 timeGrid = np.linspace(0.0, maturity, nSteps + 1)
 
 pairs = []
 num_cores = multiprocessing.cpu_count() // 2
-table_name = "stocks"
+table_name = "stocks"+str(nStocks)
 
 stocks = configparser.ConfigParser()
 stocks.read('../resource/stocks/tickers.ini')
@@ -97,8 +113,8 @@ if table_exists(cur, table_name):
         conn.commit()
 is_populating = False
 if not table_exists(cur, table_name):
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS stocks (
+    cur.execute(f"""
+        CREATE TABLE IF NOT EXISTS {table_name} (
             id SERIAL PRIMARY KEY,
             stock TEXT,
             price REAL,
@@ -119,10 +135,9 @@ if is_populating:
     for i in range(num_cores):
         pairs.append(get_conn_cur(config))
     pool = multiprocessing.Pool(processes=num_cores)
-    MAX_STOCKS = 3000
     random.seed(42)
     random.shuffle(stats)
-    pool.map(simulate, stats[:MAX_STOCKS])
+    pool.map(simulate, stats[:nStocks])
     pool.close()
     pool.join()
     for conn, cur in pairs:    

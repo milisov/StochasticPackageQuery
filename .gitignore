@@ -4,4 +4,6 @@ _*.spaql
 build
 CMakeUserPresets.json
 test/*.ipynb
+test/convert.sh
+test.sh
 ebnf.txt

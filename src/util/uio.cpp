@@ -7,6 +7,7 @@
 #include "udebug.hpp"
 
 using boost::algorithm::to_lower;
+using std::runtime_error;
 
 string PgManager::id, PgManager::schema;
 vector<vector<string>> PgManager::typeGroups (toColumn.size()-1);
@@ -53,19 +54,27 @@ Column PgManager::getColumn(string dataType){
 	return Column::unsupported;
 }
 
+void ck(PGconnPtr& conn, PGresult* res){
+	if (PQresultStatus(res) != PGRES_TUPLES_OK && PQresultStatus(res) != PGRES_COMMAND_OK) {
+		throw runtime_error(PQerrorMessage(conn.get()));
+	}
+}
+
 PgManager::PgManager(){
 	conn = PGconnPtr(PQconnectdb(conninfo.c_str()), PGconnDeleter());
+	if (PQstatus(conn.get()) != CONNECTION_OK) throw runtime_error(PQerrorMessage(conn.get()));
 }
 
 /**
- * @brief Get the size of the table without throwing error
+ * @brief Get the size of the table
  * 
  * @param tableName table's name
  * @return long long the size of the table, 0 if the table neither not exists nor has no rows
  */
-long long PgManager::getTableSize(string tableName){
+long long PgManager::getTableSize(const string& tableName){
 	string sql = fmt::format("SELECT {} FROM \"{}\" ORDER BY {} DESC LIMIT 1", id, tableName, id);
 	auto res = PQexec(conn.get(), sql.c_str());
+	ck(conn, res);
 	long long size = 0;
 	if (PQntuples(res) > 0) size = atoll(PQgetvalue(res, 0, 0));
 	PQclear(res);
@@ -75,44 +84,46 @@ long long PgManager::getTableSize(string tableName){
 vector<string> PgManager::getTables(){
 	string sql = "SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname != 'pg_catalog' AND schemaname != 'information_schema'";
 	auto res = PQexec(conn.get(), sql.c_str());
+	ck(conn, res);
 	vector<string> tables;
 	for (int i = 0; i < PQntuples(res); ++i) tables.push_back(string(PQgetvalue(res, i, 0)));
 	PQclear(res);
 	return tables;
 }
 
-map<string, Column> PgManager::getColumns(string tableName){
+map<string, Column> PgManager::getColumns(const string& tableName){
 	string sql = fmt::format(" \
 		SELECT column_name, udt_name::regtype FROM information_schema.columns \
 		WHERE table_schema = '{}' AND table_name = '{}'", schema, tableName);
 	auto res = PQexec(conn.get(), sql.c_str());
+	ck(conn, res);
 	map<string, Column> columns;
 	for (int i = 0; i < PQntuples(res); i ++) columns[string(PQgetvalue(res, i, 0))] = PgManager::getColumn(string(PQgetvalue(res, i, 1)));
 	PQclear(res);
 	return columns;
 }
 
-bool PgManager::existTable(string tableName){
+void PgManager::addColumn(const string& tableName, const string& columnName, const string& pgType){
+	string sql = fmt::format("ALTER TABLE \"{}\" ADD COLUMN \"{}\" {}", tableName, columnName, pgType);
+	auto res = PQexec(conn.get(), sql.c_str());
+	ck(conn, res);
+	PQclear(res);
+}
+
+bool PgManager::existTable(const string& tableName){
 	string sql = fmt::format("SELECT * FROM pg_tables WHERE tablename='{}' AND schemaname='{}'", tableName, schema);
 	auto res = PQexec(conn.get(), sql.c_str());
+	ck(conn, res);
 	bool exists = PQntuples(res) > 0;
 	PQclear(res);
 	return exists;
 }
 
-/**
- * @brief Drop the table without throwing error
- * 
- * @param tableName table's name
- * @return true if the drop was successful
- * @return false if the table did not exist
- */
-bool PgManager::dropTable(string tableName){
+void PgManager::dropTable(const string& tableName){
 	string sql = fmt::format("DROP TABLE \"{}\"", tableName);
 	auto res = PQexec(conn.get(), sql.c_str());
-	bool success = PQresultStatus(res) == PGRES_TUPLES_OK;
+	ck(conn, res);
 	PQclear(res);
-	return success;
 }
 
 

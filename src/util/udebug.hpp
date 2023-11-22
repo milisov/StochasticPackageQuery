@@ -5,6 +5,8 @@
 #include <iostream>
 #include <iterator>
 #include <chrono>
+#include <algorithm>
+#include <sstream>
 
 using std::map;
 using std::pair;
@@ -108,8 +110,10 @@ public:
 
 #ifdef DEBUG
 	#define INIT(pro) Profiler pro
-	#define CLOCK(pro, label) pro.clock(label)
-	#define STOP(pro, label) pro.stop(label)
+	#define CLK(pro, label) pro.clock(label)
+	#define STP(pro, label) pro.stop(label)
+	#define CLOCK(pro) pro.clock()
+	#define STOP(pro) pro.stop()
 	#define PRINT(pro) pro.print()
 	#define ADD(pro, local)       \
 	{                        \
@@ -120,8 +124,10 @@ public:
 	}
 #else
 	#define INIT(pro)
-	#define CLOCK(pro, label)
-	#define STOP(pro, label)
+	#define CLK(pro, label)
+	#define CLOCK(pro)
+	#define STP(pro, label)
+	#define STOP(pro)
 	#define PRINT(pro)
 	#define ADD(pro, local)
 #endif
