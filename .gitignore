@@ -1,9 +1,10 @@
 .vscode
 .ipynb_checkpoints
 _*.spaql
+_config.cfg
 build
 CMakeUserPresets.json
 test/*.ipynb
-test/convert.sh
+test/*.sh
 test.sh
 ebnf.txt

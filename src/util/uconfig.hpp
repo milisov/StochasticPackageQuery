@@ -16,7 +16,7 @@ protected:
     static shared_ptr<Config> config;
 public:
     boost::property_tree::ptree pt;
-    unsigned int nPhysicalCores;
+    unsigned int nPhysicalCores, nLogicalCores;
 public:
     Config();
     Config(Config &other) = delete;

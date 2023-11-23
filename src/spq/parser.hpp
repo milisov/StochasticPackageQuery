@@ -44,7 +44,7 @@ public:
 	qi::rule<Iterator, shared_ptr<Objective>(), Skipper> objective, count_objective, sum_objective, expected_sum_objective;
 	qi::rule<Iterator, Bound(), Skipper> bound;
 	SpaqlGrammar() : spq(make_shared<StochasticPackageQuery>()), SpaqlGrammar::base_type(package_query){
-		name %= lexeme[alpha >> (*alnum)];
+		name %= lexeme[alpha >> (*(alnum | char_('_')))];
 		ineq %= qi::string("<=") | qi::string(">=");
 		obj_sense %= no_case["MAXIMIZE"] | no_case["MINIMIZE"];
 		column_list = lit('*') [_val = vector<string>()] | (name % ',') [_val = _1];
@@ -173,7 +173,7 @@ shared_ptr<StochasticPackageQuery> parseSpaql(Iterator first, Iterator last){
 	for (auto it = first; it != last; ++it) cerr << *it;
 	cerr << "'\n";
 	grammar.spq.reset();
-	return grammar.spq;
+	exit(1);
 }
 
 inline shared_ptr<StochasticPackageQuery> parseSpaql(string spaql){

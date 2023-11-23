@@ -12,6 +12,7 @@
 #include <boost/multiprecision/gmp.hpp>
 
 #include "udeclare.hpp"
+#include "udebug.hpp"
 
 namespace mp = boost::multiprecision;
 
@@ -54,6 +55,7 @@ struct PGconnDeleter {
 using PGconnPtr = std::unique_ptr<PGconn, PGconnDeleter>;
 
 void ck(PGconnPtr& conn, PGresult* res);
+void ck(PGconnPtr& conn, bool failed);
 
 class PgManager{
 private:
@@ -73,6 +75,39 @@ public:
     void addColumn(const string& tableName, const string& columnName, const string& pgType);
     bool existTable(const string& tableName);
     void dropTable(const string& tableName);
+};
+
+class SingleRow{
+private:
+    unique_ptr<PgManager> pg;
+    PGresult* res;
+public:
+    ~SingleRow();
+    SingleRow(const string& query);
+    bool fetchRow();
+    long long getBigInt(int columnIndex);
+    double getNumeric(int columnIndex);
+    void getRealArray(int columnIndex, vector<float>& result);
+};
+
+string to_string(const vector<float>& arr);
+
+class AsyncUpdate{
+private:
+    static const string stmName;
+    int nParams;
+    char** vals;
+    unique_ptr<PgManager> pg;
+public:
+    ~AsyncUpdate();
+    AsyncUpdate(const string& query);
+    template <typename T>
+    void set(int paramIndex, const T& v){
+        string strV = to_string(v);
+        vals[paramIndex] = new char[strV.size()+1];
+        strcpy(vals[paramIndex], strV.c_str());
+    }
+    void send();
 };
 
 #endif

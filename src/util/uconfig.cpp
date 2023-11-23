@@ -10,9 +10,15 @@ fs::path getProjectDir(){
 }
 
 Config::Config(){
-	fs::path configPath = getProjectDir() / "config.cfg";
+	fs::path configPath = getProjectDir() / "_config.cfg";
 	boost::property_tree::ini_parser::read_ini(configPath.string(), pt);
-    nPhysicalCores = std::thread::hardware_concurrency() / 2;
+    auto logicalCores = pt.get_optional<unsigned int>("hardware.logical_cores");
+    if (logicalCores) nLogicalCores = *logicalCores;
+    else nLogicalCores = std::thread::hardware_concurrency();
+
+    auto physicalCores = pt.get_optional<unsigned int>("hardware.physical_cores");
+    if (physicalCores) nPhysicalCores = *physicalCores;
+    else nPhysicalCores = std::thread::hardware_concurrency() / 2;
 }
 
 shared_ptr<Config> Config::config = nullptr;

@@ -1,13 +1,15 @@
 #include <fmt/core.h>
+#include <iostream>
 #include <filesystem>
+#include <algorithm>
 #include <boost/algorithm/string.hpp>
 
 #include "uconfig.hpp"
 #include "uio.hpp"
-#include "udebug.hpp"
 
 using boost::algorithm::to_lower;
-using std::runtime_error;
+using std::cerr;
+using std::make_unique;
 
 string PgManager::id, PgManager::schema;
 vector<vector<string>> PgManager::typeGroups (toColumn.size()-1);
@@ -15,10 +17,10 @@ vector<vector<string>> PgManager::typeGroups (toColumn.size()-1);
 string PgManager::getConnInfo(){
 	auto pt = Config::getInstance()->pt;
 	schema = pt.get<string>("postgres.schema");
-	id = pt.get<string>("database.index_column");
+	id = pt.get<string>("pgmanager.index_column");
 	for (size_t i = 0; i < typeGroups.size(); ++i){
 		string columnType = to_string(static_cast<Column>(i));
-		boost::split(typeGroups[i], pt.get<string>(fmt::format("database.{}", columnType)), boost::is_any_of(","));
+		boost::split(typeGroups[i], pt.get<string>(fmt::format("pgmanager.{}", columnType)), boost::is_any_of(","));
 	}
 
 	return fmt::format("postgresql://{}@{}?port={}&dbname={}&password={}", 
@@ -55,14 +57,26 @@ Column PgManager::getColumn(string dataType){
 }
 
 void ck(PGconnPtr& conn, PGresult* res){
-	if (PQresultStatus(res) != PGRES_TUPLES_OK && PQresultStatus(res) != PGRES_COMMAND_OK) {
-		throw runtime_error(PQerrorMessage(conn.get()));
+	auto status = PQresultStatus(res);
+	if (status != PGRES_SINGLE_TUPLE && status != PGRES_TUPLES_OK && status != PGRES_COMMAND_OK && status != PGRES_PIPELINE_SYNC) {
+		cerr << PQerrorMessage(conn.get());
+		PQclear(res);
+		conn.reset();
+		exit(1);
+	}
+}
+
+void ck(PGconnPtr& conn, bool failed){
+	if (failed){
+		cerr << PQerrorMessage(conn.get());
+		conn.reset();
+		exit(1);
 	}
 }
 
 PgManager::PgManager(){
 	conn = PGconnPtr(PQconnectdb(conninfo.c_str()), PGconnDeleter());
-	if (PQstatus(conn.get()) != CONNECTION_OK) throw runtime_error(PQerrorMessage(conn.get()));
+	ck(conn, PQstatus(conn.get()) != CONNECTION_OK);
 }
 
 /**
@@ -125,6 +139,96 @@ void PgManager::dropTable(const string& tableName){
 	ck(conn, res);
 	PQclear(res);
 }
+
+SingleRow::~SingleRow(){
+	while (res){
+		PQclear(res);
+		res = PQgetResult(pg->conn.get());
+	}
+}
+
+SingleRow::SingleRow(const string& query){
+	pg = make_unique<PgManager>();
+	ck(pg->conn, !PQsendQuery(pg->conn.get(), query.c_str()));
+	ck(pg->conn, !PQsetSingleRowMode(pg->conn.get()));
+	res = nullptr;
+}
+
+bool SingleRow::fetchRow(){
+	ck(pg->conn, !PQconsumeInput(pg->conn.get()));
+	if (res) PQclear(res);
+	res = PQgetResult(pg->conn.get());
+	if (res){
+		ck(pg->conn, res);
+		if (PQntuples(res)) return true;
+	}
+	return false;
+}
+
+long long SingleRow::getBigInt(int columnIndex){
+	return atoll(PQgetvalue(res, 0, columnIndex));
+}
+
+double SingleRow::getNumeric(int columnIndex){
+	return atof(PQgetvalue(res, 0, columnIndex));
+}
+
+
+void SingleRow::getRealArray(int columnIndex, vector<float>& result){
+	char* pEnd = PQgetvalue(res, 0, columnIndex);
+	char* curPtr;
+	while (*pEnd != '}'){
+		curPtr = pEnd+1;
+		result.push_back(strtof(curPtr, &pEnd));
+	}
+}
+
+string to_string(const vector<float>& arr){
+	vector<string> strArr (arr.size());
+	for (size_t i = 0; i < arr.size(); ++i){
+		strArr[i] = strf(arr[i]);
+	}
+	return fmt::format("{{{0}}}", boost::join(strArr, ","));
+}
+
+const string AsyncUpdate::stmName = "async";
+
+AsyncUpdate::~AsyncUpdate(){
+	delete[] vals;
+	ck(pg->conn, !PQpipelineSync(pg->conn.get()));
+	while (1){
+		auto res = PQgetResult(pg->conn.get());
+		ck(pg->conn, res);
+		if (res) PQclear(res);
+		if (PQresultStatus(res) == PGRES_PIPELINE_SYNC) break;
+		res = PQgetResult(pg->conn.get());
+	}
+	ck(pg->conn, !PQexitPipelineMode(pg->conn.get()));
+}
+
+/**
+ * @brief Construct a new Async Update:: Async Update object
+ * 
+ * @param stmName 
+ * @param query should not contain $ for other purpose except for specifying parameters
+ */
+AsyncUpdate::AsyncUpdate(const string& query){
+	pg = make_unique<PgManager>();
+	nParams = std::count(query.begin(), query.end(), '$');
+	auto res = PQprepare(pg->conn.get(), stmName.c_str(), query.c_str(), nParams, NULL);
+	ck(pg->conn, res);
+	ck(pg->conn, PQsetnonblocking(pg->conn.get(), 1) || !PQisnonblocking(pg->conn.get()));
+	ck(pg->conn, !PQenterPipelineMode(pg->conn.get()) || PQpipelineStatus(pg->conn.get()) != PQ_PIPELINE_ON);
+	vals = new char*[nParams];
+}
+
+void AsyncUpdate::send(){
+	ck(pg->conn, !PQsendQueryPrepared(pg->conn.get(), stmName.c_str(), nParams, vals, NULL, NULL, 0));
+	for (int i = 0; i < nParams; ++i) delete[] vals[i];
+}
+
+
+
 
 
 

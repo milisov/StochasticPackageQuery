@@ -43,7 +43,7 @@ timeGrid = np.linspace(0.0, maturity, nSteps + 1)
 
 pairs = []
 num_cores = multiprocessing.cpu_count() // 2
-table_name = "stocks"+str(nStocks)
+table_name = f"stocks_{nStocks}_{nPaths}"
 
 stocks = configparser.ConfigParser()
 stocks.read('../resource/stocks/tickers.ini')
@@ -77,7 +77,7 @@ def simulate(stat):
     for day_index in range(nSteps):
         try:
             cur.execute(f"""
-                INSERT INTO {table_name} (stock, price, day, profit)
+                INSERT INTO \"{table_name}\" (stock, price, day, profit)
                 VALUES (%s, %s, %s, %s)
             """, (ticker, price, day_index+1, list(gbm_paths[:, day_index])))
         except psycopg2.Error as e:
@@ -114,7 +114,7 @@ if table_exists(cur, table_name):
 is_populating = False
 if not table_exists(cur, table_name):
     cur.execute(f"""
-        CREATE TABLE IF NOT EXISTS {table_name} (
+        CREATE TABLE IF NOT EXISTS \"{table_name}\" (
             id SERIAL PRIMARY KEY,
             stock TEXT,
             price REAL,

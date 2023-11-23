@@ -21,7 +21,7 @@ namespace ba = boost::accumulators;
 typedef ba::accumulator_set<long double, ba::stats<ba::tag::sum, ba::tag::variance>> AccSet;
 
 bool Stat::rebuildStat = to_lower_copy(Config::getInstance()->pt.get<string>("build.rebuild_stat")) == "true";
-string Stat::statTable = Config::getInstance()->pt.get<string>("database.stat_table");
+string Stat::statTable = Config::getInstance()->pt.get<string>("pgmanager.stat_table");
 
 Stat::Stat(){
     pg = make_unique<PgManager>();
@@ -106,9 +106,33 @@ void Stat::analyzeStochastic(const string& tableName, const string& columnName){
         auto summaryColumns = pg->getColumns(summaryTable);
         vector<string> summaryColumnNames = {columnName + "_mean", columnName + "_variance", columnName + "_qseq"};
         vector<string> summaryColumnTypes = {"DOUBLE PRECISION", "DOUBLE PRECISION", "REAL[]"};
+        vector<string> updateColumnNames (summaryColumnNames.size());
         for (size_t i = 0; i < summaryColumnNames.size(); ++i){
             if (!summaryColumns.count(summaryColumnNames[i])){
                 pg->addColumn(summaryTable, summaryColumnNames[i], summaryColumnTypes[i]);
+            }
+            updateColumnNames[i] = fmt::format("{}=${}", summaryColumnNames[i], i+2);
+        }
+        auto nCores = Config::getInstance()->nPhysicalCores;
+        auto intervals = divideInterval(1, tableSize, nCores);
+        int count = 0;
+        AccAggregator agg;
+        #pragma omp parallel num_threads(nCores)
+        {
+            auto coreIndex = omp_get_thread_num();
+            AsyncUpdate au = AsyncUpdate(fmt::format("UPDATE \"{}\" SET {} WHERE {}=$1", summaryTable, boost::join(updateColumnNames, ","), PgManager::id));
+            SingleRow sr = SingleRow(fmt::format("SELECT {},{} FROM \"{}\" WHERE {} BETWEEN {} AND {}", PgManager::id, columnName, tableName, PgManager::id, intervals[coreIndex], intervals[coreIndex+1]-1));
+            while (sr.fetchRow()){
+                long long id = sr.getBigInt(0);
+                vector<float> samples;
+                sr.getRealArray(1, samples);
+                AccSet acc;
+                for (auto sample : samples) acc(sample);
+                au.set(0, id);
+                au.set(1, ba::sum(acc)/samples.size());
+                au.set(2, ba::variance(acc));
+                au.set(3, samples);
+                au.send();
             }
         }
     }
@@ -116,27 +140,25 @@ void Stat::analyzeStochastic(const string& tableName, const string& columnName){
 
 void Stat::analyzeDeterministic(const string& tableName, const vector<string>& columnNames){
     auto columns = pg->getColumns(tableName);
-    auto nPhysicalCores = Config::getInstance()->nPhysicalCores;
-    auto intervals = divideInterval(1, pg->getTableSize(tableName), nPhysicalCores);
+    auto nCores = Config::getInstance()->nPhysicalCores;
+    auto intervals = divideInterval(1, pg->getTableSize(tableName), nCores);
     string selectColumns = boost::join(columnNames, ",");
     vector<AccAggregator> aggs (columnNames.size());
-    #pragma omp parallel num_threads(nPhysicalCores)
+    #pragma omp parallel num_threads(nCores)
     {
         auto coreIndex = omp_get_thread_num();
-        PgManager pg_;
         string sql = fmt::format("SELECT {} FROM \"{}\" WHERE {} BETWEEN {} AND {}", selectColumns, tableName, PgManager::id, intervals[coreIndex], intervals[coreIndex+1]-1);
-        auto res = PQexec(pg_.conn.get(), sql.c_str());
-        ck(pg_.conn, res);
+        SingleRow sr = SingleRow(sql);
         vector<AccSet> accs (columnNames.size());
-        long long count = PQntuples(res);
-        for (long long i = 0; i < count; ++i){
+        long long count = 0;
+        while (sr.fetchRow()){
             for (size_t j = 0; j < columnNames.size(); ++j){
                 if (columns[columnNames[j]] == Column::numeric_type){
-                    accs[j](atof(PQgetvalue(res, i, j)));
+                    accs[j](sr.getNumeric(j));
                 }
             }
+            count ++;
         }
-        PQclear(res);
         #pragma omp critical
         {
             for (size_t j = 0; j < columnNames.size(); ++j){

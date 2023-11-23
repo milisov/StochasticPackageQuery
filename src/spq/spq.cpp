@@ -18,7 +18,6 @@ namespace fs = std::filesystem;
 
 using boost::algorithm::join;
 using std::cerr;
-using std::endl;
 using std::dynamic_pointer_cast;
 
 bool StochasticPackageQuery::addVariable(Bound bound){
@@ -161,7 +160,7 @@ shared_ptr<StochasticPackageQuery> parseSpaqlFromFile(string filePath){
 	std::ifstream in(spaqlPath);
 	if (!in.is_open()) {
 		cerr << fmt::format("Could not open file '{}'\n", spaqlPath.string());
-		return nullptr;
+		exit(1);
 	}
 	std::stringstream buffer;
 	buffer << in.rdbuf();
