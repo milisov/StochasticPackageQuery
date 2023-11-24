@@ -4,6 +4,10 @@
 #include "udebug.hpp"
 #include "unumeric.hpp"
 
+string strf(const long_double& value) {
+    return value.str();
+}
+
 vector<long long> divideInterval(long long start, long long end, int div){
     vector<long long> result;
     long long intervalLength = end - start + 1;

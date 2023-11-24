@@ -31,6 +31,7 @@ private:
 	map<string, unique_ptr<double>> varTable;
 private:
 	bool addVariable(Bound bound);
+	string substitute(shared_ptr<Constraint> con);
 public:
 	static const int NO_REPEAT = -1;
 	string tableName;
@@ -45,8 +46,12 @@ public:
 	void setRepeat(const int& repeat);
 	void addConstraint(shared_ptr<Constraint> con);
 	void setObjective(shared_ptr<Objective> obj);
+	void setVariable(string var, double value);
 	bool validate();
-	operator string() const;
+	int countStochastic();
+	double getValue(const Bound& bound) const;
+	Bound getBound(const Bound& bound) const;
+	operator string();
 	string strAttrList() const;
 };
 

@@ -8,14 +8,13 @@
 #include <vector>
 #include <type_traits>
 #include <stdexcept>
-#include <fmt/core.h>
 #include <boost/multiprecision/gmp.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include "udeclare.hpp"
 #include "udebug.hpp"
 
-namespace mp = boost::multiprecision;
-
+using std::to_string;
 using std::shared_ptr;
 using std::unique_ptr;
 using std::string;
@@ -23,28 +22,9 @@ using std::map;
 using std::vector;
 using std::is_same;
 
-template <typename T>
-string strf(const T& value);
-
-template<>
-inline string strf(const float& value) {
-    return fmt::format("{:.7f}", value);
-}
-
-template<>
-inline string strf(const double& value) {
-    return fmt::format("{:.16f}", value);
-}
-
-template<>
-inline string strf(const long double& value) {
-    return fmt::format("{:.16Lf}", value);
-}
-
-template <>
-inline string strf(const long_double& value) {
-    return value.str();
-}
+string strf(const float& value);
+string strf(const double& value);
+string strf(const long double& value);
 
 struct PGconnDeleter {
     void operator()(PGconn* conn) {
@@ -72,6 +52,7 @@ public:
     long long getTableSize(const string& tableName);
     vector<string> getTables();
     map<string, Column> getColumns(const string& tableName);
+    int getColumnLength(const string& tableName, const string& columnName);
     void addColumn(const string& tableName, const string& columnName, const string& pgType);
     bool existTable(const string& tableName);
     void dropTable(const string& tableName);
@@ -87,10 +68,18 @@ public:
     bool fetchRow();
     long long getBigInt(int columnIndex);
     double getNumeric(int columnIndex);
-    void getRealArray(int columnIndex, vector<float>& result);
+    void getFloatArray(int columnIndex, vector<float>& result);
+    void getDoubleArray(int columnIndex, vector<double>& result);
 };
 
-string to_string(const vector<float>& arr);
+template<typename T>
+string to_string(const vector<T>& arr){
+	vector<string> strArr (arr.size());
+	for (size_t i = 0; i < arr.size(); ++i){
+		strArr[i] = strf(arr[i]);
+	}
+	return fmt::format("{{{0}}}", boost::join(strArr, ","));
+}
 
 class AsyncUpdate{
 private:

@@ -19,6 +19,9 @@ Config::Config(){
     auto physicalCores = pt.get_optional<unsigned int>("hardware.physical_cores");
     if (physicalCores) nPhysicalCores = *physicalCores;
     else nPhysicalCores = std::thread::hardware_concurrency() / 2;
+
+    seedMode = pt.get<unsigned int>("parameters.seed");
+    if (seedMode == -1) seedMode = rd();
 }
 
 shared_ptr<Config> Config::config = nullptr;
@@ -28,4 +31,9 @@ shared_ptr<Config> Config::getInstance(){
         config = std::make_shared<Config>();
     }
     return config;
+}
+
+unsigned int Config::seed(){
+    if (seedMode >= 0) return seedMode;
+    return rd();
 }

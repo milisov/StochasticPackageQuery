@@ -2,7 +2,6 @@
 #include <iostream>
 #include <filesystem>
 #include <algorithm>
-#include <boost/algorithm/string.hpp>
 
 #include "uconfig.hpp"
 #include "uio.hpp"
@@ -10,6 +9,18 @@
 using boost::algorithm::to_lower;
 using std::cerr;
 using std::make_unique;
+
+string strf(const float& value) {
+    return fmt::format("{:.7f}", value);
+}
+
+string strf(const double& value) {
+    return fmt::format("{:.16f}", value);
+}
+
+string strf(const long double& value) {
+    return fmt::format("{:.16Lf}", value);
+}
 
 string PgManager::id, PgManager::schema;
 vector<vector<string>> PgManager::typeGroups (toColumn.size()-1);
@@ -19,7 +30,7 @@ string PgManager::getConnInfo(){
 	schema = pt.get<string>("postgres.schema");
 	id = pt.get<string>("pgmanager.index_column");
 	for (size_t i = 0; i < typeGroups.size(); ++i){
-		string columnType = to_string(static_cast<Column>(i));
+		string columnType = str(static_cast<Column>(i));
 		boost::split(typeGroups[i], pt.get<string>(fmt::format("pgmanager.{}", columnType)), boost::is_any_of(","));
 	}
 
@@ -117,6 +128,26 @@ map<string, Column> PgManager::getColumns(const string& tableName){
 	return columns;
 }
 
+int PgManager::getColumnLength(const string& tableName, const string& columnName){
+	int len = 0;
+	string sql = fmt::format(" \
+		SELECT udt_name::regtype FROM information_schema.columns \
+		WHERE table_schema = '{}' AND table_name = '{}' AND column_name='{}'", schema, tableName, columnName);
+	auto res = PQexec(conn.get(), sql.c_str());
+	ck(conn, res);
+	auto columnType = PgManager::getColumn(string(PQgetvalue(res, 0, 0)));
+	PQclear(res);
+	if (columnType == Column::numeric_type || columnType == Column::string_type) len=1;
+	else if (columnType == Column::array_type){
+		sql = fmt::format("SELECT array_length({}, 1) FROM \"{}\" LIMIT 1", columnName, tableName);
+		res = PQexec(conn.get(), sql.c_str());
+		ck(conn, res);
+		len = atoi(PQgetvalue(res, 0, 0));
+		PQclear(res);
+	}
+	return len;
+}
+
 void PgManager::addColumn(const string& tableName, const string& columnName, const string& pgType){
 	string sql = fmt::format("ALTER TABLE \"{}\" ADD COLUMN \"{}\" {}", tableName, columnName, pgType);
 	auto res = PQexec(conn.get(), sql.c_str());
@@ -174,7 +205,7 @@ double SingleRow::getNumeric(int columnIndex){
 }
 
 
-void SingleRow::getRealArray(int columnIndex, vector<float>& result){
+void SingleRow::getFloatArray(int columnIndex, vector<float>& result){
 	char* pEnd = PQgetvalue(res, 0, columnIndex);
 	char* curPtr;
 	while (*pEnd != '}'){
@@ -183,12 +214,13 @@ void SingleRow::getRealArray(int columnIndex, vector<float>& result){
 	}
 }
 
-string to_string(const vector<float>& arr){
-	vector<string> strArr (arr.size());
-	for (size_t i = 0; i < arr.size(); ++i){
-		strArr[i] = strf(arr[i]);
+void SingleRow::getDoubleArray(int columnIndex, vector<double>& result){
+	char* pEnd = PQgetvalue(res, 0, columnIndex);
+	char* curPtr;
+	while (*pEnd != '}'){
+		curPtr = pEnd+1;
+		result.push_back(strtod(curPtr, &pEnd));
 	}
-	return fmt::format("{{{0}}}", boost::join(strArr, ","));
 }
 
 const string AsyncUpdate::stmName = "async";

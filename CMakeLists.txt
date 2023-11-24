@@ -46,8 +46,10 @@ file(GLOB ALL_SRCS
   "${PROJECT_SOURCE_DIR}/${TEST}/${MAIN_NAME}.cpp"
   "${PROJECT_SOURCE_DIR}/${SRC}/util/*.hpp"
   "${PROJECT_SOURCE_DIR}/${SRC}/spq/*.hpp"
+  "${PROJECT_SOURCE_DIR}/${SRC}/core/*.hpp"
   "${PROJECT_SOURCE_DIR}/${SRC}/util/*.cpp"
   "${PROJECT_SOURCE_DIR}/${SRC}/spq/*.cpp"
+  "${PROJECT_SOURCE_DIR}/${SRC}/core/*.cpp"
 )
 
 add_executable(${EXECUTABLE_NAME} ${ALL_SRCS})

@@ -1,8 +1,4 @@
 #include <boost/algorithm/string.hpp>
-#include <boost/accumulators/accumulators.hpp>
-#include <boost/accumulators/statistics/stats.hpp>
-#include <boost/accumulators/statistics/sum.hpp>
-#include <boost/accumulators/statistics/variance.hpp>
 #include <fmt/core.h>
 #include <libpq-fe.h>
 #include <omp.h>
@@ -11,24 +7,23 @@
 #include "stat.hpp"
 #include "util/uconfig.hpp"
 #include "util/udebug.hpp"
-#include "util/unumeric.hpp"
+#include "util/udeclare.hpp"
+#include "core/kde.hpp"
 
 using boost::algorithm::to_lower_copy;
 using std::make_unique;
 using std::cerr;
-
-namespace ba = boost::accumulators;
-typedef ba::accumulator_set<long double, ba::stats<ba::tag::sum, ba::tag::variance>> AccSet;
+using std::to_string;
 
 bool Stat::rebuildStat = to_lower_copy(Config::getInstance()->pt.get<string>("build.rebuild_stat")) == "true";
-string Stat::statTable = Config::getInstance()->pt.get<string>("pgmanager.stat_table");
+const string Stat::statTable = Config::getInstance()->pt.get<string>("pgmanager.stat_table");
 
 Stat::Stat(){
     pg = make_unique<PgManager>();
     if (!pg->existTable(statTable) || rebuildStat){
         rebuildStat = false;
         if (pg->existTable(statTable)) pg->dropTable(statTable);
-        string sql = fmt::format("CREATE TABLE {} (\
+        string sql = fmt::format("CREATE TABLE \"{}\" (\
             table_name VARCHAR(50), \
             column_name VARCHAR(50), \
             sum NUMERIC, \
@@ -41,7 +36,7 @@ Stat::Stat(){
 }
 
 bool Stat::isAnalyzed(const string& tableName, const string& columnName){
-    string sql = fmt::format("SELECT * FROM \"{}\" WHERE table_name='{}' AND column_name='{}'", statTable, tableName, columnName);
+    string sql = fmt::format("SELECT count FROM \"{}\" WHERE table_name='{}' AND column_name='{}'", statTable, tableName, columnName);
     auto res = PQexec(pg->conn.get(), sql.c_str());
     ck(pg->conn, res);
     bool analyzed = PQntuples(res) > 0;
@@ -115,7 +110,12 @@ void Stat::analyzeStochastic(const string& tableName, const string& columnName){
         }
         auto nCores = Config::getInstance()->nPhysicalCores;
         auto intervals = divideInterval(1, tableSize, nCores);
-        int count = 0;
+        int count = 0, N = pg->getColumnLength(tableName, columnName);
+        vector<float> quantiles (2*N+1, 0);
+        quantiles.back() = 1;
+        for (size_t i=1; i < quantiles.size()-1; ++i){
+            quantiles[i] = static_cast<float>(i)/(2*N);
+        }
         AccAggregator agg;
         #pragma omp parallel num_threads(nCores)
         {
@@ -124,17 +124,23 @@ void Stat::analyzeStochastic(const string& tableName, const string& columnName){
             SingleRow sr = SingleRow(fmt::format("SELECT {},{} FROM \"{}\" WHERE {} BETWEEN {} AND {}", PgManager::id, columnName, tableName, PgManager::id, intervals[coreIndex], intervals[coreIndex+1]-1));
             while (sr.fetchRow()){
                 long long id = sr.getBigInt(0);
-                vector<float> samples;
-                sr.getRealArray(1, samples);
-                AccSet acc;
-                for (auto sample : samples) acc(sample);
+                vector<double> samples;
+                sr.getDoubleArray(1, samples);
+                KDE kde (samples, true);
                 au.set(0, id);
-                au.set(1, ba::sum(acc)/samples.size());
-                au.set(2, ba::variance(acc));
-                au.set(3, samples);
+                au.set(1, kde.getMean());
+                au.set(2, kde.getVariance());
+                vector<float> qseq = quantiles;
+                kde.getQuantiles(qseq);
+                au.set(3, qseq);
                 au.send();
+                #pragma omp critical
+                {
+                    agg.add(kde.getSum(), kde.getM2(), samples.size());
+                }
             }
         }
+        addStat(tableName, columnName, agg.getSum(), agg.getM2(), agg.getCount());
     }
 }
 
@@ -187,5 +193,23 @@ void Stat::addStat(const string& tableName, const string& columnName, const long
     }
     auto res = PQexec(pg->conn.get(), sql.c_str());
     ck(pg->conn, res);
+    PQclear(res);
+}
+
+void Stat::getStochasticMeanVar(const string& tableName, const string& columnName, unordered_map<long long, pair<double, double>>& storages){
+    if (!isAnalyzed(tableName, columnName)){
+        cerr << fmt::format("Column '{}' has not been analyzed in table '{}'\n", columnName, tableName);
+        exit(1);
+    }
+    vector<string> strIds; strIds.reserve(storages.size());
+    for (const auto& p : storages) {
+        strIds.push_back(to_string(p.first));
+    }
+    string sql = fmt::format("SELECT {},{}_mean,{}_variance FROM \"{}_summary\" WHERE {} IN ({})", PgManager::id, columnName, columnName, tableName, PgManager::id, boost::join(strIds, ","));
+    auto res = PQexec(pg->conn.get(), sql.c_str());
+    ck(pg->conn, res);
+    for (int i = 0; i < PQntuples(res); ++i){
+        storages[atoll(PQgetvalue(res, i, 0))] = {atof(PQgetvalue(res, i, 1)), atof(PQgetvalue(res, i, 2))};
+    }
     PQclear(res);
 }

@@ -10,7 +10,6 @@
 #include <fmt/core.h>
 #include <boost/variant.hpp>
 #include <boost/preprocessor.hpp>
-#include <boost/multiprecision/gmp.hpp>
 
 using std::string;
 using std::ostringstream;
@@ -19,8 +18,6 @@ using std::vector;
 using std::ostream;
 using std::map;
 
-using long_double = boost::multiprecision::number<boost::multiprecision::backends::gmp_float<1<<10>>;
-
 /**
  * @brief ENUM MACRO
  * 
@@ -28,7 +25,7 @@ using long_double = boost::multiprecision::number<boost::multiprecision::backend
 
 #define ENUM(name, ...)  \
     enum name { __VA_ARGS__ };\
-    extern string to_string(name value); \
+    extern string str(name value); \
     extern name to_##name(size_t index); \
     extern int to_index(name value); \
     extern ostream& operator<<(ostream& os, const name& value);\
@@ -57,14 +54,7 @@ struct VariantToString : public boost::static_visitor<string> {
     }
 };
 
-inline string to_string(const Bound& bound) {
-    return boost::apply_visitor(VariantToString(), bound);
-}
-
-inline string to_string(const pair<Bound, Bound>& bounds){
-    if (bounds.first.which() == 1 && boost::get<double>(bounds.first) == NEG_INF) return fmt::format("<= {}", to_string(bounds.second));
-    if (bounds.second.which() == 1 && boost::get<double>(bounds.second) == POS_INF) return fmt::format(">= {}", to_string(bounds.first));
-    return fmt::format("BETWEEN {} AND {}", to_string(bounds.first), to_string(bounds.second));
-}
+string str(const Bound& bound);
+string str(const pair<Bound, Bound>& bounds);
 
 #endif

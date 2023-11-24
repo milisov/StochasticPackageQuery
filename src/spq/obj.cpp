@@ -16,7 +16,7 @@ CountObjective::CountObjective(const string& objSense): Objective(objSense){
 }
 
 CountObjective::operator string() const{
-    return fmt::format("{} COUNT(*)", to_string(objSense));
+    return fmt::format("{} COUNT(*)", str(objSense));
 }
 
 SumObjective::SumObjective(const string& objSense, const string& obj): Objective(objSense), AttrObjective(obj){
@@ -24,7 +24,7 @@ SumObjective::SumObjective(const string& objSense, const string& obj): Objective
 }
 
 SumObjective::operator string() const{
-    return fmt::format("{} SUM({})", to_string(objSense), obj);
+    return fmt::format("{} SUM({})", str(objSense), obj);
 }
 
 ExpectedSumObjective::ExpectedSumObjective(const string& objSense, const string& obj): Objective(objSense), AttrObjective(obj){
@@ -32,5 +32,5 @@ ExpectedSumObjective::ExpectedSumObjective(const string& objSense, const string&
 }
 
 ExpectedSumObjective::operator string() const{
-    return fmt::format("{} EXPECTED SUM({})", to_string(objSense), obj);
+    return fmt::format("{} EXPECTED SUM({})", str(objSense), obj);
 }

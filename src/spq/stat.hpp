@@ -3,17 +3,21 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
+#include <utility>
 
 #include "util/uio.hpp"
-#include "util/udeclare.hpp"
+#include "util/unumeric.hpp"
 
 using std::unique_ptr;
 using std::string;
+using std::unordered_map;
+using std::pair;
 
 class Stat{
 private:
     static bool rebuildStat;
-    static string statTable;
+    static const string statTable;
     unique_ptr<PgManager> pg;
 private:
     bool isAnalyzed(const string& tableName, const string& columnName);
@@ -23,6 +27,7 @@ private:
 public:
     Stat();
     bool analyze(const string& tableName);
+    void getStochasticMeanVar(const string& tableName, const string& columnName, unordered_map<long long, pair<double, double>>& storages);
 };
 
 #endif

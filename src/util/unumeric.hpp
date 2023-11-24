@@ -5,11 +5,38 @@
 #include <ostream>
 #include <string>
 
-#include "udeclare.hpp"
+#include <boost/multiprecision/gmp.hpp>
+#include <boost/accumulators/accumulators.hpp>
+#include <boost/accumulators/statistics/stats.hpp>
+#include <boost/accumulators/statistics/sum.hpp>
+#include <boost/accumulators/statistics/variance.hpp>
 
 using std::string;
 using std::vector;
 using std::ostream;
+
+namespace ba = boost::accumulators;
+typedef ba::accumulator_set<long double, ba::stats<ba::tag::sum, ba::tag::variance>> AccSet;
+using long_double = boost::multiprecision::number<boost::multiprecision::backends::gmp_float<1<<10>>;
+
+const double MACHINE_EPS = 1e-16;
+
+template<typename T>
+T sortedMedian(const vector<T>& arr, size_t st, size_t fn){
+    auto len = fn - st + 1;
+    if (len%2) return arr[st+len/2];
+    len /= 2;
+    return (arr[st+len] + arr[st+len-1]) / 2;
+}
+
+template<typename T>
+T sortedIQR(const vector<T>& arr){
+    size_t half = arr.size()/2;
+    if (arr.size()%2) return sortedMedian(arr, half+1, arr.size()-1) - sortedMedian(arr, 0, half-1);
+    return sortedMedian(arr, half, arr.size()-1) - sortedMedian(arr, 0, half-1);
+}
+
+string strf(const long_double& value);
 
 /**
  * @brief Divide the interval [start, end] inclusively into div intervals
