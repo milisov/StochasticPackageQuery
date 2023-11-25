@@ -36,11 +36,18 @@ void test(){
 		deb(spq->validate());
 		unique_ptr<Stat> stat = std::make_unique<Stat>();
 		stat->analyze(spq->tableName);
-		size_t N = 100;
-		double E = 10.5;
+		size_t N = 1000;
+		double E = 150;
+		CLK(pro, "initBounder");
 		Bounder bounder (spq, N, E);
-		// spq->setVariable("l1", 10);
-		// cout << spq;
+		STP(pro, "initBounder");
+		vector<double> hards;
+		for (double i = -10; i <= 10; i ++) hards.push_back(i);
+		CLK(pro, "hard");
+		bounder.generate(hards);
+		bounder.set(1);
+		STP(pro, "hard");
+		deb(spq->executable(), spq);
 	}
 	STOP(pro);
 	PRINT(pro);

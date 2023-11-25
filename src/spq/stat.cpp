@@ -131,7 +131,7 @@ void Stat::analyzeStochastic(const string& tableName, const string& columnName){
                 au.set(1, kde.getMean());
                 au.set(2, kde.getVariance());
                 vector<float> qseq = quantiles;
-                kde.getQuantiles(qseq);
+                kde.getSortedQuantiles(qseq);
                 au.set(3, qseq);
                 au.send();
                 #pragma omp critical
@@ -196,7 +196,7 @@ void Stat::addStat(const string& tableName, const string& columnName, const long
     PQclear(res);
 }
 
-void Stat::getStochasticMeanVar(const string& tableName, const string& columnName, unordered_map<long long, pair<double, double>>& storages){
+void Stat::getStoMeanVar(const string& tableName, const string& columnName, unordered_map<long long, pair<double, double>>& storages){
     if (!isAnalyzed(tableName, columnName)){
         cerr << fmt::format("Column '{}' has not been analyzed in table '{}'\n", columnName, tableName);
         exit(1);
@@ -212,4 +212,32 @@ void Stat::getStochasticMeanVar(const string& tableName, const string& columnNam
         storages[atoll(PQgetvalue(res, i, 0))] = {atof(PQgetvalue(res, i, 1)), atof(PQgetvalue(res, i, 2))};
     }
     PQclear(res);
+}
+
+void Stat::getDetAttrs(const string& tableName, const string& columnName, unordered_map<long long, double>& detrages){
+    vector<string> strIds; strIds.reserve(detrages.size());
+    for (const auto& p : detrages) {
+        strIds.push_back(to_string(p.first));
+    }
+    string sql = fmt::format("SELECT {},{} FROM \"{}\" WHERE {} IN ({})", PgManager::id, columnName, tableName, PgManager::id, boost::join(strIds, ","));
+    auto res = PQexec(pg->conn.get(), sql.c_str());
+    ck(pg->conn, res);
+    for (int i = 0; i < PQntuples(res); ++i){
+        detrages[atoll(PQgetvalue(res, i, 0))] = atof(PQgetvalue(res, i, 1));
+    }
+    PQclear(res);
+}
+
+pair<double, double> Stat::getDetMeanVar(const string& tableName, const string& columnName){
+    if (!isAnalyzed(tableName, columnName)){
+        cerr << fmt::format("Column '{}' has not been analyzed in table '{}'\n", columnName, tableName);
+        exit(1);
+    }
+    string sql = fmt::format("SELECT sum/count,m2/count FROM \"{}\" WHERE table_name='{}' AND column_name='{}'", statTable, tableName, columnName);
+    auto res = PQexec(pg->conn.get(), sql.c_str());
+    ck(pg->conn, res);
+    pair<double, double> result;
+    result.first = atof(PQgetvalue(res, 0, 0));
+    result.second = atof(PQgetvalue(res, 0, 1));
+    return result;
 }

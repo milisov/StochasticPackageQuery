@@ -44,6 +44,15 @@ string strf(const long_double& value);
  */
 vector<long long> divideInterval(long long start, long long end, int div);
 
+/**
+ * @brief Compute sigmoid function with multiplicity k
+ * 
+ * @param x 
+ * @param k 
+ * @return double 
+ */
+double sigmoid(const double& x, const double& k=1.0);
+
 class AccAggregator{
 private:
     long_double sum, M2;

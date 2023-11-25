@@ -27,7 +27,9 @@ private:
 public:
     Stat();
     bool analyze(const string& tableName);
-    void getStochasticMeanVar(const string& tableName, const string& columnName, unordered_map<long long, pair<double, double>>& storages);
+    void getStoMeanVar(const string& tableName, const string& columnName, unordered_map<long long, pair<double, double>>& storages);
+    void getDetAttrs(const string& tableName, const string& columnName, unordered_map<long long, double>& detrages);
+    pair<double, double> getDetMeanVar(const string& tableName, const string& columnName);
 };
 
 #endif

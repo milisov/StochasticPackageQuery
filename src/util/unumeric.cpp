@@ -1,5 +1,6 @@
 #include <cmath>
 #include <fmt/core.h>
+#include <boost/math/special_functions/logaddexp.hpp>
 
 #include "udebug.hpp"
 #include "unumeric.hpp"
@@ -20,6 +21,10 @@ vector<long long> divideInterval(long long start, long long end, int div){
     }
     result.push_back(end + 1);
     return result;
+}
+
+double sigmoid(const double& x, const double& k){
+    return exp(-boost::math::logaddexp(0.0, -k*x));
 }
 
 AccAggregator::AccAggregator(){

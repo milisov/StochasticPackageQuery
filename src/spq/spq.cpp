@@ -84,13 +84,14 @@ void StochasticPackageQuery::setObjective(shared_ptr<Objective> obj){
 
 void StochasticPackageQuery::setVariable(string var, double value){
 	if (!varTable.count(var)){
-		cerr << fmt::format("Variable '{}' is not in the SPQ '{}'\n", var, operator string());
+		cerr << fmt::format("Variable '{}' is not in the SPQ '{}' (If not, it means you have not validated the SPQ)\n", var, operator string());
 		exit(1);
 	}
 	varTable[var] = std::move(std::make_unique<double>(value));
 }
 
 bool StochasticPackageQuery::validate(){
+	varTable.clear();
 	auto pg = PgManager();
 	if (!pg.existTable(tableName)){
 		cerr << fmt::format("Table '{}' does not exist\n", tableName);
@@ -170,6 +171,13 @@ bool StochasticPackageQuery::validate(){
 				return false;
 			}
 		}
+	}
+	return true;
+}
+
+bool StochasticPackageQuery::executable(){
+	for (const auto& p : varTable){
+		if (!(p.second)) return false;
 	}
 	return true;
 }

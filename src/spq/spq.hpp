@@ -48,6 +48,7 @@ public:
 	void setObjective(shared_ptr<Objective> obj);
 	void setVariable(string var, double value);
 	bool validate();
+	bool executable();
 	int countStochastic();
 	double getValue(const Bound& bound) const;
 	Bound getBound(const Bound& bound) const;

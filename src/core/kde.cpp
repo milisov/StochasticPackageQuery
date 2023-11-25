@@ -9,6 +9,7 @@
 using std::min;
 using std::max;
 using std::partial_sum;
+using std::sort;
 
 void KDE::getSupports(const vector<double>& sortedArr, const double& h){
     auto n = sortedArr.size();
@@ -75,7 +76,7 @@ KDE::KDE(const vector<double>& arr, bool quickMode){
     double std = sqrt(variance);
 
     vector<double> sortedArr = arr;
-    std::sort(sortedArr.begin(), sortedArr.end());
+    sort(sortedArr.begin(), sortedArr.end());
     double h = max(0.9*min(std, sortedIQR(sortedArr)/1.34)*pow(static_cast<double>(n), -0.2), MACHINE_EPS);
     getSupports(sortedArr, h);
 
@@ -111,26 +112,10 @@ double KDE::getVariance() const{
     return variance;
 }
 
-/**
- * @brief Compute sorted quantiles quickly without offline cumCdf
- * 
- * @param sortedQuantile results will be in-place
- */
-void KDE::getQuantiles(vector<float>& sortedQuantile) const{
-    double cdfV = 0, nextCdfV;
-    size_t sIndex = 1, qIndex = 0, n = sortedQuantile.size(), N = sup.size();
-    while (qIndex < n){
-        while (sIndex < N && (nextCdfV=cdfV+(sup[sIndex]-sup[sIndex-1])*supPdf[sIndex]) <= sortedQuantile[qIndex]){
-            cdfV = nextCdfV;
-            sIndex ++;
-        }
-        if (sIndex == N){
-            for (size_t i = qIndex; i<n; ++i) sortedQuantile[i] = sup.back();
-            break;
-        }
-        while (qIndex < n && sortedQuantile[qIndex] < nextCdfV){
-            sortedQuantile[qIndex] = (sortedQuantile[qIndex]-cdfV)/supPdf[sIndex]+sup[sIndex-1];
-            qIndex ++;
-        }
-    }
+double KDE::getMin() const{
+    return sup.front();
+}
+
+double KDE::getMax() const{
+    return sup.back();
 }

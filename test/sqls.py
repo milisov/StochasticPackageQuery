@@ -1,15 +1,28 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[30]:
+# In[37]:
 
 
-import configparser
+import configparser, os, glob
 spaql_file = '../resource/sqls/{}.spaql'
 config_file = '../config.cfg'
 config = configparser.ConfigParser()
 config.read(config_file)
 config['partition'] = {}
+
+
+# In[39]:
+
+
+sqls_folder = '../resource/sqls'
+pattern = os.path.join(sqls_folder, '_*.spaql')
+files_to_remove = glob.glob(pattern)
+for file_path in files_to_remove:
+    try:
+        os.remove(file_path)
+    except OSError as e:
+        print(f"Error: {file_path} : {e.strerror}")
 
 
 # In[31]:
