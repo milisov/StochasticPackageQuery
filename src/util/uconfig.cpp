@@ -20,7 +20,7 @@ Config::Config(){
     if (physicalCores) nPhysicalCores = *physicalCores;
     else nPhysicalCores = std::thread::hardware_concurrency() / 2;
 
-    seedMode = pt.get<unsigned int>("parameters.seed");
+    seedMode = pt.get<long long>("parameters.seed");
     if (seedMode == -1) seedMode = rd();
 }
 
@@ -34,6 +34,6 @@ shared_ptr<Config> Config::getInstance(){
 }
 
 unsigned int Config::seed(){
-    if (seedMode >= 0) return seedMode;
+    if (seedMode >= 0) return static_cast<unsigned int>(seedMode);
     return rd();
 }

@@ -7,8 +7,8 @@
 #include <ostream>
 #include <map>
 
-#include "cons.hpp"
-#include "obj.hpp"
+#include "spq/cons.hpp"
+#include "spq/obj.hpp"
 
 using std::vector;
 using std::string;
@@ -23,11 +23,12 @@ using std::map;
  * It can contains abstract information about the bounds of the constraints.
  * These bounds can be realized after calling StochasticQueryGenerator on this class
  * with appropriate hardness and expected size.
- * @param repeat if -1 then Stochastic Linear Programming
+ * @param repeat if -1 then No upper bound
  * @param obj if nullptr then no objective, i.e., feasibility test
  */
 class StochasticPackageQuery{
 private:
+	bool isValid;
 	map<string, unique_ptr<double>> varTable;
 private:
 	bool addVariable(Bound bound);

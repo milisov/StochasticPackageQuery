@@ -9,7 +9,7 @@ using std::string;
 
 class Objective{
 public:
-    ObjSense objSense;
+    ObjectiveSense objSense;
 public:
     Objective(const string& objSense);
 	virtual operator string() const = 0;

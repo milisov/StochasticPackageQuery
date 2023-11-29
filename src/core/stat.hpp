@@ -18,17 +18,17 @@ class Stat{
 private:
     static bool rebuildStat;
     static const string statTable;
-    unique_ptr<PgManager> pg;
 private:
     bool isAnalyzed(const string& tableName, const string& columnName);
     void addStat(const string& tableName, const string& columnName, const long_double sum, const long_double m2, const long long count);
     void analyzeStochastic(const string& tableName, const string& columnName);
     void analyzeDeterministic(const string& tableName, const vector<string>& columnNames);
 public:
+    unique_ptr<PgManager> pg;
     Stat();
     bool analyze(const string& tableName);
-    void getStoMeanVar(const string& tableName, const string& columnName, unordered_map<long long, pair<double, double>>& storages);
-    void getDetAttrs(const string& tableName, const string& columnName, unordered_map<long long, double>& detrages);
+    void getStoMeanVars(const string& tableName, const string& columnName, const string& joinId, vector<double>& means, vector<double>& vars);
+    void getDetAttrs(const string& tableName, const string& columnName,const string& joinId, vector<double>& attrs);
     pair<double, double> getDetMeanVar(const string& tableName, const string& columnName);
 };
 

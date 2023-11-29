@@ -60,6 +60,7 @@ string StochasticPackageQuery::substitute(shared_ptr<Constraint> con){
 
 StochasticPackageQuery::StochasticPackageQuery(){
 	repeat = StochasticPackageQuery::NO_REPEAT;
+	isValid = false;
 }
 
 void StochasticPackageQuery::setTableName(const string& tableName){
@@ -91,6 +92,7 @@ void StochasticPackageQuery::setVariable(string var, double value){
 }
 
 bool StochasticPackageQuery::validate(){
+	if (isValid) return isValid;
 	varTable.clear();
 	auto pg = PgManager();
 	if (!pg.existTable(tableName)){
@@ -99,7 +101,7 @@ bool StochasticPackageQuery::validate(){
 	}
 	auto columns = pg.getColumns(tableName);
 	if (attrList.size()){
-		for (auto attr : attrList){
+		for (const auto& attr : attrList){
 			if (!columns.count(attr)){
 				cerr << fmt::format("Column '{}' in table '{}' is not found\n", attr, tableName);
 				return false;
@@ -110,7 +112,7 @@ bool StochasticPackageQuery::validate(){
 			}
 		}
 	} else {
-		for (auto column : columns){
+		for (const auto& column : columns){
 			if (column.second != Column::unsupported) attrList.push_back(column.first);
 		}
 	}
@@ -118,7 +120,7 @@ bool StochasticPackageQuery::validate(){
 		cerr << fmt::format("Invalid repeat value '{}'\n", repeat);
 		return false;
 	}
-	for (auto con : cons){
+	for (const auto& con : cons){
 		if (!con){
 			cerr << "Encountered null constraint\n";
 			return false;
@@ -172,6 +174,7 @@ bool StochasticPackageQuery::validate(){
 			}
 		}
 	}
+	isValid = true;
 	return true;
 }
 
@@ -184,7 +187,7 @@ bool StochasticPackageQuery::executable(){
 
 int StochasticPackageQuery::countStochastic(){
 	int res = 0;
-	for (auto con : cons){
+	for (const auto& con : cons){
 		shared_ptr<ProbConstraint> probCon = dynamic_pointer_cast<ProbConstraint>(con);
 		if (probCon) res ++;
 	}
@@ -195,7 +198,7 @@ StochasticPackageQuery::operator string(){
 	string res = fmt::format("SELECT PACKAGE({}) FROM {}", strAttrList(), tableName);
 	if (cons.size()) res += " SUCH THAT\n";
 	vector<string> strCons;
-	for (auto con : cons){
+	for (const auto& con : cons){
 		if (con) strCons.push_back("\t" + substitute(con));
 	}
 	res += join(strCons, " AND\n") + '\n';

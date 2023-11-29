@@ -14,7 +14,7 @@ fs::path getProjectDir();
 
 class Config{
 private:
-    unsigned int seedMode;
+    long long seedMode;
     std::random_device rd;
 protected:
     static shared_ptr<Config> config;

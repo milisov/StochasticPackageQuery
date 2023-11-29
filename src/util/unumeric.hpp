@@ -4,6 +4,7 @@
 #include <vector>
 #include <ostream>
 #include <string>
+#include <cmath>
 
 #include <boost/multiprecision/gmp.hpp>
 #include <boost/accumulators/accumulators.hpp>
@@ -19,7 +20,8 @@ namespace ba = boost::accumulators;
 typedef ba::accumulator_set<long double, ba::stats<ba::tag::sum, ba::tag::variance>> AccSet;
 using long_double = boost::multiprecision::number<boost::multiprecision::backends::gmp_float<1<<10>>;
 
-const double MACHINE_EPS = 1e-16;
+const double MACHINE_EPS = 1e-12;
+const double LOG_MACHINE_EPS = log(MACHINE_EPS);
 
 template<typename T>
 T sortedMedian(const vector<T>& arr, size_t st, size_t fn){
@@ -52,6 +54,12 @@ vector<long long> divideInterval(long long start, long long end, int div);
  * @return double 
  */
 double sigmoid(const double& x, const double& k=1.0);
+
+double normalize(vector<double>& vec);
+double norm(const vector<double>& vec);
+double detViolate(const double& posDif);
+double logit(const double& x);
+double logLogit(const vector<double>& vios);
 
 class AccAggregator{
 private:

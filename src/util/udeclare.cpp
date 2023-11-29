@@ -14,8 +14,8 @@
 	map<string, name> init##name(vector<string> vec) { map<string, name> res; int index = 0; for (const auto& str : vec) res[str] = static_cast<name>(index++); return res;} \
 	map<string, name> to##name = init##name(from##name)
 
-ENUM_INIT(Ineq, <=, >=);
-ENUM_INIT(ObjSense, MAXIMIZE, MINIMIZE);
+ENUM_INIT(Inequality, <=, >=);
+ENUM_INIT(ObjectiveSense, MAXIMIZE, MINIMIZE);
 ENUM_INIT(Column, numeric_type, string_type, array_type, unsupported);
 
 string str(const Bound& bound) {

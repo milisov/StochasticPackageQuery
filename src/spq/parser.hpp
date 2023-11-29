@@ -6,9 +6,9 @@
 #include <boost/spirit/include/qi.hpp>
 #include <boost/phoenix.hpp>
 
-#include "spq.hpp"
-#include "cons.hpp"
-#include "obj.hpp"
+#include "spq/spq.hpp"
+#include "spq/cons.hpp"
+#include "spq/obj.hpp"
 #include "util/uio.hpp"
 
 using std::shared_ptr;

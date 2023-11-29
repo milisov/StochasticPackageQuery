@@ -21,7 +21,7 @@ public:
 class ProbConstraint : public Constraint {
 public:
     Bound v, p;
-    Ineq vsign, psign;
+    Inequality vsign, psign;
     ProbConstraint(const Bound& v, const Bound& p, const string& vsign, const string& psign);
 };
 

@@ -6,8 +6,8 @@ BoundConstraint::BoundConstraint(const Bound& lb, const Bound& ub) : lb(lb), ub(
 }
 
 ProbConstraint::ProbConstraint(const Bound& v, const Bound& p, const string& vsign, const string& psign) : v(v), p(p) {
-    this->vsign = toIneq[vsign];
-    this->psign = toIneq[psign];
+    this->vsign = toInequality[vsign];
+    this->psign = toInequality[psign];
 }
 
 AttrConstraint::AttrConstraint(const string& attr): attr(attr){

@@ -6,7 +6,7 @@
 using boost::algorithm::to_upper_copy;
 
 Objective::Objective(const string& objSense){
-    this->objSense = toObjSense[to_upper_copy(objSense)];
+    this->objSense = toObjectiveSense[to_upper_copy(objSense)];
 }
 
 AttrObjective::AttrObjective(const string& obj): obj(obj){

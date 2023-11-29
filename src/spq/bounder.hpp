@@ -5,8 +5,8 @@
 #include <vector>
 #include <map>
 
-#include "stat.hpp"
-#include "spq.hpp"
+#include "spq/spq.hpp"
+#include "core/stat.hpp"
 #include "core/kde.hpp"
 #include "util/udeclare.hpp"
 

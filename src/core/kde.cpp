@@ -10,6 +10,7 @@ using std::min;
 using std::max;
 using std::partial_sum;
 using std::sort;
+using std::lower_bound;
 
 void KDE::getSupports(const vector<double>& sortedArr, const double& h){
     auto n = sortedArr.size();
@@ -118,4 +119,63 @@ double KDE::getMin() const{
 
 double KDE::getMax() const{
     return sup.back();
+}
+
+double KDE::getPdf(const double& x) const{
+    auto it = lower_bound(sup.begin(), sup.end(), x);
+    if (it == sup.end()) return 0;
+    return supPdf[it-sup.begin()];
+}
+
+double KDE::getQuickCdf(const double& x) const{
+    if (x < sup[0]) return 0;
+    double res = 0;
+    size_t ind = 1;
+    while (ind < sup.size() && x >= sup[ind]){
+        res += supPdf[ind]*(sup[ind]-sup[ind-1]);
+        ind ++;
+    }
+    if (ind == sup.size()) return 1;
+    return res + supPdf[ind]*(x-sup[ind-1]);
+}
+
+double KDE::convolve(const vector<double>& quantiles, const double& v, const double& m) const{
+    size_t n = sup.size();
+    size_t N = quantiles.size();
+    double res = 0, curV = 0, qV = 0;
+    size_t vxmInd = 0, qInd = 0;
+    double vxm = (v-sup.back()) / m;
+    double step = 0.5/(N-1);
+    while (1){
+        if (vxm < quantiles[qInd]){
+            double nextV = qV;
+            if (qInd > 0) nextV += (vxm+quantiles[qInd-1])*step;
+            if (vxmInd > 0) res += (nextV - curV)*supPdf[n-vxmInd];
+            curV = nextV;
+            vxmInd ++;
+            if (vxmInd == n) break;
+            vxm = (v-sup[n-vxmInd-1]) / m;
+        } else{
+            if (qInd > 0) qV += (quantiles[qInd]+quantiles[qInd-1])*step;
+            if (vxmInd > 0) res += (qV - curV)*supPdf[n-vxmInd];
+            curV = qV;
+            qInd ++;
+            if (qInd == N) break;
+        }
+    }
+    return -res;
+}
+
+// Normal mode
+
+double KDE::getCdf(const double& x) const{
+    auto it = lower_bound(sup.begin(), sup.end(), x);
+    auto ind = it-sup.begin();
+    if (ind == 0) return 0;
+    if (ind == sup.size()) return 1;
+    return cumCdf[ind-1] + supPdf[ind-1]*(x-sup[ind-1]);
+}
+
+double KDE::getCvarInv(const double& v) const{
+    return 0;
 }

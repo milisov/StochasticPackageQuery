@@ -1,6 +1,6 @@
-#include <cmath>
 #include <fmt/core.h>
-#include <boost/math/special_functions/logaddexp.hpp>
+#include <algorithm>
+#include <boost/math/special_functions/logsumexp.hpp>
 
 #include "udebug.hpp"
 #include "unumeric.hpp"
@@ -25,6 +25,37 @@ vector<long long> divideInterval(long long start, long long end, int div){
 
 double sigmoid(const double& x, const double& k){
     return exp(-boost::math::logaddexp(0.0, -k*x));
+}
+
+double normalize(vector<double>& vec){
+    double norm = 0;
+    for (const auto& v : vec) norm += v*v;
+    norm = sqrt(norm);
+    if (norm > 0) std::transform(vec.begin(), vec.end(), vec.begin(), [norm](const double& val) { return val/norm; });
+    return norm;
+}
+
+double norm(const vector<double>& vec){
+    double norm = 0;
+    for (const auto& v : vec) norm += v*v;
+    return sqrt(norm);
+}
+
+double detViolate(const double& posDif){
+    return 1-1.0/(posDif+1);
+}
+
+double logit(const double& x){
+    if (x == 1.0) return -LOG_MACHINE_EPS;
+    if (x == 0.0) return LOG_MACHINE_EPS;
+    return log(x)-log(1-x);
+}
+
+double logLogit(const vector<double>& vios){
+    vector<double> posVios;
+    for (const auto& v: vios) if (v > 0) posVios.push_back(logit(v));
+    if (!posVios.size()) return 0;
+    return boost::math::logsumexp(posVios);
 }
 
 AccAggregator::AccAggregator(){

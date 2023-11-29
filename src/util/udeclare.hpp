@@ -18,6 +18,9 @@ using std::vector;
 using std::ostream;
 using std::map;
 
+const double POS_INF = 1.0e30;
+const double NEG_INF = -1.0e30;
+
 /**
  * @brief ENUM MACRO
  * 
@@ -31,8 +34,8 @@ using std::map;
     extern ostream& operator<<(ostream& os, const name& value);\
     extern map<string, name> to##name
 
-ENUM(Ineq, lteq, gteq);
-ENUM(ObjSense, maximize, minimize);
+ENUM(Inequality, lteq, gteq);
+ENUM(ObjectiveSense, maximize, minimize);
 ENUM(Column, numeric_type, string_type, array_type, unsupported);
 
 /**
@@ -40,10 +43,8 @@ ENUM(Column, numeric_type, string_type, array_type, unsupported);
  * 
  */
 
-const double POS_INF = 1.0e30;
-const double NEG_INF = -1.0e30;
-
 using Bound = boost::variant<string, double>;
+using Option = boost::variant<bool, double, int>;
 
 struct VariantToString : public boost::static_visitor<string> {
     template <typename T>

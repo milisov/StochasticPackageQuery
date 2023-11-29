@@ -28,8 +28,8 @@ find_package(fmt REQUIRED)
 find_package(PostgreSQL REQUIRED)
 find_package(Boost REQUIRED)
 find_package(pcg-cpp REQUIRED)
-find_package(gfx-timsort REQUIRED)
 find_package(gmp REQUIRED)
+find_package(TBB REQUIRED)
 
 find_package(OpenMP REQUIRED)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
@@ -45,11 +45,13 @@ set(MAIN_NAME main)
 file(GLOB ALL_SRCS
   "${PROJECT_SOURCE_DIR}/${TEST}/${MAIN_NAME}.cpp"
   "${PROJECT_SOURCE_DIR}/${SRC}/util/*.hpp"
-  "${PROJECT_SOURCE_DIR}/${SRC}/spq/*.hpp"
-  "${PROJECT_SOURCE_DIR}/${SRC}/core/*.hpp"
   "${PROJECT_SOURCE_DIR}/${SRC}/util/*.cpp"
+  "${PROJECT_SOURCE_DIR}/${SRC}/spq/*.hpp"
   "${PROJECT_SOURCE_DIR}/${SRC}/spq/*.cpp"
+  "${PROJECT_SOURCE_DIR}/${SRC}/core/*.hpp"
   "${PROJECT_SOURCE_DIR}/${SRC}/core/*.cpp"
+  "${PROJECT_SOURCE_DIR}/${SRC}/solver/*.hpp"
+  "${PROJECT_SOURCE_DIR}/${SRC}/solver/*.cpp"
 )
 
 add_executable(${EXECUTABLE_NAME} ${ALL_SRCS})
@@ -59,5 +61,5 @@ target_link_libraries(${EXECUTABLE_NAME} fmt::fmt)
 target_link_libraries(${EXECUTABLE_NAME} PostgreSQL::PostgreSQL)
 target_link_libraries(${EXECUTABLE_NAME} boost::boost)
 target_link_libraries(${EXECUTABLE_NAME} pcg-cpp::pcg-cpp)
-target_link_libraries(${EXECUTABLE_NAME} gfx::timsort)
 target_link_libraries(${EXECUTABLE_NAME} gmp::gmp)
+target_link_libraries(${EXECUTABLE_NAME} TBB::tbb)

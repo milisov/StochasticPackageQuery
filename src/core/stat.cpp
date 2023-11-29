@@ -196,34 +196,31 @@ void Stat::addStat(const string& tableName, const string& columnName, const long
     PQclear(res);
 }
 
-void Stat::getStoMeanVar(const string& tableName, const string& columnName, unordered_map<long long, pair<double, double>>& storages){
+void Stat::getStoMeanVars(const string& tableName, const string& columnName, const string& joinId, vector<double>& means, vector<double>& vars){
     if (!isAnalyzed(tableName, columnName)){
         cerr << fmt::format("Column '{}' has not been analyzed in table '{}'\n", columnName, tableName);
         exit(1);
     }
-    vector<string> strIds; strIds.reserve(storages.size());
-    for (const auto& p : storages) {
-        strIds.push_back(to_string(p.first));
-    }
-    string sql = fmt::format("SELECT {},{}_mean,{}_variance FROM \"{}_summary\" WHERE {} IN ({})", PgManager::id, columnName, columnName, tableName, PgManager::id, boost::join(strIds, ","));
+    string sql = fmt::format("SELECT {}_mean,{}_variance FROM \"{}_summary\" WHERE {} IN ({}) ORDER BY array_position(ARRAY[{}], {})", columnName, columnName, tableName, PgManager::id, joinId, joinId, PgManager::id);
     auto res = PQexec(pg->conn.get(), sql.c_str());
     ck(pg->conn, res);
     for (int i = 0; i < PQntuples(res); ++i){
-        storages[atoll(PQgetvalue(res, i, 0))] = {atof(PQgetvalue(res, i, 1)), atof(PQgetvalue(res, i, 2))};
+        means.emplace_back(atof(PQgetvalue(res, i, 0)));
+        vars.emplace_back(atof(PQgetvalue(res, i, 1)));
     }
     PQclear(res);
 }
 
-void Stat::getDetAttrs(const string& tableName, const string& columnName, unordered_map<long long, double>& detrages){
-    vector<string> strIds; strIds.reserve(detrages.size());
-    for (const auto& p : detrages) {
-        strIds.push_back(to_string(p.first));
-    }
-    string sql = fmt::format("SELECT {},{} FROM \"{}\" WHERE {} IN ({})", PgManager::id, columnName, tableName, PgManager::id, boost::join(strIds, ","));
+void Stat::getDetAttrs(const string& tableName, const string& columnName, const string& joinId, vector<double>& attrs){
+    string sql, select;
+    if (pg->getColumns(tableName)[columnName] == Column::array_type) select = fmt::format("SELECT {}_mean FROM \"{}_summary\"", columnName, tableName);
+    else select = fmt::format("SELECT {} FROM \"{}\"", columnName, tableName);
+    if (joinId.find("BETWEEN") == string::npos) sql = fmt::format("{} WHERE {} IN ({}) ORDER BY array_position(ARRAY[{}], {})", select, PgManager::id, joinId, joinId, PgManager::id);
+    else sql = fmt::format("{} WHERE {} {} ORDER BY {}", select, PgManager::id, joinId, PgManager::id);
     auto res = PQexec(pg->conn.get(), sql.c_str());
     ck(pg->conn, res);
     for (int i = 0; i < PQntuples(res); ++i){
-        detrages[atoll(PQgetvalue(res, i, 0))] = atof(PQgetvalue(res, i, 1));
+        attrs.emplace_back(atof(PQgetvalue(res, i, 0)));
     }
     PQclear(res);
 }
