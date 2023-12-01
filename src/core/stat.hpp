@@ -21,7 +21,7 @@ private:
 private:
     bool isAnalyzed(const string& tableName, const string& columnName);
     void addStat(const string& tableName, const string& columnName, const long_double sum, const long_double m2, const long long count);
-    void analyzeStochastic(const string& tableName, const string& columnName);
+    void analyzeStochastic(const string& tableName, const vector<string>& columnNames);
     void analyzeDeterministic(const string& tableName, const vector<string>& columnNames);
 public:
     unique_ptr<PgManager> pg;
@@ -30,6 +30,8 @@ public:
     void getStoMeanVars(const string& tableName, const string& columnName, const string& joinId, vector<double>& means, vector<double>& vars);
     void getDetAttrs(const string& tableName, const string& columnName,const string& joinId, vector<double>& attrs);
     pair<double, double> getDetMeanVar(const string& tableName, const string& columnName);
+    void getSamples(const string& tableName, const string& columnName, const long long& id, vector<double>& samples);
+    void getQuantiles(const string& tableName, const string& columnName, const long long& id, vector<double>& quantiles);
 };
 
 #endif

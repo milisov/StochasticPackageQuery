@@ -10,6 +10,7 @@
 #include <fmt/core.h>
 #include <boost/variant.hpp>
 #include <boost/preprocessor.hpp>
+#include <Highs.h>
 
 using std::string;
 using std::ostringstream;
@@ -20,6 +21,8 @@ using std::map;
 
 const double POS_INF = 1.0e30;
 const double NEG_INF = -1.0e30;
+
+using SolType = map<size_t, double>;
 
 /**
  * @brief ENUM MACRO
@@ -37,6 +40,9 @@ const double NEG_INF = -1.0e30;
 ENUM(Inequality, lteq, gteq);
 ENUM(ObjectiveSense, maximize, minimize);
 ENUM(Column, numeric_type, string_type, array_type, unsupported);
+
+bool sameSense(ObjectiveSense objectiveSense, ObjSense objSense);
+bool sameSense(Inequality inequality, ObjSense objSense);
 
 /**
  * @brief Boost Variant

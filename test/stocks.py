@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[16]:
+# In[1]:
 
 
 import QuantLib as ql
@@ -10,40 +10,51 @@ import matplotlib.pyplot as plt
 import configparser
 import multiprocessing
 import psycopg2
-import os, random, sys
+import os, random, sys, io
 from psycopg2 import Error
 
 
-# In[17]:
+# In[2]:
 
 
-nStocks = 3000
-nPaths = 10000
+nStocks = 30
+nPaths = 100
 
 
-# In[ ]:
+# In[3]:
 
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        nStocks = int(sys.argv[1])
+        try:
+            nStocks = int(sys.argv[1])
+        except ValueError:
+            pass
     if len(sys.argv) > 2:
-        nPaths = int(sys.argv[2])
+        try:
+            nPaths = int(sys.argv[2])
+        except ValueError:
+            pass
 
 
-# In[15]:
+# In[4]:
 
 
 config = configparser.ConfigParser()
 config.read('../config.cfg')
 is_rebuild = config['build']['rebuild_stocks'] == 'true'
+validate_scenarios = int(config['build']['validate_scenarios'])
+validate_seed = int(config['build']['validate_seed'])
+generate_seed = int(config['build']['generate_seed'])
 maturity = 1.0
-nSteps = int(maturity * 365)
+days = 365
+nSteps = int(maturity * days)
 timeGrid = np.linspace(0.0, maturity, nSteps + 1)
 
 pairs = []
 num_cores = multiprocessing.cpu_count() // 2
 table_name = f"stocks_{nStocks}_{nPaths}"
+validate_table_name = f"stocks_{nStocks}_{nPaths}_validate"
 
 stocks = configparser.ConfigParser()
 stocks.read('../resource/stocks/tickers.ini')
@@ -52,11 +63,14 @@ for ticker in stocks.sections():
     stats.append([ticker, float(stocks[ticker]['price']), float(stocks[ticker]['volatility']), float(stocks[ticker]['drift'])])
 
 
-# In[3]:
+# In[5]:
 
 
-def GeneratePaths(process, maturity, nPaths, nSteps):
-    generator = ql.UniformRandomGenerator(42)
+def GeneratePaths(process, maturity, nPaths, nSteps, isValidate):
+    if isValidate:
+        generator = ql.UniformRandomGenerator(validate_seed)
+    else:
+        generator = ql.UniformRandomGenerator(generate_seed)
     sequenceGenerator = ql.UniformRandomSequenceGenerator(nSteps, generator)
     gaussianSequenceGenerator = ql.GaussianRandomSequenceGenerator(sequenceGenerator)
     paths = np.zeros(shape = (nPaths, nSteps+1))
@@ -68,20 +82,25 @@ def GeneratePaths(process, maturity, nPaths, nSteps):
 
 # Define your procedure here
 def simulate(stat):
-    ticker, price, vol, drift = stat
-    GBM = ql.GeometricBrownianMotionProcess(price, vol, drift)
-    gbm_paths = GeneratePaths(GBM, maturity, nPaths, nSteps)[:, 1:] - price
+    start_id, (ticker, price, vol, drift) = stat
     process = multiprocessing.current_process()
     process_id = (process._identity[0]-1)%num_cores
     conn, cur = pairs[process_id]
+    GBM = ql.GeometricBrownianMotionProcess(price, vol, drift)
+    gbm_paths = GeneratePaths(GBM, maturity, nPaths, nSteps, False)[:, 1:] - price
+    data = io.StringIO()
     for day_index in range(nSteps):
-        try:
-            cur.execute(f"""
-                INSERT INTO \"{table_name}\" (stock, price, day, profit)
-                VALUES (%s, %s, %s, %s)
-            """, (ticker, price, day_index+1, list(gbm_paths[:, day_index])))
-        except psycopg2.Error as e:
-            continue
+        profit = "{" + ",".join(map(str, gbm_paths[:, day_index])) + "}"
+        data.write(f"{start_id+day_index}|'{ticker}'|{day_index+1}|{price}|{profit}\n")
+    data.seek(0)
+    cur.copy_from(data, table_name, sep='|')
+    validate_gbm_paths = GeneratePaths(GBM, maturity, validate_scenarios, nSteps, True)[:, 1:] - price
+    validate_data = io.StringIO()
+    for day_index in range(nSteps):
+        profit = "{" + ",".join(map(str, validate_gbm_paths[:, day_index])) + "}"
+        validate_data.write(f"{start_id+day_index}|'{ticker}'|{day_index+1}|{price}|{profit}\n")
+    validate_data.seek(0)
+    cur.copy_from(validate_data, validate_table_name, sep='|')
     conn.commit()
 
 def table_exists(cur, table_name):
@@ -102,47 +121,58 @@ def get_conn_cur(config):
     return conn, cur
 
 
-# In[4]:
+# In[6]:
 
 
 conn, cur = get_conn_cur(config)
-if table_exists(cur, table_name):
-    if is_rebuild:
-        delete_table_sql = f"DROP TABLE IF EXISTS {table_name}"
-        cur.execute(delete_table_sql)
-        conn.commit()
 is_populating = False
-if not table_exists(cur, table_name):
-    cur.execute(f"""
-        CREATE TABLE IF NOT EXISTS \"{table_name}\" (
-            id SERIAL PRIMARY KEY,
-            stock TEXT,
-            price REAL,
-            day INT,
-            profit REAL[]
-        )
-    """)
-    conn.commit()
-    is_populating = True
+def check_table(cur, table):
+    if table_exists(cur, table):
+        if is_rebuild:
+            delete_table_sql = f"DROP TABLE IF EXISTS {table}"
+            cur.execute(delete_table_sql)
+            conn.commit()
+    if not table_exists(cur, table):
+        cur.execute(f"""
+            CREATE TABLE IF NOT EXISTS \"{table}\" (
+                id BIGINT,
+                stock TEXT,
+                day INT,
+                price REAL,
+                profit REAL[]
+            )
+        """)
+        conn.commit()
+        return True
+    return False
+is_populating = check_table(cur, table_name)
+is_populating = check_table(cur, validate_table_name)
 cur.close()
 conn.close()
 
 
-# In[5]:
+# In[7]:
 
 
 if is_populating:
     for i in range(num_cores):
         pairs.append(get_conn_cur(config))
     pool = multiprocessing.Pool(processes=num_cores)
-    random.seed(42)
+    random.seed(generate_seed)
     random.shuffle(stats)
-    pool.map(simulate, stats[:nStocks])
+    start_ids = [i*days+1 for i in range(nStocks)]
+    pool.map(simulate, list(zip(start_ids, stats[:nStocks])))
     pool.close()
     pool.join()
     for conn, cur in pairs:    
         cur.close()
         conn.close()
+    conn, cur = get_conn_cur(config)
+    cur.execute(f"CREATE INDEX id_{table_name} ON {table_name} (id);")
+    cur.execute(f"CREATE INDEX id_{validate_table_name} ON {validate_table_name} (id);")
+    conn.commit()
+    cur.close()
+    conn.close()
 
 
 # In[ ]:

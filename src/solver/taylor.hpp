@@ -22,14 +22,16 @@ private:
     unique_ptr<Stat> stat;
     shared_ptr<StochasticPackageQuery> spq;
     vector<long long> ids;
-    vector<vector<double>> detCons, stoXs;
+    vector<vector<double>> detCons, stoXs, stoMeans;
     vector<double> detNorms, detXs, obj;
     map<string, Option> options;
-    map<int, double> sol;
-public:
-    void solve(map<int, double>& nextSol) const;
+    SolType sol;
+private:
+    void solve(SolType& nextSol) const;
+    void update(const SolType& step);
 public:
     Taylor(shared_ptr<StochasticPackageQuery> spq, const vector<long long>& ids={}, const map<string, Option>& options={});
+    void solve();
 };
 
 #endif

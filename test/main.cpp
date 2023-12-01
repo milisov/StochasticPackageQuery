@@ -31,7 +31,7 @@ void analyzeAll(){
 void test(){
 	INIT(pro);
 	CLOCK(pro);
-	string filePath = "resource/sqls/_stocks_3000_100.spaql";
+	string filePath = "resource/sqls/_stocks_30_100.spaql";
 	auto spq = parseSpaqlFromFile(filePath);
 	if (spq){
 		cout << "Success!\n" << spq;
@@ -50,12 +50,15 @@ void test(){
 		bounder.set(1);
 		STP(pro, "hard");
 		deb(spq->executable(), spq);
-		Taylor taylor (spq);
-		map<int, double> nextSol;
-		taylor.solve(nextSol);
+		CLK(pro, "taylorinit");
+		Taylor taylor (spq, {}, {{"soft_deterministic_constraint", false}});
+		STP(pro, "taylorinit");
+		CLK(pro, "taylor");
+		taylor.solve();
+		STP(pro, "taylor");
 	}
 	STOP(pro);
-	PRINT(pro);
+	// PRINT(pro);
 }
 
 #include "oneapi/tbb/concurrent_unordered_map.h"
@@ -218,8 +221,8 @@ void testNumeric(){
 
 int main() {
 	// testNumeric();
-	// analyzeAll();
-	test();
+	analyzeAll();
+	// test();
 	// testOmp();
 	// testTBB();
 	// testHighs();

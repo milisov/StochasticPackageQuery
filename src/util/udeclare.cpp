@@ -18,6 +18,18 @@ ENUM_INIT(Inequality, <=, >=);
 ENUM_INIT(ObjectiveSense, MAXIMIZE, MINIMIZE);
 ENUM_INIT(Column, numeric_type, string_type, array_type, unsupported);
 
+bool sameSense(ObjectiveSense objectiveSense, ObjSense objSense){
+	if (objectiveSense == ObjectiveSense::maximize && objSense == ObjSense::kMaximize) return true;
+	if (objectiveSense == ObjectiveSense::minimize && objSense == ObjSense::kMinimize) return true;
+	return false;
+}
+
+bool sameSense(Inequality inequality, ObjSense objSense){
+	if (inequality == Inequality::gteq && objSense == ObjSense::kMaximize) return true;
+	if (inequality == Inequality::lteq && objSense == ObjSense::kMinimize) return true;
+	return false;
+}
+
 string str(const Bound& bound) {
     return boost::apply_visitor(VariantToString(), bound);
 }

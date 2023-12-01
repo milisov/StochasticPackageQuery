@@ -65,17 +65,22 @@ bool Stat::analyze(const string& tableName){
             }
         }
 
-        vector<string> dColumnNames;
+        vector<string> dColumnNames, sColumnNames;
+        bool rebuildSummary = false;
         for (auto columnName : columnNames){
             if (!isAnalyzed(tableName, columnName)){
                 if (columns[columnName] == Column::numeric_type){
                     dColumnNames.push_back(columnName);
                 } else if (columns[columnName] == Column::array_type){
-                    analyzeStochastic(tableName, columnName);
+                    rebuildSummary = true;
                 }
+            }
+            if (columns[columnName] == Column::array_type){
+                sColumnNames.push_back(columnName);
             }
         }
         analyzeDeterministic(tableName, dColumnNames);
+        if (rebuildSummary) analyzeStochastic(tableName, sColumnNames);
         return true;
     } else{
         cerr << fmt::format("No partitioning columns defined for table '{}'\n", tableName);
@@ -83,65 +88,76 @@ bool Stat::analyze(const string& tableName){
     }
 }
 
-void Stat::analyzeStochastic(const string& tableName, const string& columnName){
+void Stat::analyzeStochastic(const string& tableName, const vector<string>& columnNames){
     long long tableSize = pg->getTableSize(tableName);
-    auto columns = pg->getColumns(tableName);
-    if (columns[columnName] == Column::array_type){
-        string summaryTable = fmt::format("{}_summary", tableName);
-        if (!pg->existTable(summaryTable)){
-            string sql = fmt::format("CREATE TABLE \"{}\" ({} SERIAL PRIMARY KEY)", summaryTable, PgManager::id);
-            auto res = PQexec(pg->conn.get(), sql.c_str());
-            ck(pg->conn, res);
-            PQclear(res);
-            sql = fmt::format("INSERT INTO \"{}\" ({}) SELECT GENERATE_SERIES(1, {})", summaryTable, PgManager::id, tableSize);
-            res = PQexec(pg->conn.get(), sql.c_str());
-            ck(pg->conn, res);
-            PQclear(res);
+    string summaryTable = fmt::format("{}_summary", tableName);
+    if (pg->existTable(summaryTable)) pg->dropTable(summaryTable);
+    vector<string> summaryColumnPostfixes = {"_mean", "_variance", "_quantiles"};
+    vector<string> summaryColumnTypes = {"DOUBLE PRECISION", "DOUBLE PRECISION", "REAL[]"};
+    auto perCol = summaryColumnPostfixes.size();
+    auto nColumns = columnNames.size();
+    vector<string> summaryColumns (perCol*nColumns);
+    vector<string> createColumns (perCol*nColumns);
+    for (size_t i = 0; i < nColumns; ++i){
+        for (size_t j = 0; j < perCol; ++j){
+            auto ind = i*perCol+j;
+            summaryColumns[ind] = columnNames[i] + summaryColumnPostfixes[j];
+            createColumns[ind] = fmt::format("{} {}", summaryColumns[ind], summaryColumnTypes[j]);
         }
-        auto summaryColumns = pg->getColumns(summaryTable);
-        vector<string> summaryColumnNames = {columnName + "_mean", columnName + "_variance", columnName + "_qseq"};
-        vector<string> summaryColumnTypes = {"DOUBLE PRECISION", "DOUBLE PRECISION", "REAL[]"};
-        vector<string> updateColumnNames (summaryColumnNames.size());
-        for (size_t i = 0; i < summaryColumnNames.size(); ++i){
-            if (!summaryColumns.count(summaryColumnNames[i])){
-                pg->addColumn(summaryTable, summaryColumnNames[i], summaryColumnTypes[i]);
-            }
-            updateColumnNames[i] = fmt::format("{}=${}", summaryColumnNames[i], i+2);
-        }
-        auto nCores = Config::getInstance()->nPhysicalCores;
-        auto intervals = divideInterval(1, tableSize, nCores);
-        int count = 0, N = pg->getColumnLength(tableName, columnName);
-        vector<float> quantiles (2*N+1, 0);
-        quantiles.back() = 1;
-        for (size_t i=1; i < quantiles.size()-1; ++i){
-            quantiles[i] = static_cast<float>(i)/(2*N);
-        }
-        AccAggregator agg;
-        #pragma omp parallel num_threads(nCores)
-        {
-            auto coreIndex = omp_get_thread_num();
-            AsyncUpdate au = AsyncUpdate(fmt::format("UPDATE \"{}\" SET {} WHERE {}=$1", summaryTable, boost::join(updateColumnNames, ","), PgManager::id));
-            SingleRow sr = SingleRow(fmt::format("SELECT {},{} FROM \"{}\" WHERE {} BETWEEN {} AND {}", PgManager::id, columnName, tableName, PgManager::id, intervals[coreIndex], intervals[coreIndex+1]-1));
-            while (sr.fetchRow()){
-                long long id = sr.getBigInt(0);
-                vector<double> samples;
-                sr.getDoubleArray(1, samples);
-                KDE kde (samples, true);
-                au.set(0, id);
-                au.set(1, kde.getMean());
-                au.set(2, kde.getVariance());
-                vector<float> qseq = quantiles;
-                kde.getSortedQuantiles(qseq);
-                au.set(3, qseq);
-                au.send();
-                #pragma omp critical
-                {
-                    agg.add(kde.getSum(), kde.getM2(), samples.size());
-                }
-            }
-        }
-        addStat(tableName, columnName, agg.getSum(), agg.getM2(), agg.getCount());
     }
+    string sql = fmt::format("CREATE TABLE \"{}\" ({} BIGINT,{})", summaryTable, PgManager::id, boost::join(createColumns, ","));
+    auto res = PQexec(pg->conn.get(), sql.c_str());
+    ck(pg->conn, res);
+    PQclear(res);
+    vector<vector<float>> quantiles (nColumns);
+    for (size_t i = 0; i < nColumns; ++i){
+        int N = pg->getColumnLength(tableName, columnNames[i]);
+        vector<float> quantile (2*N+1, 0);
+        quantile.back() = 1;
+        for (size_t i=1; i < quantile.size()-1; ++i){
+            quantile[i] = static_cast<float>(i)/(2*N);
+        }
+        quantiles[i] = quantile;
+    }
+    vector<AccAggregator> aggs (nColumns);
+    vector<omp_lock_t> locks (nColumns);
+    for (size_t i = 0; i < nColumns; ++i) omp_init_lock(&(locks[i]));
+    auto nCores = Config::getInstance()->nPhysicalCores;
+    auto intervals = divideInterval(1, tableSize, nCores);
+    string selectColumns = boost::join(columnNames, ",");
+    #pragma omp parallel num_threads(nCores)
+    {
+        auto coreIndex = omp_get_thread_num();
+        SingleRow sr = SingleRow(fmt::format("SELECT {},{} FROM \"{}\" WHERE {} BETWEEN {} AND {}", PgManager::id, selectColumns, tableName, PgManager::id, intervals[coreIndex], intervals[coreIndex+1]-1));
+        BulkCopy bc = BulkCopy(summaryTable);
+        while (sr.fetchRow()){
+            long long id = sr.getBigInt(0);
+            bc.add(id);
+            for (size_t i = 0; i < nColumns; ++i){
+                vector<double> samples;
+                sr.getArray(i+1, samples);
+                KDE kde (samples, true);
+                vector<float> qseq = quantiles[i];
+                kde.getSortedQuantiles(qseq);
+                bc.add(kde.getMean());
+                bc.add(kde.getVariance());
+                bc.add(qseq);
+                omp_set_lock(&(locks[i]));
+                aggs[i].add(kde.getSum(), kde.getM2(), samples.size());
+                omp_unset_lock(&(locks[i]));
+            }
+            bc.send();
+        }
+    }
+    for (size_t i = 0; i < nColumns; ++i){
+        omp_destroy_lock(&(locks[i]));
+        const auto& agg = aggs[i];
+        addStat(tableName, columnNames[i], agg.getSum(), agg.getM2(), agg.getCount());
+    }
+    sql = fmt::format("CREATE INDEX \"{}_{}\" ON \"{}\" ({})", PgManager::id, summaryTable, summaryTable, PgManager::id);
+    res = PQexec(pg->conn.get(), sql.c_str());
+    ck(pg->conn, res);
+    PQclear(res);
 }
 
 void Stat::analyzeDeterministic(const string& tableName, const vector<string>& columnNames){
@@ -201,7 +217,10 @@ void Stat::getStoMeanVars(const string& tableName, const string& columnName, con
         cerr << fmt::format("Column '{}' has not been analyzed in table '{}'\n", columnName, tableName);
         exit(1);
     }
-    string sql = fmt::format("SELECT {}_mean,{}_variance FROM \"{}_summary\" WHERE {} IN ({}) ORDER BY array_position(ARRAY[{}], {})", columnName, columnName, tableName, PgManager::id, joinId, joinId, PgManager::id);
+    string where;
+    if (joinId.find("BETWEEN") == string::npos) where = fmt::format("{} IN ({}) ORDER BY array_position(ARRAY[{}], {})", PgManager::id, joinId, joinId, PgManager::id);
+    else where = fmt::format("{} {} ORDER BY {}", PgManager::id, joinId, PgManager::id);
+    string sql = fmt::format("SELECT {}_mean,{}_variance FROM \"{}_summary\" WHERE {}", columnName, columnName, tableName, where);
     auto res = PQexec(pg->conn.get(), sql.c_str());
     ck(pg->conn, res);
     for (int i = 0; i < PQntuples(res); ++i){
@@ -236,5 +255,22 @@ pair<double, double> Stat::getDetMeanVar(const string& tableName, const string& 
     pair<double, double> result;
     result.first = atof(PQgetvalue(res, 0, 0));
     result.second = atof(PQgetvalue(res, 0, 1));
+    PQclear(res);
     return result;
+}
+
+void Stat::getSamples(const string& tableName, const string& columnName, const long long& id, vector<double>& samples){
+    string sql = fmt::format("SELECT {} FROM \"{}\" WHERE {}={}", columnName, tableName, PgManager::id, id);
+    auto res = PQexec(pg->conn.get(), sql.c_str());
+    ck(pg->conn, res);
+    readArray(PQgetvalue(res, 0, 0), samples);
+    PQclear(res);
+}
+
+void Stat::getQuantiles(const string& tableName, const string& columnName, const long long& id, vector<double>& quantiles){
+    string sql = fmt::format("SELECT {}_quantiles FROM \"{}_summary\" WHERE {}={}", columnName, tableName, PgManager::id, id);
+    auto res = PQexec(pg->conn.get(), sql.c_str());
+    ck(pg->conn, res);
+    readArray(PQgetvalue(res, 0, 0), quantiles);
+    PQclear(res);
 }

@@ -67,9 +67,26 @@ Column PgManager::getColumn(string dataType){
 	return Column::unsupported;
 }
 
-void ck(PGconnPtr& conn, PGresult* res){
+const vector<ExecStatusType> okTypes = {
+	PGRES_SINGLE_TUPLE,
+	PGRES_TUPLES_OK,
+	PGRES_COMMAND_OK,
+	PGRES_PIPELINE_SYNC,
+	PGRES_COPY_IN
+};
+
+void check(PGconnPtr& conn, PGresult* res, const char* file, int line){
 	auto status = PQresultStatus(res);
-	if (status != PGRES_SINGLE_TUPLE && status != PGRES_TUPLES_OK && status != PGRES_COMMAND_OK && status != PGRES_PIPELINE_SYNC) {
+	bool isBad = true;
+	for (auto okType : okTypes){
+		if (status == okType){
+			isBad = false;
+			break;
+		}
+	}
+	if (isBad) {
+		cerr << "\033[0;31m" << "File " << file  \
+			<< ", Line " << line << "\033[0m" << "\n";
 		cerr << PQerrorMessage(conn.get());
 		PQclear(res);
 		conn.reset();
@@ -77,8 +94,10 @@ void ck(PGconnPtr& conn, PGresult* res){
 	}
 }
 
-void ck(PGconnPtr& conn, bool failed){
+void check(PGconnPtr& conn, bool failed, const char* file, int line){
 	if (failed){
+		cerr << "\033[0;31m" << "File " << file  \
+			<< ", Line " << line << "\033[0m" << "\n";
 		cerr << PQerrorMessage(conn.get());
 		conn.reset();
 		exit(1);
@@ -204,23 +223,17 @@ double SingleRow::getNumeric(int columnIndex){
 	return atof(PQgetvalue(res, 0, columnIndex));
 }
 
-
-void SingleRow::getFloatArray(int columnIndex, vector<float>& result){
-	char* pEnd = PQgetvalue(res, 0, columnIndex);
+void readArray(char* start, vector<double>& array){
+	char* pEnd = start;
 	char* curPtr;
 	while (*pEnd != '}'){
 		curPtr = pEnd+1;
-		result.push_back(strtof(curPtr, &pEnd));
+		array.push_back(strtod(curPtr, &pEnd));
 	}
 }
 
-void SingleRow::getDoubleArray(int columnIndex, vector<double>& result){
-	char* pEnd = PQgetvalue(res, 0, columnIndex);
-	char* curPtr;
-	while (*pEnd != '}'){
-		curPtr = pEnd+1;
-		result.push_back(strtod(curPtr, &pEnd));
-	}
+void SingleRow::getArray(int columnIndex, vector<double>& result){
+	readArray(PQgetvalue(res, 0, columnIndex), result);
 }
 
 const string AsyncUpdate::stmName = "async";
@@ -259,8 +272,32 @@ void AsyncUpdate::send(){
 	for (int i = 0; i < nParams; ++i) delete[] vals[i];
 }
 
+BulkCopy::~BulkCopy(){
+	ck(pg->conn, PQputCopyEnd(pg->conn.get(), NULL) != 1);
+	PGresult* res;
+    while ((res = PQgetResult(pg->conn.get())) != NULL) {
+		ck(pg->conn, res);
+        PQclear(res);
+    }
+}
 
+BulkCopy::BulkCopy(const string& tableName, const char& delimiter): tableName(tableName), delimiter(delimiter){
+	pg = make_unique<PgManager>();
+	string sql = fmt::format("COPY \"{}\" FROM STDIN with(delimiter '{}');", tableName, delimiter);
+	auto res = PQexec(pg->conn.get(), sql.c_str());
+	ck(pg->conn, res);
+	PQclear(res);
+	data = "";
+	maxSize = 0;
+}
 
+void BulkCopy::send(){
+	data.back() = '\n';
+	maxSize = max(maxSize, data.size());
+	ck(pg->conn, PQputCopyData(pg->conn.get(), data.c_str(), data.size()) != 1);
+	data.clear();
+	data.reserve(maxSize);
+}
 
 
 
