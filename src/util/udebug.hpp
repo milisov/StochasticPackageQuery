@@ -19,6 +19,10 @@ using std::begin;
 using std::cerr;
 using std::istream_iterator;
 
+extern const char* RED;
+extern const char* GREEN;
+extern const char* RESET;
+
 template <typename T,typename U>                                                   
 pair<T,U> operator+(const pair<T,U> & l,const pair<T,U> & r) {   
 	return {l.first+r.first,l.second+r.second};                                    
@@ -71,8 +75,8 @@ struct Writer {
 			std::replace(_s.begin(), _s.end(), ',', ' ');     \
 			std::stringstream _ss(_s);                        \
 			istream_iterator<string> _it(_ss);      \
-			cerr << "\033[0;31m" << "File " << __FILE__  \
-							<< ", Line " << __LINE__ << "\033[0m" << "\n"; \
+			cerr << RED << "File " << __FILE__  \
+							<< ", Line " << __LINE__ << RESET << "\n"; \
 			err(_it, args);                                   \
 		}
 

@@ -5,6 +5,7 @@
 
 #include "uconfig.hpp"
 #include "uio.hpp"
+#include "udebug.hpp"
 
 using boost::algorithm::to_lower;
 using std::cerr;
@@ -85,8 +86,8 @@ void check(PGconnPtr& conn, PGresult* res, const char* file, int line){
 		}
 	}
 	if (isBad) {
-		cerr << "\033[0;31m" << "File " << file  \
-			<< ", Line " << line << "\033[0m" << "\n";
+		cerr << RED << "File " << file  \
+			<< ", Line " << line << RESET << "\n";
 		cerr << PQerrorMessage(conn.get());
 		PQclear(res);
 		conn.reset();
@@ -96,8 +97,8 @@ void check(PGconnPtr& conn, PGresult* res, const char* file, int line){
 
 void check(PGconnPtr& conn, bool failed, const char* file, int line){
 	if (failed){
-		cerr << "\033[0;31m" << "File " << file  \
-			<< ", Line " << line << "\033[0m" << "\n";
+		cerr << RED << "File " << file  \
+			<< ", Line " << line << RESET << "\n";
 		cerr << PQerrorMessage(conn.get());
 		conn.reset();
 		exit(1);

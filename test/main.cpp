@@ -4,6 +4,7 @@
 #include "spq/spq.hpp"
 #include "core/stat.hpp"
 #include "spq/bounder.hpp"
+#include "core/checker.hpp"
 
 void analyzeAll(){
 	vector<int> nStocks = {3, 30, 300, 3000};
@@ -44,14 +45,16 @@ void test(){
 		Bounder bounder (spq, N, E);
 		STP(pro, "initBounder");
 		vector<double> hards;
-		for (double i = -10; i <= 10; i ++) hards.push_back(i);
+		// for (double i = -10; i <= 10; i ++) hards.push_back(i);
 		CLK(pro, "hard");
-		bounder.generate(hards);
-		bounder.set(1);
+		// bounder.generate(hards);
+		bounder.set(3);
 		STP(pro, "hard");
 		deb(spq->executable(), spq);
 		CLK(pro, "taylorinit");
-		Taylor taylor (spq, {}, {{"soft_deterministic_constraint", false}});
+		Taylor taylor (spq, {}, {
+			{"soft_deterministic_constraint", false},
+			{"max_number_of_iterations", 100}});
 		STP(pro, "taylorinit");
 		CLK(pro, "taylor");
 		taylor.solve();
@@ -221,8 +224,8 @@ void testNumeric(){
 
 int main() {
 	// testNumeric();
-	analyzeAll();
-	// test();
+	// analyzeAll();
+	test();
 	// testOmp();
 	// testTBB();
 	// testHighs();

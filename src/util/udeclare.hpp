@@ -22,7 +22,8 @@ using std::map;
 const double POS_INF = 1.0e30;
 const double NEG_INF = -1.0e30;
 
-using SolType = map<size_t, double>;
+using SolIndType = map<size_t, double>;
+using SolType = map<long long, double>;
 
 /**
  * @brief ENUM MACRO

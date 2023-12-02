@@ -8,6 +8,7 @@
 #include "taylor.hpp"
 #include "core/kde.hpp"
 #include "core/optim.hpp"
+#include "core/checker.hpp"
 #include "util/udebug.hpp"
 #include "util/uconfig.hpp"
 
@@ -96,8 +97,8 @@ Taylor::Taylor(shared_ptr<StochasticPackageQuery> spq, const vector<long long>& 
                 stoMeans.emplace_back(means);
             }
         } else{
-            shared_ptr<AttrConstraint> attrCon = dynamic_pointer_cast<AttrConstraint>(con);
             detXs.push_back(0);
+            shared_ptr<AttrConstraint> attrCon = dynamic_pointer_cast<AttrConstraint>(con);
             if (attrCon){
                 vector<double> attrs;
                 if (!ids.size()){
@@ -162,7 +163,7 @@ Taylor::Taylor(shared_ptr<StochasticPackageQuery> spq, const vector<long long>& 
     // for (size_t i = 0; i < obj.size(); ++i) obj[i] = obj[i]*sqn;
 }
 
-void Taylor::solve(SolType& nextSol) const{
+void Taylor::solve(SolIndType& nextSol) const{
     INIT(pro);
     int nCores = boost::get<int>(this->options.at("number_of_cores"));
     size_t n = ids.size();
@@ -226,7 +227,7 @@ void Taylor::solve(SolType& nextSol) const{
             detInd ++;
         }
     }
-    deb(sol, violations);
+    // deb(sol, violations);
     double logitSum = logLogit(violations);
     for (size_t i = 0; i < violations.size(); ++ i){
         if (violations[i] > 0) violations[i] = exp(logit(violations[i])-logitSum);
@@ -347,7 +348,7 @@ void Taylor::solve(SolType& nextSol) const{
 	highs.setOptionValue("infinite_bound", POS_INF);
     highs.setOptionValue("small_matrix_value", MACHINE_EPS);
     auto status = highs.passModel(model);
-    assert(status==HighsStatus::kOk);
+    assert(status==HighsStatus::kOk || status==HighsStatus::kWarning);
     const HighsLp& lp = highs.getLp();
     status = highs.run();
     assert(status==HighsStatus::kOk);
@@ -365,19 +366,22 @@ void Taylor::solve(SolType& nextSol) const{
     }
 }
 
-void Taylor::update(const SolType& step){
+void Taylor::update(const SolIndType& step){
     assert(step.size());
     int nCores = boost::get<int>(this->options.at("number_of_cores"));
     vector<size_t> inds; inds.reserve(step.size());
     for (const auto& p : step) inds.push_back(p.first);
     vector<size_t> stoInds (spq->cons.size());
-    size_t stoInd = 0;
+    size_t stoInd = 0, detInd = 0;
     for (size_t j = 0; j < spq->cons.size(); ++j){
         stoInds[j] = stoInd;
         const auto& con = spq->cons[j];
         shared_ptr<ProbConstraint> probCon = dynamic_pointer_cast<ProbConstraint>(con);
         if (probCon){
             stoInd ++;
+        } else{
+            for (const auto& p : step) detXs[detInd] += detCons[detInd][p.first]*p.second;
+            detInd ++;
         }
     }
     #pragma omp parallel num_threads(nCores)
@@ -410,10 +414,19 @@ void Taylor::update(const SolType& step){
 
 void Taylor::solve(){
     RMSprop optim;
+    SPQChecker chk (spq);
     int nIters = boost::get<int>(options.at("max_number_of_iterations"));
     for (int i = 0; i < nIters; ++i){
-        SolType nextSol; solve(nextSol);
-        deb(nextSol);
+        SolIndType nextSol; solve(nextSol);
         update(optim.towards(nextSol));
+        chk.display(getSol());
     }
+}
+
+SolType Taylor::getSol() const{
+    SolType res;
+    for (const auto& p : sol){
+        if (p.first < ids.size() && p.first >= 0) res[ids[p.first]] = p.second;
+    }
+    return res;
 }

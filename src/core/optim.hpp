@@ -6,19 +6,19 @@
 
 class Optim{
 protected:
-    SolType sol;
+    SolIndType sol;
 public:
-    Optim(const SolType& sol);
-    virtual SolType towards(const SolType& nextSol) = 0;
+    Optim(const SolIndType& sol);
+    virtual SolIndType towards(const SolIndType& nextSol) = 0;
 };
 
 class RMSprop: public Optim{
 private:
-    SolType v;
+    SolIndType v;
     double alpha;
 public:
-    RMSprop(const SolType& sol={}, const double& alpha=0.99);
-    SolType towards(const SolType& nextSol) override;
+    RMSprop(const SolIndType& sol={}, const double& alpha=0.99);
+    SolIndType towards(const SolIndType& nextSol) override;
 };
 
 #endif

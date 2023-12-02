@@ -217,10 +217,13 @@ void Stat::getStoMeanVars(const string& tableName, const string& columnName, con
         cerr << fmt::format("Column '{}' has not been analyzed in table '{}'\n", columnName, tableName);
         exit(1);
     }
-    string where;
-    if (joinId.find("BETWEEN") == string::npos) where = fmt::format("{} IN ({}) ORDER BY array_position(ARRAY[{}], {})", PgManager::id, joinId, joinId, PgManager::id);
-    else where = fmt::format("{} {} ORDER BY {}", PgManager::id, joinId, PgManager::id);
-    string sql = fmt::format("SELECT {}_mean,{}_variance FROM \"{}_summary\" WHERE {}", columnName, columnName, tableName, where);
+    string sql;
+    if (joinId.find("BETWEEN") == string::npos){
+        sql = fmt::format("SELECT t.{}_mean,t.{}_variance FROM UNNEST(ARRAY[{}]) WITH ORDINALITY AS a(id, ord)\
+            JOIN LATERAL(\
+                SELECT {}_mean,{}_variance FROM \"{}_summary\" WHERE {}=a.{}\
+            ) t ON true ORDER BY a.ord", columnName, columnName, joinId, columnName, columnName, tableName, PgManager::id, PgManager::id);
+    } else sql = fmt::format("SELECT {}_mean,{}_variance FROM \"{}_summary\" WHERE {} {}", columnName, columnName, tableName, PgManager::id, joinId);
     auto res = PQexec(pg->conn.get(), sql.c_str());
     ck(pg->conn, res);
     for (int i = 0; i < PQntuples(res); ++i){
@@ -231,11 +234,20 @@ void Stat::getStoMeanVars(const string& tableName, const string& columnName, con
 }
 
 void Stat::getDetAttrs(const string& tableName, const string& columnName, const string& joinId, vector<double>& attrs){
-    string sql, select;
-    if (pg->getColumns(tableName)[columnName] == Column::array_type) select = fmt::format("SELECT {}_mean FROM \"{}_summary\"", columnName, tableName);
-    else select = fmt::format("SELECT {} FROM \"{}\"", columnName, tableName);
-    if (joinId.find("BETWEEN") == string::npos) sql = fmt::format("{} WHERE {} IN ({}) ORDER BY array_position(ARRAY[{}], {})", select, PgManager::id, joinId, joinId, PgManager::id);
-    else sql = fmt::format("{} WHERE {} {} ORDER BY {}", select, PgManager::id, joinId, PgManager::id);
+    string sql, column, table;
+    if (pg->getColumns(tableName)[columnName] == Column::array_type){
+        column = columnName + "_mean";
+        table = tableName + "_summary";
+    } else{
+        column = columnName;
+        table = tableName;
+    }
+    if (joinId.find("BETWEEN") == string::npos){
+        sql = fmt::format("SELECT t.{} FROM UNNEST(ARRAY[{}]) WITH ORDINALITY AS a(id, ord)\
+            JOIN LATERAL(\
+                SELECT {} FROM \"{}\" WHERE {}=a.{}\
+            ) t ON true ORDER BY a.ord", column, joinId, column, table, PgManager::id, PgManager::id);
+    } else sql = fmt::format("SELECT {} FROM \"{}\" WHERE {} {}", column, table, PgManager::id, joinId);
     auto res = PQexec(pg->conn.get(), sql.c_str());
     ck(pg->conn, res);
     for (int i = 0; i < PQntuples(res); ++i){

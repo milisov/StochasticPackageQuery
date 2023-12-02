@@ -1,5 +1,5 @@
 SELECT PACKAGE(*) FROM {} SUCH THAT
     COUNT(*) BETWEEN l1 AND u1 AND
     SUM(price) <= u2 AND
-    SUM(profit) >= v1 WITH PROBABILITY >= 0.95
+    SUM(profit) >= v1 WITH PROBABILITY >= 0.99
 MAXIMIZE EXPECTED SUM(profit)

@@ -32,7 +32,6 @@ private:
 	map<string, unique_ptr<double>> varTable;
 private:
 	bool addVariable(Bound bound);
-	string substitute(shared_ptr<Constraint> con);
 public:
 	static const int NO_REPEAT = -1;
 	string tableName;
@@ -55,6 +54,7 @@ public:
 	Bound getBound(const Bound& bound) const;
 	operator string();
 	string strAttrList() const;
+	string substitute(shared_ptr<Constraint> con, const vector<double>& info={});
 };
 
 ostream& operator<<(ostream& os, const shared_ptr<StochasticPackageQuery> spq);

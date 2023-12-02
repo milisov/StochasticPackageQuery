@@ -25,13 +25,14 @@ private:
     vector<vector<double>> detCons, stoXs, stoMeans;
     vector<double> detNorms, detXs, obj;
     map<string, Option> options;
-    SolType sol;
+    SolIndType sol;
 private:
-    void solve(SolType& nextSol) const;
-    void update(const SolType& step);
+    void solve(SolIndType& nextSol) const;
+    void update(const SolIndType& step);
 public:
     Taylor(shared_ptr<StochasticPackageQuery> spq, const vector<long long>& ids={}, const map<string, Option>& options={});
     void solve();
+    SolType getSol() const;
 };
 
 #endif

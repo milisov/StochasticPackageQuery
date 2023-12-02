@@ -34,14 +34,14 @@ bool StochasticPackageQuery::addVariable(Bound bound){
 	return true;
 }
 
-string StochasticPackageQuery::substitute(shared_ptr<Constraint> con){
+string StochasticPackageQuery::substitute(shared_ptr<Constraint> con, const vector<double>& info){
 	string res = "";
 	shared_ptr<BoundConstraint> boundCon = dynamic_pointer_cast<BoundConstraint>(con);
 	if (boundCon){
 		pair<Bound, Bound> bounds = {boundCon->lb, boundCon->ub};
 		boundCon->lb = getBound(boundCon->lb);
 		boundCon->ub = getBound(boundCon->ub);
-		res = static_cast<string>(*con);
+		res = con->toStr(info);
 		boundCon->lb = bounds.first;
 		boundCon->ub = bounds.second;
 		return res;
@@ -50,11 +50,11 @@ string StochasticPackageQuery::substitute(shared_ptr<Constraint> con){
 	if (probCon){
 		Bound bound = probCon->v;
 		probCon->v = getBound(probCon->v);
-		res = static_cast<string>(*con);
+		res = con->toStr(info);
 		probCon->v = bound;
 		return res;
 	}
-	cerr << fmt::format("Constraint '{}' not supported for substitution\n", static_cast<string>(*con));
+	cerr << fmt::format("Constraint '{}' not supported for substitution\n", con->toStr());
 	exit(1);
 }
 
@@ -131,7 +131,7 @@ bool StochasticPackageQuery::validate(){
 			if (boundCon->lb.which() != boundCon->ub.which()){
 				if ((boundCon->lb.which() == 1 && boost::get<double>(boundCon->lb) != NEG_INF)
 				| (boundCon->ub.which() == 1 && boost::get<double>(boundCon->ub) != POS_INF)){
-					cerr << fmt::format("Constraint '{}' has both numeric and variable bounds\n", static_cast<string>(*con));
+					cerr << fmt::format("Constraint '{}' has both numeric and variable bounds\n", con->toStr());
 					return false;	
 				}
 			}
@@ -140,23 +140,23 @@ bool StochasticPackageQuery::validate(){
 		if (probCon){
 			if (!addVariable(probCon->v)) return false;
 			if (probCon->p.which() == 0){
-				cerr << fmt::format("Variable '{}' is not supported in constraint '{}'\n", boost::get<string>(probCon->p), static_cast<string>(*con));
+				cerr << fmt::format("Variable '{}' is not supported in constraint '{}'\n", boost::get<string>(probCon->p), con->toStr());
 				return false;
 			}
 			double p = boost::get<double>(probCon->p);
 			if (p <= 0 || p >= 1){
-				cerr << fmt::format("Invalid probability '{}' in constraint '{}'\n", p, static_cast<string>(*con));
+				cerr << fmt::format("Invalid probability '{}' in constraint '{}'\n", p, con->toStr());
 				return false;
 			}
 		}
 		shared_ptr<AttrConstraint> attrCon = dynamic_pointer_cast<AttrConstraint>(con);
 		if (attrCon){
 			if (!columns.count(attrCon->attr)){
-				cerr << fmt::format("No column '{}' exists in the contraint '{}'\n", attrCon->attr, static_cast<string>(*con));
+				cerr << fmt::format("No column '{}' exists in the contraint '{}'\n", attrCon->attr, con->toStr());
 				return false;
 			}
 			if (columns[attrCon->attr] != attrCon->attrType){
-				cerr << fmt::format("Column '{}' is not supported in the contraint '{}'\n", attrCon->attr, static_cast<string>(*con));
+				cerr << fmt::format("Column '{}' is not supported in the contraint '{}'\n", attrCon->attr, con->toStr());
 				return false;
 			}
 		}
@@ -165,11 +165,11 @@ bool StochasticPackageQuery::validate(){
 		shared_ptr<AttrObjective> attrObj = dynamic_pointer_cast<AttrObjective>(obj);
 		if (attrObj){
 			if (!columns.count(attrObj->obj)){
-				cerr << fmt::format("No column '{}' exists in the objective '{}'\n", attrObj->obj, static_cast<string>(*obj));
+				cerr << fmt::format("No column '{}' exists in the objective '{}'\n", attrObj->obj, obj->toStr());
 				return false;
 			}
 			if (columns[attrObj->obj] != attrObj->objType){
-				cerr << fmt::format("Column '{}' is not supported in the objective '{}'\n", attrObj->obj, static_cast<string>(*obj));
+				cerr << fmt::format("Column '{}' is not supported in the objective '{}'\n", attrObj->obj, obj->toStr());
 				return false;
 			}
 		}
@@ -202,7 +202,7 @@ StochasticPackageQuery::operator string(){
 		if (con) strCons.push_back("\t" + substitute(con));
 	}
 	res += join(strCons, " AND\n") + '\n';
-	if (obj) res += static_cast<string>(*obj) + '\n';
+	if (obj) res += obj->toStr() + '\n';
 	return res;
 }
 

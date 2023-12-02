@@ -3,6 +3,10 @@
 #include <omp.h>
 #include <fmt/core.h>
 
+const char* RED = "\033[31m";
+const char* GREEN = "\033[32m";
+const char* RESET = "\033[0m";
+
 Profiler::Profiler(){
 }
 
