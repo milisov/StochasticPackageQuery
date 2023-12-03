@@ -35,8 +35,8 @@ struct PGconnDeleter {
 
 using PGconnPtr = std::unique_ptr<PGconn, PGconnDeleter>;
 
-void check(PGconnPtr& conn, PGresult* res, const char* file, int line);
-void check(PGconnPtr& conn, bool failed, const char* file, int line);
+void check(PGconnPtr& conn, PGresult* res, const char* file, const int& line);
+void check(PGconnPtr& conn, bool failed, const char* file, const int& line);
 
 #define ck(conn, arg) check(conn, arg, __FILE__, __LINE__)
 
@@ -71,9 +71,9 @@ public:
     ~SingleRow();
     SingleRow(const string& query);
     bool fetchRow();
-    long long getBigInt(int columnIndex);
-    double getNumeric(int columnIndex);
-    void getArray(int columnIndex, vector<double>& result);
+    long long getBigInt(const int& columnIndex);
+    double getNumeric(const int& columnIndex);
+    void getArray(const int& columnIndex, vector<double>& result);
 };
 
 template<typename T>
@@ -95,7 +95,7 @@ public:
     ~AsyncUpdate();
     AsyncUpdate(const string& query);
     template <typename T>
-    void set(int paramIndex, const T& v){
+    void set(const int& paramIndex, const T& v){
         string strV = to_string(v);
         vals[paramIndex] = new char[strV.size()+1];
         strcpy(vals[paramIndex], strV.c_str());

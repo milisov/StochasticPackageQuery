@@ -5,9 +5,11 @@
 
 #include <vector>
 #include <string>
+#include <memory>
 
 using std::string;
 using std::vector;
+using std::shared_ptr;
 
 class Objective{
 public:
@@ -42,5 +44,17 @@ public:
     ExpectedSumObjective(const string& objSense, const string& obj);
     string toStr(const vector<double>& info={}) const override;
 };
+
+class ProbObjective: public Objective, public AttrObjective{
+public:
+    Bound t;
+    Inequality tsign;
+    ProbObjective(const string& objSense, const string& obj, const Bound& t, const string& tsign);  
+};
+
+bool isDeterministic(const shared_ptr<Objective>& obj, shared_ptr<AttrObjective>& attrObj);
+bool isDeterministic(const shared_ptr<Objective>& obj);
+
+shared_ptr<CountObjective> getCount(const shared_ptr<Objective>& obj);
 
 #endif

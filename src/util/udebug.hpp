@@ -106,10 +106,10 @@ private:
 	map<string, std::chrono::time_point<Clock>> timePoints;
 public:
 	Profiler();
-	void clock(string label="");
-	void stop(string label="");
-	void add(Profiler pro);
-	void print();
+	void clock(const string& label="");
+	void stop(const string& label="");
+	void add(const Profiler& pro);
+	void print() const;
 };
 
 #ifdef DEBUG

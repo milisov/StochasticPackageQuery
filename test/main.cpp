@@ -48,13 +48,13 @@ void test(){
 		// for (double i = -10; i <= 10; i ++) hards.push_back(i);
 		CLK(pro, "hard");
 		// bounder.generate(hards);
-		bounder.set(3);
+		bounder.set(1);
 		STP(pro, "hard");
 		deb(spq->executable(), spq);
 		CLK(pro, "taylorinit");
 		Taylor taylor (spq, {}, {
 			{"soft_deterministic_constraint", false},
-			{"max_number_of_iterations", 100}});
+			{"max_number_of_iterations", 200}});
 		STP(pro, "taylorinit");
 		CLK(pro, "taylor");
 		taylor.solve();

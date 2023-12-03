@@ -3,11 +3,13 @@
 
 #include <vector>
 #include <string>
+#include <memory>
 
 #include "util/udeclare.hpp"
 
 using std::string;
 using std::vector;
+using std::shared_ptr;
 
 class Constraint{
 public:
@@ -61,5 +63,17 @@ public:
     string toStr(const vector<double>& info={}) const override;
     bool isViolate(const vector<double>& info) const override;
 };
+
+bool isStochastic(const shared_ptr<Constraint>& con, shared_ptr<ProbConstraint>& probCon, shared_ptr<AttrConstraint>& attrCon);
+bool isDeterministic(const shared_ptr<Constraint>& con, shared_ptr<BoundConstraint>& boundCon, shared_ptr<AttrConstraint>& attrCon);
+
+bool isStochastic(const shared_ptr<Constraint>& con, shared_ptr<ProbConstraint>& probCon);
+bool isDeterministic(const shared_ptr<Constraint>& con, shared_ptr<BoundConstraint>& boundCon);
+
+bool isStochastic(const shared_ptr<Constraint>& con);
+bool isDeterministic(const shared_ptr<Constraint>& con);
+
+shared_ptr<VarConstraint> getVar(const shared_ptr<Constraint>& con);
+shared_ptr<CountConstraint> getCount(const shared_ptr<Constraint>& con);
 
 #endif

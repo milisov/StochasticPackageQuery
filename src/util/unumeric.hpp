@@ -44,7 +44,7 @@ string strf(const long_double& value);
  * @brief Divide the interval [start, end] inclusively into div intervals
  * 
  */
-vector<long long> divideInterval(long long start, long long end, int div);
+vector<long long> divideInterval(const long long& start, const long long& end, const int& div);
 
 /**
  * @brief Compute sigmoid function with multiplicity k

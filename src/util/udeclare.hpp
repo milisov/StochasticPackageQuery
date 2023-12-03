@@ -42,8 +42,8 @@ ENUM(Inequality, lteq, gteq);
 ENUM(ObjectiveSense, maximize, minimize);
 ENUM(Column, numeric_type, string_type, array_type, unsupported);
 
-bool sameSense(ObjectiveSense objectiveSense, ObjSense objSense);
-bool sameSense(Inequality inequality, ObjSense objSense);
+bool sameSense(const ObjectiveSense& objectiveSense, const ObjSense& objSense);
+bool sameSense(const Inequality& inequality, const ObjSense& objSense);
 
 /**
  * @brief Boost Variant

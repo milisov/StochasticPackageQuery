@@ -4,6 +4,7 @@
 #include "obj.hpp"
 
 using boost::algorithm::to_upper_copy;
+using std::dynamic_pointer_cast;
 
 Objective::Objective(const string& objSense){
     this->objSense = toObjectiveSense[to_upper_copy(objSense)];
@@ -36,4 +37,21 @@ ExpectedSumObjective::ExpectedSumObjective(const string& objSense, const string&
 string ExpectedSumObjective::toStr(const vector<double>& info) const{
     if (!info.size()) return fmt::format("{} EXPECTED SUM({})", str(objSense), obj);
     return fmt::format("{} EXPECTED SUM({})={}", str(objSense), obj, info.front());
+}
+
+ProbObjective::ProbObjective(const string& objSense, const string& obj, const Bound& t, const string& tsign): Objective(objSense), AttrObjective(obj), t(t){
+    this->tsign = toInequality[tsign];
+}
+
+bool isDeterministic(const shared_ptr<Objective>& obj, shared_ptr<AttrObjective>& attrObj){
+    attrObj = dynamic_pointer_cast<AttrObjective>(obj);
+    return !dynamic_pointer_cast<ProbObjective>(obj);
+}
+
+bool isDeterministic(const shared_ptr<Objective>& obj){
+    return !dynamic_pointer_cast<ProbObjective>(obj);
+}
+
+shared_ptr<CountObjective> getCount(const shared_ptr<Objective>& obj){
+    return dynamic_pointer_cast<CountObjective>(obj);
 }

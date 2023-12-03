@@ -9,7 +9,7 @@ string strf(const long_double& value) {
     return value.str();
 }
 
-vector<long long> divideInterval(long long start, long long end, int div){
+vector<long long> divideInterval(const long long& start, const long long& end, const int& div){
     vector<long long> result;
     long long intervalLength = end - start + 1;
     long long size = intervalLength / div;

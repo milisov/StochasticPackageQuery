@@ -37,19 +37,6 @@ Taylor::Taylor(shared_ptr<StochasticPackageQuery> spq, const vector<long long>& 
     for (const auto& p : defaultOptions){
         if (!options.count(p.first)) this->options[p.first] = p.second;
     }
-    // if (!options.count("number_of_scenarios")){
-    //     for (const auto& con : spq->cons){
-    //         shared_ptr<ProbConstraint> probCon = dynamic_pointer_cast<ProbConstraint>(con);
-	// 	    if (probCon){
-    //             shared_ptr<AttrConstraint> attrCon = dynamic_pointer_cast<AttrConstraint>(con);
-	// 	        if (attrCon){
-    //                 if (!this->options.count("number_of_scenarios")){
-    //                     this->options["number_of_scenarios"] = pg->getColumnLength(spq->tableName, attrCon->attr);
-    //                 } else this->options["number_of_scenarios"] = min(boost::get<int>(this->options["number_of_scenarios"]), pg->getColumnLength(spq->tableName, attrCon->attr));
-    //             }
-    //         }
-    //     }
-    // }
     auto tableSize = stat->pg->getTableSize(spq->tableName);
     for (const auto& id : ids){
         if (id > tableSize){
@@ -67,38 +54,37 @@ Taylor::Taylor(shared_ptr<StochasticPackageQuery> spq, const vector<long long>& 
     size_t n = this->ids.size();
     sqn = sqrt(n);
     int nCores = boost::get<int>(this->options["number_of_cores"]);
+    shared_ptr<BoundConstraint> boundCon;
+    shared_ptr<ProbConstraint> probCon;
+    shared_ptr<AttrConstraint> attrCon;
     for (const auto& con : spq->cons){
-        shared_ptr<ProbConstraint> probCon = dynamic_pointer_cast<ProbConstraint>(con);
-        if (probCon){
-            shared_ptr<AttrConstraint> attrCon = dynamic_pointer_cast<AttrConstraint>(con);
-            if (attrCon){
-                size_t N = stat->pg->getColumnLength(spq->tableName, attrCon->attr);
-                stoXs.emplace_back(N, 0);
-                vector<double> means;
-                if (!ids.size()){
-                    means.resize(n);
-                    auto intervals = divideInterval(1, n, nCores);
-                    #pragma omp parallel num_threads(nCores)
-                    {
-                        auto coreIndex = omp_get_thread_num();
-                        string betweenId = fmt::format("BETWEEN {} AND {}", intervals[coreIndex], intervals[coreIndex+1]-1);
-                        size_t n_ = intervals[coreIndex+1]-intervals[coreIndex];
-                        vector<double> means_; means_.reserve(n_);
-                        vector<double> _; _.reserve(n_);
-                        Stat stat_;
-                        stat_.getStoMeanVars(spq->tableName, attrCon->attr, betweenId, means_, _);
-                        copy(means_.begin(), means_.end(), means.begin()+intervals[coreIndex]-1);
-                    }
-                } else {
-                    vector<double> _; _.reserve(n);
-                    means.reserve(n);
-                    stat->getStoMeanVars(spq->tableName, attrCon->attr, joinId, means, _);
+        if (isStochastic(con, probCon, attrCon) && attrCon){
+            size_t N = stat->pg->getColumnLength(spq->tableName, attrCon->attr);
+            stoXs.emplace_back(N, 0);
+            vector<double> means;
+            if (!ids.size()){
+                means.resize(n);
+                auto intervals = divideInterval(1, n, nCores);
+                #pragma omp parallel num_threads(nCores)
+                {
+                    auto coreIndex = omp_get_thread_num();
+                    string betweenId = fmt::format("BETWEEN {} AND {}", intervals[coreIndex], intervals[coreIndex+1]-1);
+                    size_t n_ = intervals[coreIndex+1]-intervals[coreIndex];
+                    vector<double> means_; means_.reserve(n_);
+                    vector<double> _; _.reserve(n_);
+                    Stat stat_;
+                    stat_.getStoMeanVars(spq->tableName, attrCon->attr, betweenId, means_, _);
+                    copy(means_.begin(), means_.end(), means.begin()+intervals[coreIndex]-1);
                 }
-                stoMeans.emplace_back(means);
+            } else {
+                vector<double> _; _.reserve(n);
+                means.reserve(n);
+                stat->getStoMeanVars(spq->tableName, attrCon->attr, joinId, means, _);
             }
-        } else{
+            stoMeans.emplace_back(means);
+        }
+        if (isDeterministic(con, boundCon, attrCon)){
             detXs.push_back(0);
-            shared_ptr<AttrConstraint> attrCon = dynamic_pointer_cast<AttrConstraint>(con);
             if (attrCon){
                 vector<double> attrs;
                 if (!ids.size()){
@@ -120,50 +106,51 @@ Taylor::Taylor(shared_ptr<StochasticPackageQuery> spq, const vector<long long>& 
                 }
                 detCons.emplace_back(attrs);
                 detNorms.push_back(norm(attrs));
-            } else{
-                shared_ptr<CountConstraint> countCon = dynamic_pointer_cast<CountConstraint>(con);
-                if (countCon){
-                    detCons.emplace_back(n, 1.0);
-                    detNorms.push_back(sqn);
-                }
+            }
+            if (getCount(con)){
+                detCons.emplace_back(n, 1.0);
+                detNorms.push_back(sqn);
             }
         }
     }
+    objValue = 0;
+    minVio = POS_INF;
+    bestObj = 0;
     obj.resize(n);
     fill(obj.begin(), obj.end(), 0);
     if (spq->obj){
-        shared_ptr<AttrObjective> attrObj = dynamic_pointer_cast<AttrObjective>(spq->obj);
-        if (attrObj){
-            vector<double> attrs;
-            if (!ids.size()){
-                attrs.resize(n);
-                auto intervals = divideInterval(1, n, nCores);
-                #pragma omp parallel num_threads(nCores)
-                {
-                    auto coreIndex = omp_get_thread_num();
-                    string betweenId = fmt::format("BETWEEN {} AND {}", intervals[coreIndex], intervals[coreIndex+1]-1);
-                    size_t n_ = intervals[coreIndex+1]-intervals[coreIndex];
-                    vector<double> attrs_; attrs_.reserve(n_);
-                    Stat stat_;
-                    stat_.getDetAttrs(spq->tableName, attrObj->obj, betweenId, attrs_);
-                    copy(attrs_.begin(), attrs_.end(), attrs.begin()+intervals[coreIndex]-1);
+        shared_ptr<AttrObjective> attrObj;
+        if (isDeterministic(spq->obj, attrObj)){
+            if (attrObj){
+                vector<double> attrs;
+                if (!ids.size()){
+                    attrs.resize(n);
+                    auto intervals = divideInterval(1, n, nCores);
+                    #pragma omp parallel num_threads(nCores)
+                    {
+                        auto coreIndex = omp_get_thread_num();
+                        string betweenId = fmt::format("BETWEEN {} AND {}", intervals[coreIndex], intervals[coreIndex+1]-1);
+                        size_t n_ = intervals[coreIndex+1]-intervals[coreIndex];
+                        vector<double> attrs_; attrs_.reserve(n_);
+                        Stat stat_;
+                        stat_.getDetAttrs(spq->tableName, attrObj->obj, betweenId, attrs_);
+                        copy(attrs_.begin(), attrs_.end(), attrs.begin()+intervals[coreIndex]-1);
+                    }
+                } else {
+                    attrs.reserve(n);
+                    stat->getDetAttrs(spq->tableName, attrObj->obj, joinId, attrs);
                 }
-            } else {
-                attrs.reserve(n);
-                stat->getDetAttrs(spq->tableName, attrObj->obj, joinId, attrs);
+                copy(attrs.begin(), attrs.end(), obj.begin());
             }
-            copy(attrs.begin(), attrs.end(), obj.begin());
-        } else{
-            if (dynamic_pointer_cast<CountObjective>(spq->obj)){
-                fill(obj.begin(), obj.end(), 1.0);
-            }
+            if (getCount(spq->obj)) fill(obj.begin(), obj.end(), 1.0);
         }
+        if (spq->obj->objSense == ObjectiveSense::maximize) bestObj = NEG_INF;
+        else bestObj = POS_INF;
     }
-    normalize(obj);
-    // for (size_t i = 0; i < obj.size(); ++i) obj[i] = obj[i]*sqn;
+    objNorm = norm(obj);
 }
 
-void Taylor::solve(SolIndType& nextSol) const{
+void Taylor::solve(SolIndType& nextSol){
     INIT(pro);
     int nCores = boost::get<int>(this->options.at("number_of_cores"));
     size_t n = ids.size();
@@ -185,8 +172,12 @@ void Taylor::solve(SolIndType& nextSol) const{
     start_.reserve(m+1); index_.reserve((m+1)*model.lp_.num_col_); value_.reserve((m+1)*model.lp_.num_col_);
     start_.push_back(0);
     vector<shared_ptr<KDE>> kdes;
-    vector<double> softObj = obj;
-    if (!sameSense(spq->obj->objSense, model.lp_.sense_)) for (size_t i = 0; i < obj.size(); ++i) softObj[i] = -obj[i];
+    vector<double> softObj (n, 0);
+    if (objNorm > 0){
+        if (!sameSense(spq->obj->objSense, model.lp_.sense_)){
+            for (size_t i = 0; i < n; ++i) softObj[i] = -obj[i]/objNorm;
+        } else for (size_t i = 0; i < n; ++i) softObj[i] = obj[i]/objNorm;
+    }
     size_t detInd = 0, stoInd = 0;
     CLK(pro, "a");
     for (const auto& con : spq->cons){
@@ -227,7 +218,9 @@ void Taylor::solve(SolIndType& nextSol) const{
             detInd ++;
         }
     }
-    // deb(sol, violations);
+    double vio = std::accumulate(violations.begin(), violations.end(), 0.0);
+    update(vio, objValue, sol);
+    deb(sol, violations);
     double logitSum = logLogit(violations);
     for (size_t i = 0; i < violations.size(); ++ i){
         if (violations[i] > 0) violations[i] = exp(logit(violations[i])-logitSum);
@@ -250,7 +243,7 @@ void Taylor::solve(SolIndType& nextSol) const{
             if (varCon){
                 size_t N = stat->pg->getColumnLength(spq->tableName, varCon->attr);
                 if (isDependencyVar){
-
+                    
                 } else{
                     const auto& kde = kdes[stoInd];
                     double fxv = max(kde->getPdf(v), MACHINE_EPS);
@@ -384,6 +377,7 @@ void Taylor::update(const SolIndType& step){
             detInd ++;
         }
     }
+    for (const auto& p : step) objValue += obj[p.first]*p.second;
     #pragma omp parallel num_threads(nCores)
     {
         Stat stat_;
@@ -412,20 +406,36 @@ void Taylor::update(const SolIndType& step){
     sol = add(1.0, sol, 1.0, step);
 }
 
+void Taylor::update(const double& vio, const double& objValue, const SolIndType& sol){
+    if (minVio > vio){
+        minVio = vio;
+        bestObj = objValue;
+        bestSol = sol;
+    } else if (minVio == vio && spq->obj){
+        if (spq->obj->objSense == ObjectiveSense::maximize && bestObj < objValue){
+            bestObj = objValue;
+            bestSol = sol;
+        } else if (spq->obj->objSense == ObjectiveSense::minimize && bestObj > objValue){
+            bestObj = objValue;
+            bestSol = sol;
+        }
+    }
+}
+
 void Taylor::solve(){
     RMSprop optim;
-    SPQChecker chk (spq);
+    // SPQChecker chk (spq);
     int nIters = boost::get<int>(options.at("max_number_of_iterations"));
     for (int i = 0; i < nIters; ++i){
         SolIndType nextSol; solve(nextSol);
         update(optim.towards(nextSol));
-        chk.display(getSol());
+        // chk.display(getSol());
     }
 }
 
 SolType Taylor::getSol() const{
     SolType res;
-    for (const auto& p : sol){
+    for (const auto& p : bestSol){
         if (p.first < ids.size() && p.first >= 0) res[ids[p.first]] = p.second;
     }
     return res;

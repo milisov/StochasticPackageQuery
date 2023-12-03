@@ -26,7 +26,7 @@ private:
     vector<bool> reverses;
     map<double, map<string, double>> varTables;
 private:
-    void setBound(const double& h, const Bound& bound, double value);
+    void setBound(const double& h, const Bound& bound, const double& value);
 public:
     Bounder(shared_ptr<StochasticPackageQuery> spq, const size_t& N, const double& E);
     void generate(const vector<double>& hards);

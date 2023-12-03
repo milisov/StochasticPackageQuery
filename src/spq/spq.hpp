@@ -31,7 +31,7 @@ private:
 	bool isValid;
 	map<string, unique_ptr<double>> varTable;
 private:
-	bool addVariable(Bound bound);
+	bool addVariable(const Bound& bound);
 public:
 	static const int NO_REPEAT = -1;
 	string tableName;
@@ -44,9 +44,9 @@ public:
 	void setTableName(const string& tableName);
 	void setAttrList(const vector<string>& attrList);
 	void setRepeat(const int& repeat);
-	void addConstraint(shared_ptr<Constraint> con);
-	void setObjective(shared_ptr<Objective> obj);
-	void setVariable(string var, double value);
+	void addConstraint(const shared_ptr<Constraint>& con);
+	void setObjective(const shared_ptr<Objective>& obj);
+	void setVariable(const string& var, const double& value);
 	bool validate();
 	bool executable();
 	int countStochastic();
@@ -54,10 +54,10 @@ public:
 	Bound getBound(const Bound& bound) const;
 	operator string();
 	string strAttrList() const;
-	string substitute(shared_ptr<Constraint> con, const vector<double>& info={});
+	string substitute(const shared_ptr<Constraint>& con, const vector<double>& info={});
 };
 
-ostream& operator<<(ostream& os, const shared_ptr<StochasticPackageQuery> spq);
-shared_ptr<StochasticPackageQuery> parseSpaqlFromFile(string filePath);
+ostream& operator<<(ostream& os, const shared_ptr<StochasticPackageQuery>& spq);
+shared_ptr<StochasticPackageQuery> parseSpaqlFromFile(const string& filePath);
 
 #endif

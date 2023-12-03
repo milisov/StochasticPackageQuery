@@ -3,8 +3,10 @@
 
 #include <map>
 #include <cmath>
+#include <algorithm>
 
 using std::map;
+using std::max;
 
 template<typename K, typename V>
 map<K, V> sqrt(const map<K, V>& M1){
@@ -17,6 +19,13 @@ template<typename K, typename V>
 map<K, V> add(const map<K, V>& M1, const V& c){
     map<K, V> res;
     for (const auto& p1 : M1) res[p1.first] = p1.second+c;
+    return res;
+}
+
+template<typename K, typename V>
+map<K, V> max(const map<K, V>& M1, const V& c){
+    map<K, V> res;
+    for (const auto& p1 : M1) res[p1.first] = max(p1.second, c);
     return res;
 }
 

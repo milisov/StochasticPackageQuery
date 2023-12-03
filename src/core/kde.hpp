@@ -15,7 +15,7 @@ private:
 private:
     void getSupports(const vector<double>& sortedArr, const double& h);
 public:
-    KDE(const vector<double>& arr, bool quickMode);
+    KDE(const vector<double>& arr, const bool& quickMode=true);
 // QuickMode's API availablity
     long double getSum() const;
     long double getM2() const;
@@ -25,12 +25,11 @@ public:
     double getMax() const;
     double getPdf(const double& x) const;
     double getQuickCdf(const double& x) const;
+    double getQuickCvarInv(const double& x) const;
     double convolve(const vector<double>& quantiles, const double& v, const double& m) const;
     template <typename T> void getSortedQuantiles(vector<T>& sortedQuantiles) const;
     template <typename T> void getQuantiles(vector<T>& quantiles) const;
 // NormalMode
-    double getCdf(const double& x) const;
-    double getCvarInv(const double& v) const;
 };
 
 /**
@@ -71,5 +70,10 @@ void KDE::getQuantiles(vector<T>& quantiles) const{
     getSortedQuantiles(sortedResults);
     for (size_t i = 0; i < n; ++i) quantiles[sortedQuantiles[i].second] = sortedResults[i];
 }
+
+class MultiKDE{
+public:
+    MultiKDE(const vector<double>& X, const vector<double>& Y);
+};
 
 #endif

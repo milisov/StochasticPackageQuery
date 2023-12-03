@@ -20,7 +20,7 @@ private:
     static const string statTable;
 private:
     bool isAnalyzed(const string& tableName, const string& columnName);
-    void addStat(const string& tableName, const string& columnName, const long_double sum, const long_double m2, const long long count);
+    void addStat(const string& tableName, const string& columnName, const long_double& sum, const long_double& m2, const long long& count);
     void analyzeStochastic(const string& tableName, const vector<string>& columnNames);
     void analyzeDeterministic(const string& tableName, const vector<string>& columnNames);
 public:

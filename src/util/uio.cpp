@@ -76,7 +76,7 @@ const vector<ExecStatusType> okTypes = {
 	PGRES_COPY_IN
 };
 
-void check(PGconnPtr& conn, PGresult* res, const char* file, int line){
+void check(PGconnPtr& conn, PGresult* res, const char* file, const int& line){
 	auto status = PQresultStatus(res);
 	bool isBad = true;
 	for (auto okType : okTypes){
@@ -95,7 +95,7 @@ void check(PGconnPtr& conn, PGresult* res, const char* file, int line){
 	}
 }
 
-void check(PGconnPtr& conn, bool failed, const char* file, int line){
+void check(PGconnPtr& conn, bool failed, const char* file, const int& line){
 	if (failed){
 		cerr << RED << "File " << file  \
 			<< ", Line " << line << RESET << "\n";
@@ -216,11 +216,11 @@ bool SingleRow::fetchRow(){
 	return false;
 }
 
-long long SingleRow::getBigInt(int columnIndex){
+long long SingleRow::getBigInt(const int& columnIndex){
 	return atoll(PQgetvalue(res, 0, columnIndex));
 }
 
-double SingleRow::getNumeric(int columnIndex){
+double SingleRow::getNumeric(const int& columnIndex){
 	return atof(PQgetvalue(res, 0, columnIndex));
 }
 
@@ -233,7 +233,7 @@ void readArray(char* start, vector<double>& array){
 	}
 }
 
-void SingleRow::getArray(int columnIndex, vector<double>& result){
+void SingleRow::getArray(const int& columnIndex, vector<double>& result){
 	readArray(PQgetvalue(res, 0, columnIndex), result);
 }
 

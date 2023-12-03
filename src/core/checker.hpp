@@ -23,6 +23,7 @@ public:
 class SPQChecker: public Checker{
 protected:
     shared_ptr<StochasticPackageQuery> spq;
+    string validateTableName;
 private:
     double getConIndicator(const SolType& sol, shared_ptr<Constraint> con) const;
 public:

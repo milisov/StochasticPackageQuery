@@ -6,7 +6,6 @@
 #include "checker.hpp"
 
 using std::make_unique;
-using std::dynamic_pointer_cast;
 using std::cout;
 
 Checker::Checker(){
@@ -14,24 +13,24 @@ Checker::Checker(){
 }
 
 SPQChecker::SPQChecker(shared_ptr<StochasticPackageQuery> spq): Checker(), spq(spq){
+    validateTableName = spq->tableName + "_validate";
 }
 
 double SPQChecker::getObjective(const SolType& sol) const{
     double res = 0;
     if (spq->obj){
-        shared_ptr<AttrObjective> attrObj = dynamic_pointer_cast<AttrObjective>(spq->obj);
-        if (attrObj){
-            auto n = sol.size();
-            vector<double> attrs; attrs.reserve(n);
-            vector<string> strIds; strIds.reserve(n);
-            for (const auto& p : sol) strIds.push_back(to_string(p.first));
-            stat->getDetAttrs(spq->tableName, attrObj->obj, boost::join(strIds, ","), attrs);
-            size_t i = 0;
-            for (const auto& p : sol) res += p.second*attrs[i++];
-        } else{
-            if (dynamic_pointer_cast<CountObjective>(spq->obj)){
-                for (const auto& p : sol) res += p.second;
+        shared_ptr<AttrObjective> attrObj;
+        if (isDeterministic(spq->obj, attrObj)){
+            if (attrObj){
+                auto n = sol.size();
+                vector<double> attrs; attrs.reserve(n);
+                vector<string> strIds; strIds.reserve(n);
+                for (const auto& p : sol) strIds.push_back(to_string(p.first));
+                stat->getDetAttrs(spq->tableName, attrObj->obj, boost::join(strIds, ","), attrs);
+                size_t i = 0;
+                for (const auto& p : sol) res += p.second*attrs[i++];
             }
+            if (getCount(spq->obj)) for (const auto& p : sol) res += p.second;
         }
     }
     return res;
@@ -39,27 +38,26 @@ double SPQChecker::getObjective(const SolType& sol) const{
 
 double SPQChecker::getConIndicator(const SolType& sol, shared_ptr<Constraint> con) const{
     double res = 0;
-    shared_ptr<ProbConstraint> probCon = dynamic_pointer_cast<ProbConstraint>(con);
-    if (probCon){
-        shared_ptr<AttrConstraint> attrCon = dynamic_pointer_cast<AttrConstraint>(con);
-        if (attrCon){
-            size_t N = stat->pg->getColumnLength(spq->tableName, attrCon->attr);
-            vector<double> X (N, 0);
-            for (const auto& p : sol){
-                vector<double> samples; samples.reserve(N);
-                stat->getSamples(spq->tableName, attrCon->attr, p.first, samples);
-                for (size_t i = 0; i < N; ++i) X[i] += samples[i]*p.second;
-            }
-            KDE kde (X, true);
-            double v = spq->getValue(probCon->v);
-            if (dynamic_pointer_cast<VarConstraint>(con)){
-                res = kde.getQuickCdf(v);
-                if (probCon->vsign == Inequality::gteq) res = 1-res;
-            }
+    shared_ptr<ProbConstraint> probCon;
+    shared_ptr<BoundConstraint> boundCon;
+    shared_ptr<AttrConstraint> attrCon;
+    if (isStochastic(con, probCon, attrCon) && attrCon){
+        size_t N = stat->pg->getColumnLength(validateTableName, attrCon->attr);
+        vector<double> X (N, 0);
+        for (const auto& p : sol){
+            vector<double> samples; samples.reserve(N);
+            stat->getSamples(validateTableName, attrCon->attr, p.first, samples);
+            for (size_t i = 0; i < N; ++i) X[i] += samples[i]*p.second;
         }
-    } else{
-		shared_ptr<AttrConstraint> attrCon = dynamic_pointer_cast<AttrConstraint>(con);
-		if (attrCon){
+        KDE kde (X, true);
+        double v = spq->getValue(probCon->v);
+        if (getVar(con)){
+            res = kde.getQuickCdf(v);
+            if (probCon->vsign == Inequality::gteq) res = 1-res;
+        }
+    }
+    if (isDeterministic(con, boundCon, attrCon)){
+        if (attrCon){
             auto n = sol.size();
             vector<double> attrs; attrs.reserve(n);
             vector<string> strIds; strIds.reserve(n);
@@ -67,11 +65,8 @@ double SPQChecker::getConIndicator(const SolType& sol, shared_ptr<Constraint> co
             stat->getDetAttrs(spq->tableName, attrCon->attr, boost::join(strIds, ","), attrs);
             size_t i = 0;
             for (const auto& p : sol) res += p.second*attrs[i++];
-        } else{
-            if (dynamic_pointer_cast<CountConstraint>(con)){
-                for (const auto& p : sol) res += p.second;
-            }
         }
+        if (getCount(con)) for (const auto& p : sol) res += p.second;
     }
     return res;
 }
@@ -84,7 +79,7 @@ bool SPQChecker::feasible(const SolType& sol) const{
     auto tableSize = stat->pg->getTableSize(spq->tableName);
     for (const auto& p : sol) if (p.first < 1 || p.first > tableSize) return false;
     for (const auto& con : spq->cons){
-        double indicator = getConIndicator(sol, con);
+        if (con->isViolate({getConIndicator(sol, con)})) return false;
     }
     return true;
 }
@@ -107,8 +102,7 @@ void SPQChecker::display(const SolType& sol) const{
 	if (spq->cons.size()) cout << " SUCH THAT\n";
 	vector<string> strCons;
 	for (const auto& con : spq->cons){
-        double indicator = getConIndicator(sol, con);
-		if (con) strCons.push_back("\t" + spq->substitute(con, {indicator}));
+		if (con) strCons.push_back("\t" + spq->substitute(con, {getConIndicator(sol, con)}));
 	}
 	cout << boost::join(strCons, " AND\n") << '\n';
     if (spq->obj) cout << spq->obj->toStr({getObjective(sol)}) + '\n';

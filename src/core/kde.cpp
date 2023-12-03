@@ -66,7 +66,7 @@ void KDE::getSupports(const vector<double>& sortedArr, const double& h){
     supPdf.pop_back();
 }
 
-KDE::KDE(const vector<double>& arr, bool quickMode){
+KDE::KDE(const vector<double>& arr, const bool& quickMode){
     AccSet acc;
     for (auto v : arr) acc(v);
     auto n = arr.size();
@@ -166,16 +166,16 @@ double KDE::convolve(const vector<double>& quantiles, const double& v, const dou
     return -res;
 }
 
-// Normal mode
-
-double KDE::getCdf(const double& x) const{
-    auto it = lower_bound(sup.begin(), sup.end(), x);
-    auto ind = it-sup.begin();
-    if (ind == 0) return 0;
-    if (ind == sup.size()) return 1;
-    return cumCdf[ind-1] + supPdf[ind-1]*(x-sup[ind-1]);
-}
-
-double KDE::getCvarInv(const double& v) const{
+double KDE::getQuickCvarInv(const double& x) const{
     return 0;
 }
+
+// Normal mode
+
+// double KDE::getCdf(const double& x) const{
+//     auto it = lower_bound(sup.begin(), sup.end(), x);
+//     auto ind = it-sup.begin();
+//     if (ind == 0) return 0;
+//     if (ind == sup.size()) return 1;
+//     return cumCdf[ind-1] + supPdf[ind-1]*(x-sup[ind-1]);
+// }

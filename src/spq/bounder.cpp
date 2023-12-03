@@ -15,7 +15,6 @@
 #include "util/unumeric.hpp"
 
 using std::pair;
-using std::dynamic_pointer_cast;
 using std::cerr;
 
 const double Bounder::hardEps = Config::getInstance()->pt.get<double>("parameters.hard_eps");
@@ -52,77 +51,71 @@ Bounder::Bounder(shared_ptr<StochasticPackageQuery> spq, const size_t& N, const 
     }
 
     for (auto con : spq->cons){
-        shared_ptr<BoundConstraint> boundCon = dynamic_pointer_cast<BoundConstraint>(con);
-        if (boundCon){
-            shared_ptr<AttrConstraint> attrCon = dynamic_pointer_cast<AttrConstraint>(con);
-            if (attrCon){
-                vector<double> G (N);
-                #pragma omp parallel num_threads(nCores)
-                {
-                    auto coreIndex = omp_get_thread_num();
-                    Stat stat;
-                    vector<double> attrs; attrs.reserve((intervals[coreIndex+1]-intervals[coreIndex])*iE);
-                    stat.getDetAttrs(spq->tableName, attrCon->attr, joinIds[coreIndex], attrs);
-                    for (size_t i = intervals[coreIndex]; i < intervals[coreIndex+1]; ++i){
-                        double attr = 0;
-                        size_t ind = (i-intervals[coreIndex])*iE;
-                        for (size_t j = 0; j < iE-1; ++j) attr += attrs[ind+j];
-                        attr += attrs[ind+iE-1]*fE;
-                        G[i] = attr;
-                    }
+        shared_ptr<BoundConstraint> boundCon;
+        shared_ptr<ProbConstraint> probCon;
+        shared_ptr<AttrConstraint> attrCon;
+        if (isDeterministic(con, boundCon, attrCon) && attrCon){
+            vector<double> G (N);
+            #pragma omp parallel num_threads(nCores)
+            {
+                auto coreIndex = omp_get_thread_num();
+                Stat stat;
+                vector<double> attrs; attrs.reserve((intervals[coreIndex+1]-intervals[coreIndex])*iE);
+                stat.getDetAttrs(spq->tableName, attrCon->attr, joinIds[coreIndex], attrs);
+                for (size_t i = intervals[coreIndex]; i < intervals[coreIndex+1]; ++i){
+                    double attr = 0;
+                    size_t ind = (i-intervals[coreIndex])*iE;
+                    for (size_t j = 0; j < iE-1; ++j) attr += attrs[ind+j];
+                    attr += attrs[ind+iE-1]*fE;
+                    G[i] = attr;
                 }
-                detKDEs.push_back(std::make_unique<KDE>(G, true));
             }
+            detKDEs.push_back(std::make_unique<KDE>(G, true));
         }
-        shared_ptr<ProbConstraint> probCon = dynamic_pointer_cast<ProbConstraint>(con);
-        if (probCon){
+        if (isStochastic(con, probCon, attrCon) && attrCon){
             double c = 0;
-            shared_ptr<VarConstraint> varCon = dynamic_pointer_cast<VarConstraint>(con);
-            if (varCon){
-                double p = spq->getValue(varCon->p);
-                if (varCon->vsign == Inequality::gteq) p = 1-p;
+            if (getVar(con)){
+                double p = spq->getValue(probCon->p);
+                if (probCon->vsign == Inequality::gteq) p = 1-p;
                 c = sqrt(2)*boost::math::erf_inv(2*p-1);
                 bool reverse = false;
-                if (varCon->vsign == varCon->psign) reverse = true;
+                if (probCon->vsign == probCon->psign) reverse = true;
                 reverses.push_back(reverse);
             }
             double step = 0;
             vector<double> G (N);
-            shared_ptr<AttrConstraint> attrCon = dynamic_pointer_cast<AttrConstraint>(con);
-            if (attrCon){
-                #pragma omp parallel num_threads(nCores)
-                {
-                    auto coreIndex = omp_get_thread_num();
-                    Stat stat;
-                    size_t sz = (intervals[coreIndex+1]-intervals[coreIndex])*iE;
-                    vector<double> means; means.reserve(sz);
-                    vector<double> vars; vars.reserve(sz);
-                    stat.getStoMeanVars(spq->tableName, attrCon->attr, joinIds[coreIndex], means, vars);
-                    double step_ = 0;
-                    for (size_t i = intervals[coreIndex]; i < intervals[coreIndex+1]; ++i){
-                        double mean = 0, var = 0;
-                        size_t ind = (i-intervals[coreIndex])*iE;
-                        for (size_t j = 0; j < iE-1; ++j){
-                            mean += means[ind+j];
-                            var += vars[ind+j];
-                        }
-                        mean += means[ind+iE-1]*fE;
-                        var += vars[ind+iE-1]*fE;
-                        G[i] = mean + sqrt(var)*c;
-                        step_ += var;
+            #pragma omp parallel num_threads(nCores)
+            {
+                auto coreIndex = omp_get_thread_num();
+                Stat stat;
+                size_t sz = (intervals[coreIndex+1]-intervals[coreIndex])*iE;
+                vector<double> means; means.reserve(sz);
+                vector<double> vars; vars.reserve(sz);
+                stat.getStoMeanVars(spq->tableName, attrCon->attr, joinIds[coreIndex], means, vars);
+                double step_ = 0;
+                for (size_t i = intervals[coreIndex]; i < intervals[coreIndex+1]; ++i){
+                    double mean = 0, var = 0;
+                    size_t ind = (i-intervals[coreIndex])*iE;
+                    for (size_t j = 0; j < iE-1; ++j){
+                        mean += means[ind+j];
+                        var += vars[ind+j];
                     }
-                    #pragma omp atomic
-                    step += step_;
+                    mean += means[ind+iE-1]*fE;
+                    var += vars[ind+iE-1]*fE;
+                    G[i] = mean + sqrt(var)*c;
+                    step_ += var;
                 }
-                stoKDEs.push_back(std::make_unique<KDE>(G, true));
-                step = sqrt(step/N)*abs(c);
-                steps.push_back(step);
+                #pragma omp atomic
+                step += step_;
             }
+            stoKDEs.push_back(std::make_unique<KDE>(G, true));
+            step = sqrt(step/N)*abs(c);
+            steps.push_back(step);
         }
     }
 }
 
-void Bounder::setBound(const double& h, const Bound& bound, double value){
+void Bounder::setBound(const double& h, const Bound& bound, const double& value){
     if (bound.which() == 0){
         string var = boost::get<string>(bound);
         varTables[h][var] = value;
@@ -139,16 +132,16 @@ void Bounder::generate(const vector<double>& hards){
     int stoIndex = 0;
     int detIndex = 0;
     for (auto con : spq->cons){
-		shared_ptr<BoundConstraint> boundCon = dynamic_pointer_cast<BoundConstraint>(con);
-		if (boundCon){
-		    shared_ptr<CountConstraint> countCon = dynamic_pointer_cast<CountConstraint>(con);
-            if (countCon){
+		shared_ptr<BoundConstraint> boundCon;
+        shared_ptr<ProbConstraint> probCon;
+        shared_ptr<AttrConstraint> attrCon;
+        if (isDeterministic(con, boundCon, attrCon)){
+            if (getCount(con)){
                 for (const auto& h : hards){
-                    if (countCon->lb.which() == 0) setBound(h, countCon->lb, E*(1-countRelaxationRatio));
-                    if (countCon->ub.which() == 0) setBound(h, countCon->ub, E*(1+countRelaxationRatio));
+                    if (boundCon->lb.which() == 0) setBound(h, boundCon->lb, E*(1-countRelaxationRatio));
+                    if (boundCon->ub.which() == 0) setBound(h, boundCon->ub, E*(1+countRelaxationRatio));
                 }
             }
-            shared_ptr<AttrConstraint> attrCon = dynamic_pointer_cast<AttrConstraint>(con);
             if (attrCon){
                 auto& kde = detKDEs[detIndex];
                 if (boundCon->lb.which() == 0 && boundCon->ub.which() == 0){
@@ -174,8 +167,7 @@ void Bounder::generate(const vector<double>& hards){
                 detIndex ++;
             }
         }
-        shared_ptr<ProbConstraint> probCon = dynamic_pointer_cast<ProbConstraint>(con);
-        if (probCon && probCon->v.which() == 0){
+        if (isStochastic(con, probCon, attrCon) && attrCon && probCon->v.which() == 0){
             string var = boost::get<string>(probCon->v);
             auto& kde = stoKDEs[stoIndex];
             vector<double> quantiles = probs;

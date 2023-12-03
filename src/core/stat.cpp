@@ -195,7 +195,7 @@ void Stat::analyzeDeterministic(const string& tableName, const vector<string>& c
     }
 }
 
-void Stat::addStat(const string& tableName, const string& columnName, const long_double sum, const long_double m2, const long long count){
+void Stat::addStat(const string& tableName, const string& columnName, const long_double& sum, const long_double& m2, const long long& count){
     string sql;
     if (!isAnalyzed(tableName, columnName)){
         sql = fmt::format("INSERT INTO \"{}\" VALUES ('{}', '{}', {}, {}, {})", statTable, tableName, columnName, strf(sum), strf(m2), count);
@@ -219,11 +219,12 @@ void Stat::getStoMeanVars(const string& tableName, const string& columnName, con
     }
     string sql;
     if (joinId.find("BETWEEN") == string::npos){
+        if (!joinId.size()) return;
         sql = fmt::format("SELECT t.{}_mean,t.{}_variance FROM UNNEST(ARRAY[{}]) WITH ORDINALITY AS a(id, ord)\
             JOIN LATERAL(\
                 SELECT {}_mean,{}_variance FROM \"{}_summary\" WHERE {}=a.{}\
             ) t ON true ORDER BY a.ord", columnName, columnName, joinId, columnName, columnName, tableName, PgManager::id, PgManager::id);
-    } else sql = fmt::format("SELECT {}_mean,{}_variance FROM \"{}_summary\" WHERE {} {}", columnName, columnName, tableName, PgManager::id, joinId);
+    } else sql = fmt::format("SELECT {}_mean,{}_variance FROM \"{}_summary\" WHERE {} {} ORDER BY {}", columnName, columnName, tableName, PgManager::id, joinId, PgManager::id);
     auto res = PQexec(pg->conn.get(), sql.c_str());
     ck(pg->conn, res);
     for (int i = 0; i < PQntuples(res); ++i){
@@ -243,11 +244,12 @@ void Stat::getDetAttrs(const string& tableName, const string& columnName, const 
         table = tableName;
     }
     if (joinId.find("BETWEEN") == string::npos){
+        if (!joinId.size()) return;
         sql = fmt::format("SELECT t.{} FROM UNNEST(ARRAY[{}]) WITH ORDINALITY AS a(id, ord)\
             JOIN LATERAL(\
                 SELECT {} FROM \"{}\" WHERE {}=a.{}\
             ) t ON true ORDER BY a.ord", column, joinId, column, table, PgManager::id, PgManager::id);
-    } else sql = fmt::format("SELECT {} FROM \"{}\" WHERE {} {}", column, table, PgManager::id, joinId);
+    } else sql = fmt::format("SELECT {} FROM \"{}\" WHERE {} {} ORDER BY {}", column, table, PgManager::id, joinId, PgManager::id);
     auto res = PQexec(pg->conn.get(), sql.c_str());
     ck(pg->conn, res);
     for (int i = 0; i < PQntuples(res); ++i){

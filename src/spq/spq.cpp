@@ -22,7 +22,7 @@ using std::cerr;
 using std::pair;
 using std::dynamic_pointer_cast;
 
-bool StochasticPackageQuery::addVariable(Bound bound){
+bool StochasticPackageQuery::addVariable(const Bound& bound){
 	if (bound.which() == 0){
 		string variable = boost::get<string>(bound);
 		if (varTable.count(variable)){
@@ -34,10 +34,10 @@ bool StochasticPackageQuery::addVariable(Bound bound){
 	return true;
 }
 
-string StochasticPackageQuery::substitute(shared_ptr<Constraint> con, const vector<double>& info){
+string StochasticPackageQuery::substitute(const shared_ptr<Constraint>& con, const vector<double>& info){
 	string res = "";
-	shared_ptr<BoundConstraint> boundCon = dynamic_pointer_cast<BoundConstraint>(con);
-	if (boundCon){
+	shared_ptr<BoundConstraint> boundCon;
+	if (isDeterministic(con, boundCon)){
 		pair<Bound, Bound> bounds = {boundCon->lb, boundCon->ub};
 		boundCon->lb = getBound(boundCon->lb);
 		boundCon->ub = getBound(boundCon->ub);
@@ -46,8 +46,8 @@ string StochasticPackageQuery::substitute(shared_ptr<Constraint> con, const vect
 		boundCon->ub = bounds.second;
 		return res;
 	}
-	shared_ptr<ProbConstraint> probCon = dynamic_pointer_cast<ProbConstraint>(con);
-	if (probCon){
+	shared_ptr<ProbConstraint> probCon;
+	if (isStochastic(con, probCon)){
 		Bound bound = probCon->v;
 		probCon->v = getBound(probCon->v);
 		res = con->toStr(info);
@@ -75,15 +75,15 @@ void StochasticPackageQuery::setRepeat(const int& repeat){
 	this->repeat = repeat;
 }
 
-void StochasticPackageQuery::addConstraint(shared_ptr<Constraint> con){
+void StochasticPackageQuery::addConstraint(const shared_ptr<Constraint>& con){
 	cons.push_back(con);
 }
 
-void StochasticPackageQuery::setObjective(shared_ptr<Objective> obj){
+void StochasticPackageQuery::setObjective(const shared_ptr<Objective>& obj){
 	this->obj = obj;
 }
 
-void StochasticPackageQuery::setVariable(string var, double value){
+void StochasticPackageQuery::setVariable(const string& var, const double& value){
 	if (!varTable.count(var)){
 		cerr << fmt::format("Variable '{}' is not in the SPQ '{}' (If not, it means you have not validated the SPQ)\n", var, operator string());
 		exit(1);
@@ -188,8 +188,7 @@ bool StochasticPackageQuery::executable(){
 int StochasticPackageQuery::countStochastic(){
 	int res = 0;
 	for (const auto& con : cons){
-		shared_ptr<ProbConstraint> probCon = dynamic_pointer_cast<ProbConstraint>(con);
-		if (probCon) res ++;
+		if (isStochastic(con)) res ++;
 	}
 	return res;
 }
@@ -227,12 +226,12 @@ string StochasticPackageQuery::strAttrList() const{
 	return res;
 }
 
-ostream& operator<<(ostream& os, const shared_ptr<StochasticPackageQuery> spq){
+ostream& operator<<(ostream& os, const shared_ptr<StochasticPackageQuery>& spq){
 	if (spq) os << static_cast<string>(*spq);
     return os;
 }
 
-shared_ptr<StochasticPackageQuery> parseSpaqlFromFile(string filePath){
+shared_ptr<StochasticPackageQuery> parseSpaqlFromFile(const string& filePath){
 	fs::path spaqlPath (filePath);
 	if (spaqlPath.is_relative()) spaqlPath = getProjectDir() / spaqlPath;
 	std::ifstream in(spaqlPath);
