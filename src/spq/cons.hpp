@@ -64,6 +64,13 @@ public:
     bool isViolate(const vector<double>& info) const override;
 };
 
+class CvarConstraint: public AttrConstraint, public ProbConstraint{
+public:
+    CvarConstraint(const string& attr, const Bound& v, const Bound& p, const string& vsign, const string& psign);
+    string toStr(const vector<double>& info={}) const override;
+    bool isViolate(const vector<double>& info) const override;
+};
+
 bool isStochastic(const shared_ptr<Constraint>& con, shared_ptr<ProbConstraint>& probCon, shared_ptr<AttrConstraint>& attrCon);
 bool isDeterministic(const shared_ptr<Constraint>& con, shared_ptr<BoundConstraint>& boundCon, shared_ptr<AttrConstraint>& attrCon);
 
@@ -74,6 +81,7 @@ bool isStochastic(const shared_ptr<Constraint>& con);
 bool isDeterministic(const shared_ptr<Constraint>& con);
 
 shared_ptr<VarConstraint> getVar(const shared_ptr<Constraint>& con);
+shared_ptr<CvarConstraint> getCvar(const shared_ptr<Constraint>& con);
 shared_ptr<CountConstraint> getCount(const shared_ptr<Constraint>& con);
 
 #endif

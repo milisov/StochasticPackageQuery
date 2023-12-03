@@ -1,6 +1,5 @@
 [requires]
 boost/1.83.0
-highs/1.6.0
 libpq/15.4
 fmt/10.1.1
 pcg-cpp/cci.20220409

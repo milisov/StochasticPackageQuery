@@ -115,6 +115,7 @@ Taylor::Taylor(shared_ptr<StochasticPackageQuery> spq, const vector<long long>& 
     }
     objValue = 0;
     minVio = POS_INF;
+    maxSolutionSize = 0;
     bestObj = 0;
     obj.resize(n);
     fill(obj.begin(), obj.end(), 0);
@@ -148,17 +149,20 @@ Taylor::Taylor(shared_ptr<StochasticPackageQuery> spq, const vector<long long>& 
         else bestObj = POS_INF;
     }
     objNorm = norm(obj);
+
+    isSoftDetCon = boost::get<bool>(this->options.at("soft_deterministic_constraint"));
+    isDependencyVar = boost::get<bool>(this->options.at("dependency_var"));
+    nIters = boost::get<int>(options.at("max_number_of_iterations"));
 }
 
 void Taylor::solve(SolIndType& nextSol){
-    INIT(pro);
     int nCores = boost::get<int>(this->options.at("number_of_cores"));
-    size_t n = ids.size();
-    vector<int> inds (n);
+    size_t nInds = ids.size();
+    size_t n = nInds + spq->nCvar + spq->isStoObj;
+    vector<int> inds (nInds);
     iota(inds.begin(), inds.end(), 0);
-    size_t m = spq->cons.size();
+    size_t m = spq->cons.size() + spq->isStoObj;
     size_t nzN = sol.size();
-    bool isSoftDetCon = boost::get<bool>(options.at("soft_deterministic_constraint"));
     HighsModel model;
     model.lp_.sense_ = ObjSense::kMinimize;
     model.lp_.offset_ = 0;
@@ -166,10 +170,24 @@ void Taylor::solve(SolIndType& nextSol){
     model.lp_.num_col_ = n;
     model.lp_.col_lower_ = vector<double>(n, 0);
     model.lp_.col_upper_ = vector<double>(n, POS_INF);
-    if (spq->repeat != StochasticPackageQuery::NO_REPEAT) model.lp_.col_upper_ = vector<double>(n, spq->repeat+1.0);
+    if (spq->repeat != StochasticPackageQuery::NO_REPEAT) fill(model.lp_.col_upper_.begin(), model.lp_.col_upper_.begin()+nInds, spq->repeat+1);
+    if (maxSolutionSize > 0){
+        double stepSize = (maxSolutionSize - sum(sol)) / nIters;
+        deb(stepSize, maxSolutionSize, sum(sol), nIters);
+        assert(stepSize > 0);
+        for (size_t i = 0; i < nInds; ++i){
+            if (sol.count(i)){
+                model.lp_.col_lower_[i] = max(0.0, sol.at(i)-stepSize);
+                model.lp_.col_upper_[i] = sol.at(i)+stepSize;
+            } else model.lp_.col_upper_[i] = stepSize;
+        }
+        if (spq->repeat != StochasticPackageQuery::NO_REPEAT){
+            for (size_t i = 0; i < nInds; ++i) model.lp_.col_upper_[i] = min(model.lp_.col_upper_[i], spq->repeat+1.0);
+        }
+    }
     vector<int> start_, index_;
     vector<double> violations (m, 0), detMuls (m, 0), Fxvs, value_;
-    start_.reserve(m+1); index_.reserve((m+1)*model.lp_.num_col_); value_.reserve((m+1)*model.lp_.num_col_);
+    start_.reserve(m); index_.reserve(m*model.lp_.num_col_); value_.reserve(m*model.lp_.num_col_);
     start_.push_back(0);
     vector<shared_ptr<KDE>> kdes;
     vector<double> softObj (n, 0);
@@ -179,13 +197,13 @@ void Taylor::solve(SolIndType& nextSol){
         } else for (size_t i = 0; i < n; ++i) softObj[i] = obj[i]/objNorm;
     }
     size_t detInd = 0, stoInd = 0;
-    CLK(pro, "a");
+    shared_ptr<ProbConstraint> probCon;
+    shared_ptr<BoundConstraint> boundCon;
     for (const auto& con : spq->cons){
-        shared_ptr<ProbConstraint> probCon = dynamic_pointer_cast<ProbConstraint>(con);
-        if (probCon){
+        if (isStochastic(con, probCon)){
             auto kde = make_shared<KDE>(stoXs[stoInd], true);
-            if (dynamic_pointer_cast<VarConstraint>(con)){
-                Fxvs.push_back(kde->getQuickCdf(spq->getValue(probCon->v)));
+            Fxvs.push_back(kde->getQuickCdf(spq->getValue(probCon->v)));
+            if (getVar(con)){
                 double vio = Fxvs.back();
                 double p = spq->getValue(probCon->p);
                 if (probCon->vsign == Inequality::lteq) vio -= p;
@@ -196,8 +214,9 @@ void Taylor::solve(SolIndType& nextSol){
                 violations[detInd+stoInd] = max(0.0, vio) / maxVio;
             }
             kdes.push_back(kde);
-            stoInd ++;
-        } else{
+            stoInd ++; 
+        }
+        if (isDeterministic(con, boundCon)){
             if (isSoftDetCon){
                 shared_ptr<BoundConstraint> boundCon = dynamic_pointer_cast<BoundConstraint>(con);
                 if (boundCon){
@@ -218,48 +237,44 @@ void Taylor::solve(SolIndType& nextSol){
             detInd ++;
         }
     }
+    deb(violations);
     double vio = std::accumulate(violations.begin(), violations.end(), 0.0);
     update(vio, objValue, sol);
-    deb(sol, violations);
     double logitSum = logLogit(violations);
     for (size_t i = 0; i < violations.size(); ++ i){
         if (violations[i] > 0) violations[i] = exp(logit(violations[i])-logitSum);
     }
-    size_t varInd = 0, rowInd = 0, nzInd = 0;
+    size_t rowInd = 0, nzInd = 0;
     detInd = 0; stoInd = 0;
-    bool isDependencyVar = boost::get<bool>(options.at("dependency_var"));
-    STP(pro, "a");
+    shared_ptr<AttrConstraint> attrCon;
     for (const auto& con : spq->cons){
         double multiplier = violations[detInd+stoInd]*sqn;
-        shared_ptr<ProbConstraint> probCon = dynamic_pointer_cast<ProbConstraint>(con);
-        if (probCon){
-            CLK(pro, "b");
+        if (isStochastic(con, probCon, attrCon) && attrCon){
             double v = spq->getValue(probCon->v);
             double p = spq->getValue(probCon->p);
-            vector<double> stoCon (n);
+            vector<double> stoCon (nInds);
             double stoBound;
             Inequality stoIneq = Inequality::lteq;
-            shared_ptr<VarConstraint> varCon = dynamic_pointer_cast<VarConstraint>(con);
-            if (varCon){
-                size_t N = stat->pg->getColumnLength(spq->tableName, varCon->attr);
+            if (getVar(con)){
+                size_t N = stat->pg->getColumnLength(spq->tableName, attrCon->attr);
                 if (isDependencyVar){
                     
                 } else{
                     const auto& kde = kdes[stoInd];
                     double fxv = max(kde->getPdf(v), MACHINE_EPS);
-                    vector<double> dF (n);
+                    vector<double> dF (nInds);
                     #pragma omp parallel num_threads(nCores)
                     {
                         Stat stat_;
                         #pragma omp for schedule(dynamic, DYNAMIC_CHUNK)
-                        for (size_t i = 0; i < n; ++i){
+                        for (size_t i = 0; i < nInds; ++i){
                             if (!sol.count(i)){
                                 dF[i] = -fxv*stoMeans[stoInd][i];
                             } else{
                                 vector<double> samples, quantiles, XiBar (N); 
                                 samples.reserve(N); quantiles.reserve(2*N+1);
-                                stat_.getSamples(spq->tableName, varCon->attr, ids[i], samples);
-                                stat_.getQuantiles(spq->tableName, varCon->attr, ids[i], quantiles);
+                                stat_.getSamples(spq->tableName, attrCon->attr, ids[i], samples);
+                                stat_.getQuantiles(spq->tableName, attrCon->attr, ids[i], quantiles);
                                 for (size_t j = 0; j < N; ++j) XiBar[j] = stoXs[stoInd][j] - sol.at(i)*samples[j];
                                 KDE kdeXiBar (XiBar, true);
                                 dF[i] = kdeXiBar.convolve(quantiles, v, sol.at(i));
@@ -271,15 +286,14 @@ void Taylor::solve(SolIndType& nextSol){
                     if (probCon->vsign == Inequality::gteq) stoBound = 1-p;
                     double dot = 0;
                     for (const auto& p : sol) dot += p.second*dF[p.first];
-                    stoBound += dot-Fxvs[varInd];
+                    stoBound += dot-Fxvs[stoInd];
                     if (probCon->vsign != probCon->psign) stoIneq = Inequality::gteq;
                 }
-                varInd ++;
             }
             if (multiplier > 0){
                 if (!sameSense(stoIneq, model.lp_.sense_)) multiplier *= -1;
                 double stoNorm = norm(stoCon);
-                for (size_t i = 0; i < n; ++i) softObj[i] += multiplier*stoCon[i]/stoNorm;
+                for (size_t i = 0; i < nInds; ++i) softObj[i] += multiplier*stoCon[i]/stoNorm;
             } else{
                 auto preNzInd = nzInd;
                 nzInd += n;
@@ -297,28 +311,23 @@ void Taylor::solve(SolIndType& nextSol){
                 rowInd ++;
             }
             stoInd ++;
-            STP(pro, "b");
-        } else{
-            CLK(pro, "c");
+        }
+        if (isDeterministic(con, boundCon)){
             if (multiplier > 0){
                 multiplier *= detMuls[detInd+stoInd];
-                for (size_t i = 0; i < n; ++i) softObj[i] += multiplier*detCons[detInd][i]/detNorms[detInd];
+                for (size_t i = 0; i < nInds; ++i) softObj[i] += multiplier*detCons[detInd][i]/detNorms[detInd];
             } else{
-                shared_ptr<BoundConstraint> boundCon = dynamic_pointer_cast<BoundConstraint>(con);
-                if (boundCon){
-                    auto preNzInd = nzInd;
-                    nzInd += n;
-                    start_.push_back(nzInd);
-                    index_.resize(nzInd); value_.resize(nzInd);
-                    copy(inds.begin(), inds.end(), index_.begin()+preNzInd);
-                    copy(detCons[detInd].begin(), detCons[detInd].end(), value_.begin()+preNzInd);
-                    model.lp_.row_lower_.push_back(spq->getValue(boundCon->lb));
-                    model.lp_.row_upper_.push_back(spq->getValue(boundCon->ub));
-                    rowInd ++;
-                }
+                auto preNzInd = nzInd;
+                nzInd += n;
+                start_.push_back(nzInd);
+                index_.resize(nzInd); value_.resize(nzInd);
+                copy(inds.begin(), inds.end(), index_.begin()+preNzInd);
+                copy(detCons[detInd].begin(), detCons[detInd].end(), value_.begin()+preNzInd);
+                model.lp_.row_lower_.push_back(spq->getValue(boundCon->lb));
+                model.lp_.row_upper_.push_back(spq->getValue(boundCon->ub));
+                rowInd ++;
             }
             detInd ++;
-            STP(pro, "c");
         }
     }
     model.lp_.num_row_ = rowInd;
@@ -326,18 +335,13 @@ void Taylor::solve(SolIndType& nextSol){
     model.lp_.a_matrix_.start_ = start_;
     model.lp_.a_matrix_.index_ = index_;
     model.lp_.a_matrix_.value_ = value_;
-    // deb(softObj);
-    // deb(model.lp_.num_row_ , start_, index_.size(), value_.size());
-    // deb(model.lp_.row_lower_, model.lp_.row_upper_);
-    // deb(model.lp_.a_matrix_.value_);
-    // deb(violations);
-    // PRINT(pro);
 
     Highs highs;
-	highs.setOptionValue("output_flag", false);
-	highs.setOptionValue("log_to_console", false);
+	// highs.setOptionValue("output_flag", false);
+	// highs.setOptionValue("log_to_console", false);
+	highs.setOptionValue("presolve", "off");
 	highs.setOptionValue("random_seed", abs(static_cast<int>(Config::getInstance()->seed())));
-	highs.setOptionValue("simplex_strategy", 3);
+	highs.setOptionValue("simplex_strategy", 0);
 	highs.setOptionValue("infinite_bound", POS_INF);
     highs.setOptionValue("small_matrix_value", MACHINE_EPS);
     auto status = highs.passModel(model);
@@ -356,6 +360,11 @@ void Taylor::solve(SolIndType& nextSol){
                 nextSol[i] = solution.col_value[i];
             }
         }
+        double solutionSize = 0;
+        for (const auto& p : nextSol){
+            if (p.first < ids.size()) solutionSize += p.second;
+        }
+        maxSolutionSize = max(maxSolutionSize, solutionSize);
     }
 }
 
@@ -369,10 +378,8 @@ void Taylor::update(const SolIndType& step){
     for (size_t j = 0; j < spq->cons.size(); ++j){
         stoInds[j] = stoInd;
         const auto& con = spq->cons[j];
-        shared_ptr<ProbConstraint> probCon = dynamic_pointer_cast<ProbConstraint>(con);
-        if (probCon){
-            stoInd ++;
-        } else{
+        if (isStochastic(con)) stoInd ++;
+        if (isDeterministic(con)){
             for (const auto& p : step) detXs[detInd] += detCons[detInd][p.first]*p.second;
             detInd ++;
         }
@@ -381,28 +388,27 @@ void Taylor::update(const SolIndType& step){
     #pragma omp parallel num_threads(nCores)
     {
         Stat stat_;
+        shared_ptr<ProbConstraint> probCon;
+        shared_ptr<AttrConstraint> attrCon;
         #pragma omp for schedule(dynamic) collapse(2) nowait
         for (size_t j = 0; j < spq->cons.size(); ++j){
             for (size_t i = 0; i < inds.size(); ++i){
                 const auto& con = spq->cons[j];
-                shared_ptr<ProbConstraint> probCon = dynamic_pointer_cast<ProbConstraint>(con);
-                if (probCon){
-                    shared_ptr<AttrConstraint> attrCon = dynamic_pointer_cast<AttrConstraint>(con);
-                    if (attrCon){
-                        size_t N = stat_.pg->getColumnLength(spq->tableName, attrCon->attr);
-                        long long id = ids[inds[i]];
-                        vector<double> samples; samples.reserve(N);
-                        stat_.getSamples(spq->tableName, attrCon->attr, id, samples);
-                        auto m = step.at(inds[i]);
-                        for (size_t k = 0; k < samples.size(); ++k){
-                            #pragma omp atomic
-                            stoXs[stoInds[j]][k] += samples[k]*m;
-                        }
+                if (isStochastic(con, probCon, attrCon) && attrCon){
+                    size_t N = stat_.pg->getColumnLength(spq->tableName, attrCon->attr);
+                    long long id = ids[inds[i]];
+                    vector<double> samples; samples.reserve(N);
+                    stat_.getSamples(spq->tableName, attrCon->attr, id, samples);
+                    auto m = step.at(inds[i]);
+                    for (size_t k = 0; k < N; ++k){
+                        #pragma omp atomic
+                        stoXs[stoInds[j]][k] += samples[k]*m;
                     }
                 }
             }
         }
     }
+    deb(sol, objValue);
     sol = add(1.0, sol, 1.0, step);
 }
 
@@ -424,19 +430,27 @@ void Taylor::update(const double& vio, const double& objValue, const SolIndType&
 
 void Taylor::solve(){
     RMSprop optim;
-    // SPQChecker chk (spq);
-    int nIters = boost::get<int>(options.at("max_number_of_iterations"));
-    for (int i = 0; i < nIters; ++i){
+    SPQChecker chk (spq);
+    while (nIters > 0){
         SolIndType nextSol; solve(nextSol);
+        deb(nextSol);
         update(optim.towards(nextSol));
-        // chk.display(getSol());
+        chk.display(getSol(sol));
+        nIters --;
     }
+    chk.display({{6205,0.953924},{9854,74.0461}});
 }
 
-SolType Taylor::getSol() const{
+SolType Taylor::getSol(const SolIndType& sol) const{
     SolType res;
-    for (const auto& p : bestSol){
-        if (p.first < ids.size() && p.first >= 0) res[ids[p.first]] = p.second;
+    if (sol.size()){
+        for (const auto& p : sol){
+            if (p.first < ids.size() && p.first >= 0) res[ids[p.first]] = p.second;
+        }
+    } else{
+        for (const auto& p : bestSol){
+            if (p.first < ids.size() && p.first >= 0) res[ids[p.first]] = p.second;
+        }
     }
     return res;
 }

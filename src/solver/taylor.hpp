@@ -18,12 +18,14 @@ using std::vector;
 
 class Taylor{
 private:
-    double sqn, objValue, objNorm, minVio, bestObj;
+    int nIters;
+    bool isSoftDetCon, isDependencyVar;
+    double sqn, maxSolutionSize, objNorm, objValue, minVio, bestObj;
     unique_ptr<Stat> stat;
     shared_ptr<StochasticPackageQuery> spq;
     vector<long long> ids;
-    vector<vector<double>> detCons, stoXs, stoMeans;
-    vector<double> detNorms, detXs, obj;
+    vector<vector<double>> detCons, stoMeans, stoXs;
+    vector<double> detNorms, obj, detXs;
     map<string, Option> options;
     SolIndType sol, bestSol;
 private:
@@ -33,7 +35,7 @@ private:
 public:
     Taylor(shared_ptr<StochasticPackageQuery> spq, const vector<long long>& ids={}, const map<string, Option>& options={});
     void solve();
-    SolType getSol() const;
+    SolType getSol(const SolIndType& sol={}) const;
 };
 
 #endif

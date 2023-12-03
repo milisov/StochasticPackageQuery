@@ -33,10 +33,11 @@ private:
 private:
 	bool addVariable(const Bound& bound);
 public:
+	bool isStoObj;
 	static const int NO_REPEAT = -1;
 	string tableName;
 	vector<string> attrList;
-	int repeat;
+	int repeat, nStochastic, nCvar;
 	vector<shared_ptr<Constraint>> cons;
 	shared_ptr<Objective> obj;
 public:
@@ -48,8 +49,7 @@ public:
 	void setObjective(const shared_ptr<Objective>& obj);
 	void setVariable(const string& var, const double& value);
 	bool validate();
-	bool executable();
-	int countStochastic();
+	bool executable() const;
 	double getValue(const Bound& bound) const;
 	Bound getBound(const Bound& bound) const;
 	operator string();

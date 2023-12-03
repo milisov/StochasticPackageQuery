@@ -1,9 +1,12 @@
 .vscode
 .ipynb_checkpoints
+.bashrc
 _*.spaql
 _config.cfg
 build
 CMakeUserPresets.json
+resource/gurobi
+resource/cmake
 test/*.ipynb
 test/*.sh
 test.sh

@@ -5,6 +5,7 @@
 #include "cons.hpp"
 
 using std::dynamic_pointer_cast;
+using std::to_string;
 
 BoundConstraint::BoundConstraint(const Bound& lb, const Bound& ub) : lb(lb), ub(ub) {
 }
@@ -72,6 +73,29 @@ string VarConstraint::toStr(const vector<double>& info) const{
     return fmt::format("SUM({}) {} {} WITH PROBABILITY={}{}{} {} {}", attr, str(vsign), str(v), color, info.front(), RESET, str(psign), str(p));
 }
 
+CvarConstraint::CvarConstraint(const string& attr, const Bound& v, const Bound& p, const string& vsign, const string& psign): AttrConstraint(attr), ProbConstraint(v, p, vsign, psign){
+    attrType = Column::array_type;
+}
+
+bool CvarConstraint::isViolate(const vector<double>& info) const{
+    if (!info.size()) return false;
+    if (v.which() == 1){
+        if (vsign == Inequality::gteq && info.front() < boost::get<double>(v)) return true;
+        if (vsign == Inequality::lteq && info.front() > boost::get<double>(v)) return true;
+    }
+    return false;
+}
+
+string CvarConstraint::toStr(const vector<double>& info) const{
+    string strPsign = psign == Inequality::lteq ? "LOWEST" : "HIGHEST";
+    string strP;
+    if (p.which() == 0) strP = "100" + boost::get<string>(p);
+    else if (p.which() == 1) strP = to_string(boost::get<double>(p)*100);
+    if (!info.size()) return fmt::format("EXPECTED SUM({}) {} {} IN {} {}% OF CASES", attr, str(vsign), str(v), strPsign, strP);
+    auto color = isViolate(info) ? RED : GREEN;
+    return fmt::format("EXPECTED SUM({})={}{}{} {} {} IN {} {}% OF CASES", attr, color, info.front(), RESET, str(vsign), str(v), strPsign, strP);
+}
+
 bool isStochastic(const shared_ptr<Constraint>& con, shared_ptr<ProbConstraint>& probCon, shared_ptr<AttrConstraint>& attrCon){
     probCon = dynamic_pointer_cast<ProbConstraint>(con);
     attrCon = dynamic_pointer_cast<AttrConstraint>(con);
@@ -88,6 +112,7 @@ bool isStochastic(const shared_ptr<Constraint>& con, shared_ptr<ProbConstraint>&
     probCon = dynamic_pointer_cast<ProbConstraint>(con);
     return probCon != nullptr;
 }
+
 bool isDeterministic(const shared_ptr<Constraint>& con, shared_ptr<BoundConstraint>& boundCon){
     boundCon = dynamic_pointer_cast<BoundConstraint>(con);
     return boundCon != nullptr;
@@ -105,6 +130,10 @@ bool isDeterministic(const shared_ptr<Constraint>& con){
 
 shared_ptr<VarConstraint> getVar(const shared_ptr<Constraint>& con){
     return dynamic_pointer_cast<VarConstraint>(con);
+}
+
+shared_ptr<CvarConstraint> getCvar(const shared_ptr<Constraint>& con){
+    return dynamic_pointer_cast<CvarConstraint>(con);
 }
 
 shared_ptr<CountConstraint> getCount(const shared_ptr<Constraint>& con){

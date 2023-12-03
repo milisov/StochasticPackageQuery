@@ -6,6 +6,8 @@
 #include "spq/bounder.hpp"
 #include "core/checker.hpp"
 
+#include <gurobi_c++.h>
+
 void analyzeAll(){
 	vector<int> nStocks = {3, 30, 300, 3000};
 	vector<int> nPaths = {100, 10000};
@@ -32,7 +34,7 @@ void analyzeAll(){
 void test(){
 	INIT(pro);
 	CLOCK(pro);
-	string filePath = "resource/sqls/_stocks_30_100.spaql";
+	string filePath = "resource/sqls/_stocks_300_100.spaql";
 	auto spq = parseSpaqlFromFile(filePath);
 	if (spq){
 		cout << "Success!\n" << spq;
@@ -48,16 +50,16 @@ void test(){
 		// for (double i = -10; i <= 10; i ++) hards.push_back(i);
 		CLK(pro, "hard");
 		// bounder.generate(hards);
-		bounder.set(1);
+		bounder.set(-0.5);
 		STP(pro, "hard");
 		deb(spq->executable(), spq);
 		CLK(pro, "taylorinit");
 		Taylor taylor (spq, {}, {
 			{"soft_deterministic_constraint", false},
-			{"max_number_of_iterations", 200}});
+			{"max_number_of_iterations", 50}});
 		STP(pro, "taylorinit");
 		CLK(pro, "taylor");
-		taylor.solve();
+		// taylor.solve();
 		STP(pro, "taylor");
 	}
 	STOP(pro);

@@ -22,6 +22,12 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
+# Find Gurobi
+find_path(GUROBI_INCLUDE_DIR NAMES gurobi_c++.h PATHS "$ENV{GUROBI_HOME}/include" NO_DEFAULT_PATH)
+find_library(GUROBI_LIBRARY NAMES gurobi110 PATHS "$ENV{GUROBI_HOME}/lib" NO_DEFAULT_PATH)
+find_library(GUROBI_CXX_LIBRARY NAMES gurobi_c++ PATHS "$ENV{GUROBI_HOME}/lib" NO_DEFAULT_PATH)
+include_directories(${GUROBI_INCLUDE_DIR})
+
 find_package(HIGHS REQUIRED)
 find_package(Threads REQUIRED)
 find_package(fmt REQUIRED)
@@ -63,3 +69,4 @@ target_link_libraries(${EXECUTABLE_NAME} boost::boost)
 target_link_libraries(${EXECUTABLE_NAME} pcg-cpp::pcg-cpp)
 target_link_libraries(${EXECUTABLE_NAME} gmp::gmp)
 target_link_libraries(${EXECUTABLE_NAME} TBB::tbb)
+target_link_libraries(${EXECUTABLE_NAME} ${GUROBI_LIBRARY} ${GUROBI_CXX_LIBRARY})

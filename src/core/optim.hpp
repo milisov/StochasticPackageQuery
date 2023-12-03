@@ -17,7 +17,7 @@ private:
     SolIndType v;
     double lr, alpha;
 public:
-    RMSprop(const SolIndType& sol={}, const double& lr=1.0, const double& alpha=0.999);
+    RMSprop(const SolIndType& sol={}, const double& lr=1.0, const double& alpha=0.9);
     SolIndType towards(const SolIndType& nextSol) override;
 };
 

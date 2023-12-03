@@ -2,6 +2,7 @@
 #include <boost/algorithm/string/join.hpp>
 
 #include "util/udebug.hpp"
+#include "core/mapop.hpp"
 #include "core/kde.hpp"
 #include "checker.hpp"
 
@@ -30,7 +31,7 @@ double SPQChecker::getObjective(const SolType& sol) const{
                 size_t i = 0;
                 for (const auto& p : sol) res += p.second*attrs[i++];
             }
-            if (getCount(spq->obj)) for (const auto& p : sol) res += p.second;
+            if (getCount(spq->obj)) res += sum(sol);
         }
     }
     return res;
@@ -66,7 +67,7 @@ double SPQChecker::getConIndicator(const SolType& sol, shared_ptr<Constraint> co
             size_t i = 0;
             for (const auto& p : sol) res += p.second*attrs[i++];
         }
-        if (getCount(con)) for (const auto& p : sol) res += p.second;
+        if (getCount(con)) res += sum(sol);
     }
     return res;
 }

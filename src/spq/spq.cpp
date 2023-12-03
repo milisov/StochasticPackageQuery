@@ -175,22 +175,22 @@ bool StochasticPackageQuery::validate(){
 		}
 	}
 	isValid = true;
+
+	nStochastic = 0;
+	nCvar = 0;
+	for (const auto& con : cons){
+		if (isStochastic(con)) nStochastic ++;
+		if (getCvar(con)) nCvar ++;
+	}
+	isStoObj = obj && !isDeterministic(obj);
 	return true;
 }
 
-bool StochasticPackageQuery::executable(){
+bool StochasticPackageQuery::executable() const{
 	for (const auto& p : varTable){
 		if (!(p.second)) return false;
 	}
 	return true;
-}
-
-int StochasticPackageQuery::countStochastic(){
-	int res = 0;
-	for (const auto& con : cons){
-		if (isStochastic(con)) res ++;
-	}
-	return res;
 }
 
 StochasticPackageQuery::operator string(){

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+. .bashrc
+
 cfg_file="config.cfg"
 BUILD_TYPE=$(grep 'build_type' "$cfg_file" | cut -d '=' -f2 | tr -d ' ')
 REBUILD=$(grep 'rebuild_cmake' "$cfg_file" | cut -d '=' -f2 | tr -d ' ')
