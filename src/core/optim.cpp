@@ -16,3 +16,12 @@ SolIndType RMSprop::towards(const SolIndType& nextSol){
     sol = add(1.0, sol, lr, step);
     return step;
 }
+
+Direct::Direct(const SolIndType& sol): Optim(sol){
+}
+
+SolIndType Direct::towards(const SolIndType& nextSol){
+    auto step = add(1.0, nextSol, -1.0, sol);
+    sol = add(1.0, sol, 1.0, step);
+    return step;
+}

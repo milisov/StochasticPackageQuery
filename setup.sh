@@ -49,26 +49,15 @@ if [ ! -d "gurobi$gb_version" ]; then
 fi
 cd gurobi$gb_version/linux64
 gb_install_dir=$(pwd)
-
-# if ! grep -q "GUROBI_HOME" ~/.bashrc; then
-#     echo "export GUROBI_HOME=$gb_install_dir" >> ~/.bashrc
-#     echo "export PATH=$gb_install_dir/bin:\$PATH" >> ~/.bashrc
-#     echo "export LD_LIBRARY_PATH=$gb_install_dir/lib:\$LD_LIBRARY_PATH" >> ~/.bashrc
-# fi
-
 if ! grep -q "GUROBI_HOME" $project_folder/.bashrc; then
     echo "export GUROBI_HOME=$gb_install_dir" >> $project_folder/.bashrc
     echo "export PATH=$gb_install_dir/bin:\$PATH" >> $project_folder/.bashrc
     echo "export LD_LIBRARY_PATH=$gb_install_dir/lib:\$LD_LIBRARY_PATH" >> $project_folder/.bashrc
 fi
-
 cd ../..
 if [ ! -f "gurobi.lic" ]; then
     echo . | $gb_install_dir/bin/grbgetkey $gb_key
 fi
-# if ! grep -q "GRB_LICENSE_FILE" ~/.bashrc; then
-#     echo "export GRB_LICENSE_FILE=$(pwd)/gurobi.lic" >> ~/.bashrc
-# fi
 if ! grep -q "GRB_LICENSE_FILE" $project_folder/.bashrc; then
     echo "export GRB_LICENSE_FILE=$(pwd)/gurobi.lic" >> $project_folder/.bashrc
 fi

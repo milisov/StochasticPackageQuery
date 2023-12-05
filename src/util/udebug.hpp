@@ -7,6 +7,8 @@
 #include <chrono>
 #include <algorithm>
 #include <sstream>
+#include <vector>
+#include <gurobi_c.h>
 
 using std::map;
 using std::pair;
@@ -17,6 +19,7 @@ using std::endl;
 using std::declval;
 using std::begin;
 using std::cerr;
+using std::vector;
 using std::istream_iterator;
 
 extern const char* RED;
@@ -135,5 +138,13 @@ public:
 	#define PRINT(pro)
 	#define ADD(pro, local)
 #endif
+
+void checkGurobi(const bool& error, GRBenv* env, GRBmodel* model, const char* file, const int& line);
+string getGurobiStatus(const int& status);
+
+void getBasicVariables(GRBmodel* model, const int& numvars, vector<size_t>& basics);
+
+#define ckg(error, env) checkGurobi(error, env, NULL, __FILE__, __LINE__)
+#define ckgb(error, env, model) checkGurobi(error, env, model, __FILE__, __LINE__)
 
 #endif

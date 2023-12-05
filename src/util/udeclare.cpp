@@ -17,16 +17,11 @@
 ENUM_INIT(Inequality, <=, >=);
 ENUM_INIT(ObjectiveSense, MAXIMIZE, MINIMIZE);
 ENUM_INIT(Column, numeric_type, string_type, array_type, unsupported);
+ENUM_INIT(TaylorStatus, NOT_YET_FOUND, FOUND, NOT_FOUND, CYCLED_AND_NOT_FOUND);
 
-bool sameSense(const ObjectiveSense& objectiveSense, const ObjSense& objSense){
-	if (objectiveSense == ObjectiveSense::maximize && objSense == ObjSense::kMaximize) return true;
-	if (objectiveSense == ObjectiveSense::minimize && objSense == ObjSense::kMinimize) return true;
-	return false;
-}
-
-bool sameSense(const Inequality& inequality, const ObjSense& objSense){
-	if (inequality == Inequality::gteq && objSense == ObjSense::kMaximize) return true;
-	if (inequality == Inequality::lteq && objSense == ObjSense::kMinimize) return true;
+bool sameSense(const Inequality& ineq, const ObjectiveSense& objSense){
+	if (ineq == Inequality::lteq && objSense == ObjectiveSense::minimize) return true;
+	if (ineq == Inequality::gteq && objSense == ObjectiveSense::maximize) return true;
 	return false;
 }
 

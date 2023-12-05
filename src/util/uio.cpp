@@ -10,6 +10,7 @@
 using boost::algorithm::to_lower;
 using std::cerr;
 using std::make_unique;
+using std::max;
 
 string strf(const float& value) {
     return fmt::format("{:.7f}", value);

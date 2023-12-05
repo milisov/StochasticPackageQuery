@@ -1,6 +1,7 @@
 #include <iostream>
 #include <boost/algorithm/string/join.hpp>
 
+#include "util/unumeric.hpp"
 #include "util/udebug.hpp"
 #include "core/mapop.hpp"
 #include "core/kde.hpp"
@@ -73,9 +74,9 @@ double SPQChecker::getConIndicator(const SolType& sol, shared_ptr<Constraint> co
 }
 
 bool SPQChecker::feasible(const SolType& sol) const{
-    for (const auto& p : sol) if (p.second < 0) return false;
+    for (const auto& p : sol) if (isLess(p.second, 0)) return false;
     if (spq->repeat != StochasticPackageQuery::NO_REPEAT){
-        for (const auto& p : sol) if (p.second > spq->repeat+1) return false;
+        for (const auto& p : sol) if (isGreater(p.second, spq->repeat+1)) return false;
     }
     auto tableSize = stat->pg->getTableSize(spq->tableName);
     for (const auto& p : sol) if (p.first < 1 || p.first > tableSize) return false;
@@ -87,11 +88,11 @@ bool SPQChecker::feasible(const SolType& sol) const{
 
 void SPQChecker::display(const SolType& sol) const{
     deb(sol);
-    for (const auto& p : sol) if (p.second < 0){
+    for (const auto& p : sol) if (isLess(p.second, 0)){
         cout << fmt::format("sol[{}]={}{}{}<0\n", p.first, RED, p.second, RESET);
     }
     if (spq->repeat != StochasticPackageQuery::NO_REPEAT){
-        for (const auto& p : sol) if (p.second > spq->repeat+1){
+        for (const auto& p : sol) if (isGreater(p.second, spq->repeat+1)){
             cout << fmt::format("sol[{}]={}{}{}>{}\n", p.first, RED, p.second, RESET, spq->repeat+1);
         }
     }

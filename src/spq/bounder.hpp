@@ -16,7 +16,7 @@ using std::vector;
 
 class Bounder{
 private:
-    static const double hardEps, hardLimit;
+    static const double hardLimit;
     shared_ptr<StochasticPackageQuery> spq;
     unique_ptr<Stat> stat;
     size_t N;

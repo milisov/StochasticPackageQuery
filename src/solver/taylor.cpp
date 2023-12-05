@@ -1,16 +1,16 @@
-#include <Highs.h>
 #include <iostream>
 #include <fmt/core.h>
 #include <omp.h>
 #include <numeric>
 #include <algorithm>
+#include <gurobi_c.h>
 
 #include "taylor.hpp"
 #include "core/kde.hpp"
 #include "core/optim.hpp"
 #include "core/checker.hpp"
-#include "util/udebug.hpp"
 #include "util/uconfig.hpp"
+#include "util/unumeric.hpp"
 
 using std::cerr;
 using std::dynamic_pointer_cast;
@@ -119,7 +119,9 @@ Taylor::Taylor(shared_ptr<StochasticPackageQuery> spq, const vector<long long>& 
     bestObj = 0;
     obj.resize(n);
     fill(obj.begin(), obj.end(), 0);
+    objSense = ObjectiveSense::minimize;
     if (spq->obj){
+        objSense = spq->obj->objSense;
         shared_ptr<AttrObjective> attrObj;
         if (isDeterministic(spq->obj, attrObj)){
             if (attrObj){
@@ -145,57 +147,48 @@ Taylor::Taylor(shared_ptr<StochasticPackageQuery> spq, const vector<long long>& 
             }
             if (getCount(spq->obj)) fill(obj.begin(), obj.end(), 1.0);
         }
-        if (spq->obj->objSense == ObjectiveSense::maximize) bestObj = NEG_INF;
+        if (objSense == ObjectiveSense::maximize) bestObj = NEG_INF;
         else bestObj = POS_INF;
     }
-    objNorm = norm(obj);
 
     isSoftDetCon = boost::get<bool>(this->options.at("soft_deterministic_constraint"));
     isDependencyVar = boost::get<bool>(this->options.at("dependency_var"));
-    nIters = boost::get<int>(options.at("max_number_of_iterations"));
+    nMaxIters = boost::get<int>(options.at("max_number_of_iterations"));
+    iter = 0;
+    status = TaylorStatus::not_yet_found;
 }
 
 void Taylor::solve(SolIndType& nextSol){
+    iter ++;
     int nCores = boost::get<int>(this->options.at("number_of_cores"));
     size_t nInds = ids.size();
-    size_t n = nInds + spq->nCvar + spq->isStoObj;
     vector<int> inds (nInds);
     iota(inds.begin(), inds.end(), 0);
+    size_t n = nInds + spq->nCvar + spq->isStoObj;
     size_t m = spq->cons.size() + spq->isStoObj;
     size_t nzN = sol.size();
-    HighsModel model;
-    model.lp_.sense_ = ObjSense::kMinimize;
-    model.lp_.offset_ = 0;
-    model.lp_.a_matrix_.format_ = MatrixFormat::kRowwise;
-    model.lp_.num_col_ = n;
-    model.lp_.col_lower_ = vector<double>(n, 0);
-    model.lp_.col_upper_ = vector<double>(n, POS_INF);
-    if (spq->repeat != StochasticPackageQuery::NO_REPEAT) fill(model.lp_.col_upper_.begin(), model.lp_.col_upper_.begin()+nInds, spq->repeat+1);
+    vector<double> lb = vector<double>(n, 0);
+    vector<double> ub = vector<double>(n, POS_INF);
+    // if (spq->repeat != StochasticPackageQuery::NO_REPEAT) fill(ub.begin(), ub.begin()+nInds, spq->repeat+1);
     if (maxSolutionSize > 0){
-        double stepSize = (maxSolutionSize - sum(sol)) / nIters;
-        deb(stepSize, maxSolutionSize, sum(sol), nIters);
-        assert(stepSize > 0);
+        double stepSize = maxSolutionSize / nMaxIters;
         for (size_t i = 0; i < nInds; ++i){
             if (sol.count(i)){
-                model.lp_.col_lower_[i] = max(0.0, sol.at(i)-stepSize);
-                model.lp_.col_upper_[i] = sol.at(i)+stepSize;
-            } else model.lp_.col_upper_[i] = stepSize;
+                lb[i] = max(0.0, sol.at(i)-stepSize);
+                ub[i] = sol.at(i)+stepSize;
+            } else ub[i] = stepSize;
         }
         if (spq->repeat != StochasticPackageQuery::NO_REPEAT){
-            for (size_t i = 0; i < nInds; ++i) model.lp_.col_upper_[i] = min(model.lp_.col_upper_[i], spq->repeat+1.0);
+            for (size_t i = 0; i < nInds; ++i) ub[i] = min(ub[i], spq->repeat+1.0);
         }
-    }
-    vector<int> start_, index_;
-    vector<double> violations (m, 0), detMuls (m, 0), Fxvs, value_;
-    start_.reserve(m); index_.reserve(m*model.lp_.num_col_); value_.reserve(m*model.lp_.num_col_);
-    start_.push_back(0);
+    } else fill(ub.begin(), ub.begin()+nInds, 1.0);
+    vector<int> cbeg, cind;
+    vector<double> violations (m, 0), detMuls (m, 0), Fxvs, cval, rhs;
+    vector<char> sense; sense.reserve(2*m);
+    cbeg.reserve(2*m+1); cind.reserve(2*m*n); cval.reserve(2*m*n); rhs.reserve(2*m);
+    cbeg.push_back(0);
     vector<shared_ptr<KDE>> kdes;
-    vector<double> softObj (n, 0);
-    if (objNorm > 0){
-        if (!sameSense(spq->obj->objSense, model.lp_.sense_)){
-            for (size_t i = 0; i < n; ++i) softObj[i] = -obj[i]/objNorm;
-        } else for (size_t i = 0; i < n; ++i) softObj[i] = obj[i]/objNorm;
-    }
+    vector<double> softObj = obj;
     size_t detInd = 0, stoInd = 0;
     shared_ptr<ProbConstraint> probCon;
     shared_ptr<BoundConstraint> boundCon;
@@ -203,6 +196,7 @@ void Taylor::solve(SolIndType& nextSol){
         if (isStochastic(con, probCon)){
             auto kde = make_shared<KDE>(stoXs[stoInd], true);
             Fxvs.push_back(kde->getQuickCdf(spq->getValue(probCon->v)));
+            // deb(stoXs[stoInd], spq->getValue(probCon->v));
             if (getVar(con)){
                 double vio = Fxvs.back();
                 double p = spq->getValue(probCon->p);
@@ -225,20 +219,21 @@ void Taylor::solve(SolIndType& nextSol){
                     auto ind = detInd+stoInd;
                     if (lb != NEG_INF && lb > res){
                         violations[ind] = detViolate((lb-res)/detNorms[detInd]*sqn);
-                        detMuls[ind] = -static_cast<double>(model.lp_.sense_);
+                        detMuls[ind] = 1 - 2*to_index(objSense);
                     }
                     auto ub = spq->getValue(boundCon->ub);
                     if (ub != POS_INF && ub < res){
                         violations[ind] = detViolate((res-ub)/detNorms[detInd]*sqn);
-                        detMuls[ind] = static_cast<double>(model.lp_.sense_);
+                        detMuls[ind] = 2*to_index(objSense) - 1;
                     }
                 }
             }
             detInd ++;
         }
     }
-    deb(violations);
+    deb(iter, violations, objValue);
     double vio = std::accumulate(violations.begin(), violations.end(), 0.0);
+    if (vio > 0) fill(softObj.begin(), softObj.end(), 0.0);
     update(vio, objValue, sol);
     double logitSum = logLogit(violations);
     for (size_t i = 0; i < violations.size(); ++ i){
@@ -248,7 +243,7 @@ void Taylor::solve(SolIndType& nextSol){
     detInd = 0; stoInd = 0;
     shared_ptr<AttrConstraint> attrCon;
     for (const auto& con : spq->cons){
-        double multiplier = violations[detInd+stoInd]*sqn;
+        double multiplier = violations[detInd+stoInd];
         if (isStochastic(con, probCon, attrCon) && attrCon){
             double v = spq->getValue(probCon->v);
             double p = spq->getValue(probCon->p);
@@ -291,23 +286,19 @@ void Taylor::solve(SolIndType& nextSol){
                 }
             }
             if (multiplier > 0){
-                if (!sameSense(stoIneq, model.lp_.sense_)) multiplier *= -1;
+                if (!sameSense(stoIneq, objSense)) multiplier *= -1;
                 double stoNorm = norm(stoCon);
                 for (size_t i = 0; i < nInds; ++i) softObj[i] += multiplier*stoCon[i]/stoNorm;
             } else{
                 auto preNzInd = nzInd;
-                nzInd += n;
-                start_.push_back(nzInd);
-                index_.resize(nzInd); value_.resize(nzInd);
-                copy(inds.begin(), inds.end(), index_.begin()+preNzInd);
-                copy(stoCon.begin(), stoCon.end(), value_.begin()+preNzInd);
-                if (stoIneq == Inequality::lteq){
-                    model.lp_.row_lower_.push_back(NEG_INF);
-                    model.lp_.row_upper_.push_back(stoBound);
-                } else if (stoIneq == Inequality::gteq){
-                    model.lp_.row_lower_.push_back(stoBound);
-                    model.lp_.row_upper_.push_back(POS_INF);
-                }
+                nzInd += nInds + (getCvar(con) != nullptr);
+                cbeg.push_back(nzInd);
+                cind.resize(nzInd); cval.resize(nzInd);
+                copy(inds.begin(), inds.end(), cind.begin()+preNzInd);
+                copy(stoCon.begin(), stoCon.end(), cval.begin()+preNzInd);
+                rhs.push_back(stoBound);
+                if (stoIneq == Inequality::lteq) sense.push_back(GRB_LESS_EQUAL);
+                else if (stoIneq == Inequality::gteq) sense.push_back(GRB_GREATER_EQUAL);
                 rowInd ++;
             }
             stoInd ++;
@@ -317,55 +308,101 @@ void Taylor::solve(SolIndType& nextSol){
                 multiplier *= detMuls[detInd+stoInd];
                 for (size_t i = 0; i < nInds; ++i) softObj[i] += multiplier*detCons[detInd][i]/detNorms[detInd];
             } else{
-                auto preNzInd = nzInd;
-                nzInd += n;
-                start_.push_back(nzInd);
-                index_.resize(nzInd); value_.resize(nzInd);
-                copy(inds.begin(), inds.end(), index_.begin()+preNzInd);
-                copy(detCons[detInd].begin(), detCons[detInd].end(), value_.begin()+preNzInd);
-                model.lp_.row_lower_.push_back(spq->getValue(boundCon->lb));
-                model.lp_.row_upper_.push_back(spq->getValue(boundCon->ub));
-                rowInd ++;
+                auto lbValue = spq->getValue(boundCon->lb);
+                if (lbValue != NEG_INF){
+                    auto preNzInd = nzInd;
+                    nzInd += nInds;
+                    cbeg.push_back(nzInd);
+                    cind.resize(nzInd); cval.resize(nzInd);
+                    copy(inds.begin(), inds.end(), cind.begin()+preNzInd);
+                    copy(detCons[detInd].begin(), detCons[detInd].end(), cval.begin()+preNzInd);
+                    rhs.push_back(lbValue);
+                    sense.push_back(GRB_GREATER_EQUAL);
+                    rowInd ++;
+                }
+                auto ubValue = spq->getValue(boundCon->ub);
+                if (ubValue != POS_INF){
+                    auto preNzInd = nzInd;
+                    nzInd += nInds;
+                    cbeg.push_back(nzInd);
+                    cind.resize(nzInd); cval.resize(nzInd);
+                    copy(inds.begin(), inds.end(), cind.begin()+preNzInd);
+                    copy(detCons[detInd].begin(), detCons[detInd].end(), cval.begin()+preNzInd);
+                    rhs.push_back(ubValue);
+                    sense.push_back(GRB_LESS_EQUAL);
+                    rowInd ++;
+                }
             }
             detInd ++;
         }
     }
-    model.lp_.num_row_ = rowInd;
-    model.lp_.col_cost_ = softObj;
-    model.lp_.a_matrix_.start_ = start_;
-    model.lp_.a_matrix_.index_ = index_;
-    model.lp_.a_matrix_.value_ = value_;
 
-    Highs highs;
-	// highs.setOptionValue("output_flag", false);
-	// highs.setOptionValue("log_to_console", false);
-	highs.setOptionValue("presolve", "off");
-	highs.setOptionValue("random_seed", abs(static_cast<int>(Config::getInstance()->seed())));
-	highs.setOptionValue("simplex_strategy", 0);
-	highs.setOptionValue("infinite_bound", POS_INF);
-    highs.setOptionValue("small_matrix_value", MACHINE_EPS);
-    auto status = highs.passModel(model);
-    assert(status==HighsStatus::kOk || status==HighsStatus::kWarning);
-    const HighsLp& lp = highs.getLp();
-    status = highs.run();
-    assert(status==HighsStatus::kOk);
-    const auto& solution = highs.getSolution();
-    const bool hasValues = highs.getInfo().primal_solution_status;
-    if (!hasValues){
-        cerr << "No solutions found\n";
-        exit(1);
-    } else{
-        for (size_t i=0; i < n; ++i) {
-            if (solution.col_value[i] > 0){
-                nextSol[i] = solution.col_value[i];
+	GRBenv* env = NULL;
+	GRBmodel* model = NULL;
+	ckg(GRBemptyenv(&env), env);
+	// ckg(GRBsetintparam(env, GRB_INT_PAR_PRESOLVE, GRB_PRESOLVE_CONSERVATIVE), env);
+	ckg(GRBsetintparam(env, GRB_INT_PAR_SIFTING, 2), env);
+    ckg(GRBsetintparam(env, GRB_INT_PAR_LPWARMSTART, 1), env);
+	// ckg(GRBsetintparam(env, GRB_INT_PAR_METHOD, GRB_METHOD_DUAL), env);
+    ckg(GRBsetintparam(env, GRB_INT_PAR_METHOD, GRB_METHOD_CONCURRENT), env);
+	ckg(GRBsetintparam(env, GRB_INT_PAR_OUTPUTFLAG, 0), env);
+	ckg(GRBstartenv(env), env);
+    vector<char> vtype (n, GRB_CONTINUOUS);
+	ckgb(GRBnewmodel(env, &model, NULL, n, softObj.data(), lb.data(), ub.data(), vtype.data(), NULL), env, model);
+    auto modelSense = objSense == ObjectiveSense::maximize ? GRB_MAXIMIZE : GRB_MINIMIZE;
+	ckgb(GRBsetintattr(model, GRB_INT_ATTR_MODELSENSE, modelSense), env, model);
+	ckgb(GRBaddconstrs(model, rowInd, cind.size(), cbeg.data(), cind.data(), cval.data(), sense.data(), rhs.data(), NULL), env, model);
+    
+	ckgb(GRBupdatemodel(model), env, model);
+    if (preViolations.size()){
+        bool isWarmStart = true;
+        for (size_t i = 0; i < preViolations.size(); ++i){
+            if (preViolations[i] > 0 && violations[i] == 0) isWarmStart = false;
+            if (preViolations[i] == 0 && violations[i] > 0) isWarmStart = false;
+            if (!isWarmStart) break;
+        }
+        if (isWarmStart){
+            ckgb(GRBsetintattrarray(model, GRB_INT_ATTR_VBASIS, 0, n, vStart.data()), env, model);
+            ckgb(GRBsetintattrarray(model, GRB_INT_ATTR_CBASIS, 0, rowInd, cStart.data()), env, model);
+            ckgb(GRBsetdblattrarray(model, GRB_DBL_ATTR_PSTART, 0, n, pStart.data()), env, model);
+            ckgb(GRBsetdblattrarray(model, GRB_DBL_ATTR_DSTART, 0, rowInd, dStart.data()), env, model);
+        }
+    }
+    preViolations = violations;
+    CLK(pro, "a");
+	ckgb(GRBoptimize(model), env, model);
+    STP(pro, "a");
+	int status;
+	ckgb(GRBgetintattr(model, GRB_INT_ATTR_STATUS, &status), env, model);
+	if (status == GRB_OPTIMAL){
+        pStart.resize(n);
+    	ckgb(GRBgetdblattrarray(model, GRB_DBL_ATTR_X, 0, n, pStart.data()), env, model);
+        for (size_t i = 0; i < n; ++i) {
+            if (pStart[i] > 0){
+                nextSol[i] = pStart[i];
             }
         }
         double solutionSize = 0;
         for (const auto& p : nextSol){
-            if (p.first < ids.size()) solutionSize += p.second;
+            if (p.first < nInds) solutionSize += p.second;
         }
         maxSolutionSize = max(maxSolutionSize, solutionSize);
+
+        vStart.resize(n); cStart.resize(rowInd);
+        ckgb(GRBgetintattrarray(model, GRB_INT_ATTR_VBASIS, 0, n, vStart.data()), env, model);
+        ckgb(GRBgetintattrarray(model, GRB_INT_ATTR_CBASIS, 0, rowInd, cStart.data()), env, model);
+        dStart.resize(rowInd);
+        ckgb(GRBgetdblattrarray(model, GRB_DBL_ATTR_PI, 0, rowInd, dStart.data()), env, model);
+        
+        // vector<size_t> basics;
+        // getBasicVariables(model, n, basics);
+        // deb(nextSol, basics);
+	} else{
+        cerr << getGurobiStatus(status) << '\n';
+        status = minVio == 0 ?  TaylorStatus::found : TaylorStatus::not_found;
     }
+    if (model) GRBfreemodel(model);
+    if (env) GRBfreeenv(env);
 }
 
 void Taylor::update(const SolIndType& step){
@@ -408,8 +445,26 @@ void Taylor::update(const SolIndType& step){
             }
         }
     }
-    deb(sol, objValue);
-    sol = add(1.0, sol, 1.0, step);
+    // deb(sol, step, objValue);
+    // sol = add(1.0, sol, 1.0, step);
+    for (const auto& p : step){
+        double val = p.second;
+        if (sol.count(p.first)) val += sol.at(p.first);
+        if (val > MACHINE_EPS) sol[p.first] = val;
+        else sol.erase(p.first);
+    }
+    size_t hashed = hashSol(sol);
+    if (hashedSols.count(hashed)){
+        bool isCycled = false;
+        for (const auto& hashedSol : hashedSols.at(hashed)){
+            if (isEqual(sol, hashedSol)){
+                isCycled = true;
+                break;
+            }
+        }
+        if (!isCycled) hashedSols[hashed].emplace_back(sol);
+        else status = minVio > 0 ? TaylorStatus::cycled : TaylorStatus::found;
+    } else hashedSols[hashed] = {sol};
 }
 
 void Taylor::update(const double& vio, const double& objValue, const SolIndType& sol){
@@ -418,10 +473,10 @@ void Taylor::update(const double& vio, const double& objValue, const SolIndType&
         bestObj = objValue;
         bestSol = sol;
     } else if (minVio == vio && spq->obj){
-        if (spq->obj->objSense == ObjectiveSense::maximize && bestObj < objValue){
+        if (objSense == ObjectiveSense::maximize && bestObj < objValue){
             bestObj = objValue;
             bestSol = sol;
-        } else if (spq->obj->objSense == ObjectiveSense::minimize && bestObj > objValue){
+        } else if (objSense == ObjectiveSense::minimize && bestObj > objValue){
             bestObj = objValue;
             bestSol = sol;
         }
@@ -429,16 +484,16 @@ void Taylor::update(const double& vio, const double& objValue, const SolIndType&
 }
 
 void Taylor::solve(){
-    RMSprop optim;
-    SPQChecker chk (spq);
-    while (nIters > 0){
+    unique_ptr<Optim> optim = make_unique<Direct>();
+    for (int i = 0; i < nMaxIters; ++i){
+        CLK(pro, "b");
         SolIndType nextSol; solve(nextSol);
-        deb(nextSol);
-        update(optim.towards(nextSol));
-        chk.display(getSol(sol));
-        nIters --;
+        update(optim->towards(nextSol));
+        STP(pro, "b");
+        PRINT(pro);
+        if (status != TaylorStatus::not_yet_found) break;
     }
-    chk.display({{6205,0.953924},{9854,74.0461}});
+    if (status == TaylorStatus::not_yet_found) status = minVio == 0 ? TaylorStatus::found : TaylorStatus::not_found;
 }
 
 SolType Taylor::getSol(const SolIndType& sol) const{

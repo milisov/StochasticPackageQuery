@@ -10,7 +10,6 @@
 #include <fmt/core.h>
 #include <boost/variant.hpp>
 #include <boost/preprocessor.hpp>
-#include <Highs.h>
 
 using std::string;
 using std::ostringstream;
@@ -41,9 +40,9 @@ using SolType = map<long long, double>;
 ENUM(Inequality, lteq, gteq);
 ENUM(ObjectiveSense, maximize, minimize);
 ENUM(Column, numeric_type, string_type, array_type, unsupported);
+ENUM(TaylorStatus, not_yet_found, found, not_found, cycled);
 
-bool sameSense(const ObjectiveSense& objectiveSense, const ObjSense& objSense);
-bool sameSense(const Inequality& inequality, const ObjSense& objSense);
+bool sameSense(const Inequality& ineq, const ObjectiveSense& objSense);
 
 /**
  * @brief Boost Variant

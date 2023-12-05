@@ -6,7 +6,7 @@
 #include "spq/bounder.hpp"
 #include "core/checker.hpp"
 
-#include <gurobi_c++.h>
+#include <gurobi_c.h>
 
 void analyzeAll(){
 	vector<int> nStocks = {3, 30, 300, 3000};
@@ -34,7 +34,7 @@ void analyzeAll(){
 void test(){
 	INIT(pro);
 	CLOCK(pro);
-	string filePath = "resource/sqls/_stocks_300_100.spaql";
+	string filePath = "resource/sqls/_stocks_300_10000.spaql";
 	auto spq = parseSpaqlFromFile(filePath);
 	if (spq){
 		cout << "Success!\n" << spq;
@@ -50,7 +50,7 @@ void test(){
 		// for (double i = -10; i <= 10; i ++) hards.push_back(i);
 		CLK(pro, "hard");
 		// bounder.generate(hards);
-		bounder.set(-0.5);
+		bounder.set(3);
 		STP(pro, "hard");
 		deb(spq->executable(), spq);
 		CLK(pro, "taylorinit");
@@ -59,8 +59,11 @@ void test(){
 			{"max_number_of_iterations", 50}});
 		STP(pro, "taylorinit");
 		CLK(pro, "taylor");
-		// taylor.solve();
+		taylor.solve();
 		STP(pro, "taylor");
+		deb(taylor.status);
+		SPQChecker chk (spq);
+		chk.display(taylor.getSol());
 	}
 	STOP(pro);
 	// PRINT(pro);
@@ -224,7 +227,45 @@ void testNumeric(){
 	deb(v);
 }
 
+void testgb(){
+	GRBenv* env = NULL;
+	GRBmodel* model = NULL;
+	ckg(GRBemptyenv(&env), env);
+	ckg(GRBsetintparam(env, GRB_INT_PAR_PRESOLVE, GRB_PRESOLVE_OFF), env);
+	ckg(GRBsetintparam(env, GRB_INT_PAR_SIFTING, 2), env);
+	ckg(GRBsetintparam(env, GRB_INT_PAR_METHOD, GRB_METHOD_DUAL), env);
+	// ckgb(GRBsetintparam(env, GRB_INT_PAR_OUTPUTFLAG, 0), env);
+	ckg(GRBstartenv(env), env);
+	int numvars = 2;
+	vector<double> obj = {1, 1};
+	vector<double> lb = {0, 1};
+	vector<double> ub = {4, GRB_INFINITY};
+	vector<char> vtype = {GRB_CONTINUOUS, GRB_CONTINUOUS};
+	ckgb(GRBnewmodel(env, &model, NULL, numvars, obj.data(), lb.data(), ub.data(), vtype.data(), NULL), env, model);
+	ckgb(GRBsetintattr(model, GRB_INT_ATTR_MODELSENSE, GRB_MINIMIZE), env, model);
+	int numconstrs = 4;
+	int numnz = 7;
+	vector<int> cbeg = {0, 1, 3, 5, 7};
+	vector<int> cind = {1, 0, 1, 0, 1, 0, 1};
+	vector<double> cval = {1, 1, 2, 1, 2, 3, 2};
+	vector<char> sense = {GRB_LESS_EQUAL, GRB_GREATER_EQUAL, GRB_LESS_EQUAL, GRB_GREATER_EQUAL};
+	vector<double> rhs = {7, 5, 15, 6};
+	ckgb(GRBaddconstrs(model, numconstrs, numnz, cbeg.data(), cind.data(), cval.data(), sense.data(), rhs.data(), NULL), env, model);
+	ckgb(GRBupdatemodel(model), env, model);
+	ckgb(GRBoptimize(model), env, model);
+	int status;
+	ckgb(GRBgetintattr(model, GRB_INT_ATTR_STATUS, &status), env, model);
+	if (status == GRB_OPTIMAL){
+		vector<double> sol (numvars);
+    	ckgb(GRBgetdblattrarray(model, GRB_DBL_ATTR_X, 0, numvars, sol.data()), env, model);
+		deb(sol);
+	}
+	if (model) GRBfreemodel(model);
+	if (env) GRBfreeenv(env);
+}
+
 int main() {
+	// testgb();
 	// testNumeric();
 	// analyzeAll();
 	test();

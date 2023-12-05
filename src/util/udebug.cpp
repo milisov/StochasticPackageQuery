@@ -2,6 +2,7 @@
 
 #include <omp.h>
 #include <fmt/core.h>
+#include <cassert>
 
 const char* RED = "\033[31m";
 const char* GREEN = "\033[32m";
@@ -36,5 +37,42 @@ void Profiler::print() const{
         auto label = cl.first;
         if (!label.size()) label = "Ø";
         fmt::println("{}[count={} avg={}ms]", label, cl.second.second, cl.second.first/cl.second.second);
+    }
+}
+
+void checkGurobi(const bool& error, GRBenv* env, GRBmodel* model, const char* file, const int& line){
+	if (error){
+		cerr << RED << "File " << file  \
+			<< ", Line " << line << RESET << "\n";
+		cerr << GRBgeterrormsg(env) << '\n';
+		if (model) GRBfreemodel(model);
+		if (env) GRBfreeenv(env);
+		exit(1);
+	}
+}
+
+string getGurobiStatus(const int& status){
+    switch (status) {
+        case GRB_OPTIMAL:
+            return "Optimal solution found";
+        case GRB_INF_OR_UNBD:
+            return "Model is infeasible or unbounded";
+        case GRB_INFEASIBLE:
+            return "Model is infeasible";
+        case GRB_UNBOUNDED:
+            return "Model is unbounded";
+        case GRB_CUTOFF:
+            return "Model is solved to a cutoff";
+        default:
+            return "Unknown or undefined solution status";
+    }
+}
+
+void getBasicVariables(GRBmodel* model, const int& numvars, vector<size_t>& basics){
+    basics.reserve(numvars);
+    vector<int> basisStatus (numvars, 1);
+    assert(!GRBgetintattrarray(model, GRB_INT_ATTR_VBASIS, 0, numvars, basisStatus.data()));
+    for (size_t i = 0; i < basisStatus.size(); ++i){
+        if (basisStatus[i] == GRB_BASIC) basics.push_back(i);
     }
 }

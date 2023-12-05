@@ -1,9 +1,50 @@
 #include <fmt/core.h>
 #include <algorithm>
 #include <boost/math/special_functions/logsumexp.hpp>
+#include <boost/functional/hash.hpp>
 
-#include "udebug.hpp"
 #include "unumeric.hpp"
+#include "udebug.hpp"
+
+size_t hashSol(const SolIndType& sol){
+    size_t seed = 0;
+    for (const auto& p : sol){
+        boost::hash_combine(seed, p.first);
+        boost::hash_combine(seed, static_cast<long long>(p.second/NUMERIC_EPS));
+    }
+    return seed;
+}
+
+bool isEqual(const SolIndType& sol1, const SolIndType& sol2){
+    for (const auto& p : sol1){
+        if (!sol2.count(p.first)) return false;
+        if (abs(p.second-sol2.at(p.first)) > MACHINE_EPS) return false;
+    }
+    for (const auto& p : sol2){
+        if (!sol1.count(p.first)) return false;
+    }
+    return true;
+}
+
+bool isEqual(const double& a, const double& b){
+    return fabs(a-b) < NUMERIC_EPS;
+}
+
+bool isLess(const double& a, const double& b){
+    return a<b && !isEqual(a, b);
+}
+
+bool isGreater(const double& a, const double& b){
+    return a>b && !isEqual(a, b);
+}
+
+bool isLessEqual(const double& a, const double& b){
+    return a<b || isEqual(a, b);
+}
+
+bool isGreaterEqual(const double& a, const double& b){
+    return a>b || isEqual(a, b);
+}
 
 string strf(const long_double& value) {
     return value.str();

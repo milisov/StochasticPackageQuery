@@ -17,8 +17,7 @@
 using std::pair;
 using std::cerr;
 
-const double Bounder::hardEps = Config::getInstance()->pt.get<double>("parameters.hard_eps");
-const double Bounder::hardLimit = -log(Bounder::hardEps/(1-Bounder::hardEps));
+const double Bounder::hardLimit = -log(NUMERIC_EPS/(1-NUMERIC_EPS));
 const double countRelaxationRatio = 0.5;
 
 Bounder::Bounder(shared_ptr<StochasticPackageQuery> spq, const size_t& N, const double& E): spq(spq), N(N), E(E){

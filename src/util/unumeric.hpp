@@ -12,6 +12,9 @@
 #include <boost/accumulators/statistics/sum.hpp>
 #include <boost/accumulators/statistics/variance.hpp>
 
+#include "udeclare.hpp"
+#include "uconfig.hpp"
+
 using std::string;
 using std::vector;
 using std::ostream;
@@ -22,6 +25,16 @@ using long_double = boost::multiprecision::number<boost::multiprecision::backend
 
 const double MACHINE_EPS = 1e-12;
 const double LOG_MACHINE_EPS = log(MACHINE_EPS);
+const double NUMERIC_EPS = Config::getInstance()->pt.get<double>("parameters.numeric_eps");
+
+size_t hashSol(const SolIndType& sol);
+bool isEqual(const SolIndType& sol1, const SolIndType& sol2);
+
+bool isEqual(const double& a, const double& b);
+bool isLess(const double& a, const double& b);
+bool isGreater(const double& a, const double& b);
+bool isLessEqual(const double& a, const double& b);
+bool isGreaterEqual(const double& a, const double& b);
 
 template<typename T>
 T sortedMedian(const vector<T>& arr, size_t st, size_t fn){
@@ -60,6 +73,8 @@ double norm(const vector<double>& vec);
 double detViolate(const double& posDif);
 double logit(const double& x);
 double logLogit(const vector<double>& vios);
+
+
 
 class AccAggregator{
 private:
