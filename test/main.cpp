@@ -14,7 +14,7 @@ void analyzeAll(){
 	for (auto nStock : nStocks){
 		for (auto nPath : nPaths){
 			INIT(pro);
-			CLOCK(pro);
+			CLOCK("a");
 			string filePath = fmt::format("resource/sqls/_stocks_{}_{}.spaql", nStock, nPath);
 			auto spq = parseSpaqlFromFile(filePath);
 			if (spq){
@@ -23,7 +23,7 @@ void analyzeAll(){
 				unique_ptr<Stat> stat = std::make_unique<Stat>();
 				stat->analyze(spq->tableName);
 			}
-			STOP(pro);
+			STOP("a");
 			PRINT(pro);
 		}
 	}
@@ -33,15 +33,15 @@ void analyzeAll(){
 
 void test(){
 	INIT(pro);
-	CLOCK(pro);
-	string filePath = "resource/sqls/_stocks_3000_100.spaql";
+	CLOCK("a");
+	string filePath = "resource/sqls/_stocks_300_100.spaql";
 	auto spq = parseSpaqlFromFile(filePath);
 	if (spq){
 		cout << "Success!\n" << spq;
 		deb(spq->validate());
 		unique_ptr<Stat> stat = std::make_unique<Stat>();
 		stat->analyze(spq->tableName);
-		size_t N = 1000;
+		size_t N = 10000;
 		double E = 50;
 		CLK(pro, "initBounder");
 		Bounder bounder (spq, N, E);
@@ -50,7 +50,7 @@ void test(){
 		// for (double i = -10; i <= 10; i ++) hards.push_back(i);
 		CLK(pro, "hard");
 		// bounder.generate(hards);
-		bounder.set(1);
+		bounder.set(3);
 		STP(pro, "hard");
 		deb(spq->executable(), spq);
 		CLK(pro, "taylorinit");
@@ -65,7 +65,7 @@ void test(){
 		SPQChecker chk (spq);
 		chk.display(taylor.getSol());
 	}
-	STOP(pro);
+	STOP("a");
 	// PRINT(pro);
 }
 

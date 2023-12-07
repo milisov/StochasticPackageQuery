@@ -119,8 +119,8 @@ public:
 	#define INIT(pro) Profiler pro
 	#define CLK(pro, label) pro.clock(label)
 	#define STP(pro, label) pro.stop(label)
-	#define CLOCK(pro) pro.clock()
-	#define STOP(pro) pro.stop()
+	#define CLOCK(label) pro.clock(label)
+	#define STOP(label) pro.stop(label)
 	#define PRINT(pro) pro.print()
 	#define ADD(pro, local)       \
 	{                        \
@@ -132,9 +132,9 @@ public:
 #else
 	#define INIT(pro)
 	#define CLK(pro, label)
-	#define CLOCK(pro)
+	#define CLOCK(label)
 	#define STP(pro, label)
-	#define STOP(pro)
+	#define STOP(label)
 	#define PRINT(pro)
 	#define ADD(pro, local)
 #endif

@@ -213,6 +213,7 @@ void Stat::addStat(const string& tableName, const string& columnName, const long
 }
 
 void Stat::getStoMeanVars(const string& tableName, const string& columnName, const string& sqlId, vector<double>& means, vector<double>& vars){
+    if (!sqlId.size()) return;
     if (!isAnalyzed(tableName, columnName)){
         cerr << fmt::format("Column '{}' has not been analyzed in table '{}'\n", columnName, tableName);
         exit(1);
@@ -228,6 +229,7 @@ void Stat::getStoMeanVars(const string& tableName, const string& columnName, con
 }
 
 void Stat::getDetAttrs(const string& tableName, const string& columnName, const string& sqlId, vector<double>& attrs){
+    if (!sqlId.size()) return;
     string sql, column, table;
     if (pg->getColumns(tableName)[columnName] == Column::array_type){
         column = columnName + "_mean";
@@ -269,6 +271,7 @@ void Stat::getSamples(const string& tableName, const string& columnName, const l
 }
 
 void Stat::getSamples(const string& tableName, const string& columnName, const string& sqlId, const vector<size_t>& sampleIds, vector<vector<double>>& samples){
+    if (!sqlId.size()) return;
     vector<string> strSampleIds (sampleIds.size());
     for (size_t i = 0; i < sampleIds.size(); ++i) strSampleIds[i] = fmt::format("{}[{}]", columnName, sampleIds[i]);
     string sql = fmt::format("SELECT {} FROM \"{}\" WHERE {}", boost::join(strSampleIds, ","), tableName, sqlId);

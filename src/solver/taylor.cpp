@@ -21,8 +21,6 @@ using std::fill;
 using std::iota;
 using std::copy;
 
-#define DYNAMIC_CHUNK 10
-
 map<string, Option> defaultOptions = {
     {"number_of_cores", static_cast<int>(Config::getInstance()->nPhysicalCores)}, 
     {"soft_deterministic_constraint", false}, 
@@ -145,6 +143,7 @@ Taylor::Taylor(shared_ptr<StochasticPackageQuery> spq, const vector<long long>& 
 }
 
 void Taylor::solve(SolIndType& nextSol){
+    CLOCK("pre");
     iter ++;
     size_t nInds = idx->size();
     size_t n = nInds + spq->nCvar + spq->isStoObj;
@@ -174,6 +173,8 @@ void Taylor::solve(SolIndType& nextSol){
     size_t detInd = 0, stoInd = 0;
     shared_ptr<ProbConstraint> probCon;
     shared_ptr<BoundConstraint> boundCon;
+    STOP("pre");
+    CLOCK("vio");
     for (const auto& con : spq->cons){
         if (isStochastic(con, probCon)){
             auto kde = make_shared<KDE>(stoXs[stoInd], true);
@@ -221,6 +222,8 @@ void Taylor::solve(SolIndType& nextSol){
     for (size_t i = 0; i < violations.size(); ++ i){
         if (violations[i] > 0) violations[i] = exp(logit(violations[i])-logitSum);
     }
+    STOP("vio");
+    CLOCK("posvio");
     size_t rowInd = 0, nzInd = 0;
     detInd = 0; stoInd = 0;
     shared_ptr<AttrConstraint> attrCon;
@@ -237,13 +240,14 @@ void Taylor::solve(SolIndType& nextSol){
                 if (isDependentVar){
                     
                 } else{
+                    CLOCK("sto");
                     const auto& kde = kdes[stoInd];
                     double fxv = max(kde->getPdf(v), MACHINE_EPS);
                     vector<double> dF (nInds);
                     #pragma omp parallel num_threads(nCores)
                     {
                         Stat stat_;
-                        #pragma omp for schedule(dynamic, DYNAMIC_CHUNK)
+                        #pragma omp for schedule(dynamic)
                         for (size_t i = 0; i < nInds; ++i){
                             if (!sol.count(i)){
                                 dF[i] = -fxv*stoMeans[stoInd][i];
@@ -265,8 +269,10 @@ void Taylor::solve(SolIndType& nextSol){
                     for (const auto& p : sol) dot += p.second*dF[p.first];
                     stoBound += dot-Fxvs[stoInd];
                     if (probCon->vsign != probCon->psign) stoIneq = Inequality::gteq;
+                    STOP("sto");
                 }
             }
+            CLOCK("stocon");
             if (multiplier > 0){
                 if (!sameSense(stoIneq, objSense)) multiplier *= -1;
                 double stoNorm = norm(stoCon);
@@ -284,8 +290,10 @@ void Taylor::solve(SolIndType& nextSol){
                 rowInd ++;
             }
             stoInd ++;
+            STOP("stocon");
         }
         if (isDeterministic(con, boundCon)){
+            CLOCK("det");
             if (multiplier > 0){
                 multiplier *= detMuls[detInd+stoInd];
                 for (size_t i = 0; i < nInds; ++i) softObj[i] += multiplier*detCons[detInd][i]/detNorms[detInd];
@@ -316,9 +324,11 @@ void Taylor::solve(SolIndType& nextSol){
                 }
             }
             detInd ++;
+            STOP("det");
         }
     }
-
+    STOP("posvio");
+    CLOCK("pregu");
 	GRBenv* env = NULL;
 	GRBmodel* model = NULL;
 	ckg(GRBemptyenv(&env), env);
@@ -351,9 +361,11 @@ void Taylor::solve(SolIndType& nextSol){
         }
     }
     preViolations = violations;
-    CLK(pro, "a");
+    STOP("pregu");
+    CLOCK("gu");
 	ckgb(GRBoptimize(model), env, model);
-    STP(pro, "a");
+    STOP("gu");
+    CLOCK("posgu");
 	int status;
 	ckgb(GRBgetintattr(model, GRB_INT_ATTR_STATUS, &status), env, model);
 	if (status == GRB_OPTIMAL){
@@ -385,6 +397,7 @@ void Taylor::solve(SolIndType& nextSol){
     }
     if (model) GRBfreemodel(model);
     if (env) GRBfreeenv(env);
+    STOP("posgu");
 }
 
 void Taylor::update(const SolIndType& step){
@@ -527,10 +540,10 @@ void Taylor::solve(){
     unique_ptr<Optim> optim = make_unique<Direct>();
     doAdjustment();
     for (int i = 0; i < nMaxIters; ++i){
-        CLK(pro, "b");
+        CLOCK("b");
         SolIndType nextSol; solve(nextSol);
         update(optim->towards(nextSol));
-        STP(pro, "b");
+        STOP("b");
         PRINT(pro);
         if (status != TaylorStatus::not_yet_found) break;
     }
