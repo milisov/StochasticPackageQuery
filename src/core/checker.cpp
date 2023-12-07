@@ -28,7 +28,7 @@ double SPQChecker::getObjective(const SolType& sol) const{
                 vector<double> attrs; attrs.reserve(n);
                 vector<string> strIds; strIds.reserve(n);
                 for (const auto& p : sol) strIds.push_back(to_string(p.first));
-                stat->getDetAttrs(spq->tableName, attrObj->obj, boost::join(strIds, ","), attrs);
+                stat->getDetAttrs(spq->tableName, attrObj->obj, fmt::format("{} IN ({}) ORDER BY {}", PgManager::id, boost::join(strIds, ","), PgManager::id), attrs);
                 size_t i = 0;
                 for (const auto& p : sol) res += p.second*attrs[i++];
             }
@@ -64,7 +64,7 @@ double SPQChecker::getConIndicator(const SolType& sol, shared_ptr<Constraint> co
             vector<double> attrs; attrs.reserve(n);
             vector<string> strIds; strIds.reserve(n);
             for (const auto& p : sol) strIds.push_back(to_string(p.first));
-            stat->getDetAttrs(spq->tableName, attrCon->attr, boost::join(strIds, ","), attrs);
+            stat->getDetAttrs(spq->tableName, attrCon->attr, fmt::format("{} IN ({}) ORDER BY {}", PgManager::id, boost::join(strIds, ","), PgManager::id), attrs);
             size_t i = 0;
             for (const auto& p : sol) res += p.second*attrs[i++];
         }

@@ -34,7 +34,7 @@ void analyzeAll(){
 void test(){
 	INIT(pro);
 	CLOCK(pro);
-	string filePath = "resource/sqls/_stocks_300_10000.spaql";
+	string filePath = "resource/sqls/_stocks_3000_100.spaql";
 	auto spq = parseSpaqlFromFile(filePath);
 	if (spq){
 		cout << "Success!\n" << spq;
@@ -50,7 +50,7 @@ void test(){
 		// for (double i = -10; i <= 10; i ++) hards.push_back(i);
 		CLK(pro, "hard");
 		// bounder.generate(hards);
-		bounder.set(3);
+		bounder.set(1);
 		STP(pro, "hard");
 		deb(spq->executable(), spq);
 		CLK(pro, "taylorinit");

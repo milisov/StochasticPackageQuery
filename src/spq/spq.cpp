@@ -48,10 +48,12 @@ string StochasticPackageQuery::substitute(const shared_ptr<Constraint>& con, con
 	}
 	shared_ptr<ProbConstraint> probCon;
 	if (isStochastic(con, probCon)){
-		Bound bound = probCon->v;
+		pair<Bound, Bound> bounds = {probCon->v, probCon->p};
 		probCon->v = getBound(probCon->v);
+		probCon->p = getBound(probCon->p);
 		res = con->toStr(info);
-		probCon->v = bound;
+		probCon->v = bounds.first;
+		probCon->p = bounds.second;
 		return res;
 	}
 	cerr << fmt::format("Constraint '{}' not supported for substitution\n", con->toStr());
@@ -84,10 +86,6 @@ void StochasticPackageQuery::setObjective(const shared_ptr<Objective>& obj){
 }
 
 void StochasticPackageQuery::setVariable(const string& var, const double& value){
-	if (!varTable.count(var)){
-		cerr << fmt::format("Variable '{}' is not in the SPQ '{}' (If not, it means you have not validated the SPQ)\n", var, operator string());
-		exit(1);
-	}
 	varTable[var] = std::move(std::make_unique<double>(value));
 }
 
@@ -120,7 +118,8 @@ bool StochasticPackageQuery::validate(){
 		cerr << fmt::format("Invalid repeat value '{}'\n", repeat);
 		return false;
 	}
-	for (const auto& con : cons){
+	for (size_t i = 0; i < cons.size(); ++i){
+		const auto& con = cons[i];
 		if (!con){
 			cerr << "Encountered null constraint\n";
 			return false;
@@ -139,14 +138,19 @@ bool StochasticPackageQuery::validate(){
 		shared_ptr<ProbConstraint> probCon = dynamic_pointer_cast<ProbConstraint>(con);
 		if (probCon){
 			if (!addVariable(probCon->v)) return false;
-			if (probCon->p.which() == 0){
+			if (!hasValue(probCon->p)){
 				cerr << fmt::format("Variable '{}' is not supported in constraint '{}'\n", boost::get<string>(probCon->p), con->toStr());
 				return false;
 			}
-			double p = boost::get<double>(probCon->p);
+			double p = getValue(probCon->p);
 			if (p <= 0 || p >= 1){
 				cerr << fmt::format("Invalid probability '{}' in constraint '{}'\n", p, con->toStr());
 				return false;
+			}
+			if (probCon->p.which() == 1){
+				auto pVar = fmt::format("_p{}", i);
+				setVariable(pVar, p);
+				probCon->p = Bound(pVar);
 			}
 		}
 		shared_ptr<AttrConstraint> attrCon = dynamic_pointer_cast<AttrConstraint>(con);
@@ -203,6 +207,13 @@ StochasticPackageQuery::operator string(){
 	res += join(strCons, " AND\n") + '\n';
 	if (obj) res += obj->toStr() + '\n';
 	return res;
+}
+
+bool StochasticPackageQuery::hasValue(const Bound& bound) const{
+	if (bound.which() == 1) return true;
+	string var = boost::get<string>(bound);
+	if (varTable.count(var) && varTable.at(var)) return true;
+	return false;
 }
 
 double StochasticPackageQuery::getValue(const Bound& bound) const{

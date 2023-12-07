@@ -4,6 +4,7 @@
 #include <vector>
 #include <ostream>
 #include <string>
+#include <utility>
 #include <cmath>
 
 #include <boost/multiprecision/gmp.hpp>
@@ -18,6 +19,7 @@
 using std::string;
 using std::vector;
 using std::ostream;
+using std::pair;
 
 namespace ba = boost::accumulators;
 typedef ba::accumulator_set<long double, ba::stats<ba::tag::sum, ba::tag::variance>> AccSet;
@@ -58,6 +60,30 @@ string strf(const long_double& value);
  * 
  */
 vector<long long> divideInterval(const long long& start, const long long& end, const int& div);
+
+class UniqueIndexer{
+private:
+    vector<string> sqlIds;
+    vector<long long> sortedIds, intervals;
+public:
+    vector<int> inds;
+    UniqueIndexer(const int& nCores, const long long& size, const vector<long long>& ids);
+    string getSql(const int& coreIndex) const;
+    pair<long long, long long> getInterval(const int& coreIndex) const;
+    long long at(const size_t& ind) const;
+    size_t size() const;
+};
+
+class Indexer{
+private:
+    vector<size_t> indexOfIds;
+    size_t sz;
+public:
+    string sqlId;
+    Indexer(const vector<long long>& ids);
+    size_t crushedIndex(const size_t& idIndex) const;
+    size_t crushedSize() const;
+};
 
 /**
  * @brief Compute sigmoid function with multiplicity k

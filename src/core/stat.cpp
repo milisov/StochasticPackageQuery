@@ -212,19 +212,12 @@ void Stat::addStat(const string& tableName, const string& columnName, const long
     PQclear(res);
 }
 
-void Stat::getStoMeanVars(const string& tableName, const string& columnName, const string& joinId, vector<double>& means, vector<double>& vars){
+void Stat::getStoMeanVars(const string& tableName, const string& columnName, const string& sqlId, vector<double>& means, vector<double>& vars){
     if (!isAnalyzed(tableName, columnName)){
         cerr << fmt::format("Column '{}' has not been analyzed in table '{}'\n", columnName, tableName);
         exit(1);
     }
-    string sql;
-    if (joinId.find("BETWEEN") == string::npos){
-        if (!joinId.size()) return;
-        sql = fmt::format("SELECT t.{}_mean,t.{}_variance FROM UNNEST(ARRAY[{}]) WITH ORDINALITY AS a(id, ord)\
-            JOIN LATERAL(\
-                SELECT {}_mean,{}_variance FROM \"{}_summary\" WHERE {}=a.{}\
-            ) t ON true ORDER BY a.ord", columnName, columnName, joinId, columnName, columnName, tableName, PgManager::id, PgManager::id);
-    } else sql = fmt::format("SELECT {}_mean,{}_variance FROM \"{}_summary\" WHERE {} {} ORDER BY {}", columnName, columnName, tableName, PgManager::id, joinId, PgManager::id);
+    string sql = fmt::format("SELECT {}_mean,{}_variance FROM \"{}_summary\" WHERE {}", columnName, columnName, tableName, sqlId);
     auto res = PQexec(pg->conn.get(), sql.c_str());
     ck(pg->conn, res);
     for (int i = 0; i < PQntuples(res); ++i){
@@ -234,7 +227,7 @@ void Stat::getStoMeanVars(const string& tableName, const string& columnName, con
     PQclear(res);
 }
 
-void Stat::getDetAttrs(const string& tableName, const string& columnName, const string& joinId, vector<double>& attrs){
+void Stat::getDetAttrs(const string& tableName, const string& columnName, const string& sqlId, vector<double>& attrs){
     string sql, column, table;
     if (pg->getColumns(tableName)[columnName] == Column::array_type){
         column = columnName + "_mean";
@@ -243,13 +236,7 @@ void Stat::getDetAttrs(const string& tableName, const string& columnName, const 
         column = columnName;
         table = tableName;
     }
-    if (joinId.find("BETWEEN") == string::npos){
-        if (!joinId.size()) return;
-        sql = fmt::format("SELECT t.{} FROM UNNEST(ARRAY[{}]) WITH ORDINALITY AS a(id, ord)\
-            JOIN LATERAL(\
-                SELECT {} FROM \"{}\" WHERE {}=a.{}\
-            ) t ON true ORDER BY a.ord", column, joinId, column, table, PgManager::id, PgManager::id);
-    } else sql = fmt::format("SELECT {} FROM \"{}\" WHERE {} {} ORDER BY {}", column, table, PgManager::id, joinId, PgManager::id);
+    sql = fmt::format("SELECT {} FROM \"{}\" WHERE {}", column, table, sqlId);
     auto res = PQexec(pg->conn.get(), sql.c_str());
     ck(pg->conn, res);
     for (int i = 0; i < PQntuples(res); ++i){
@@ -279,6 +266,16 @@ void Stat::getSamples(const string& tableName, const string& columnName, const l
     ck(pg->conn, res);
     readArray(PQgetvalue(res, 0, 0), samples);
     PQclear(res);
+}
+
+void Stat::getSamples(const string& tableName, const string& columnName, const string& sqlId, const vector<size_t>& sampleIds, vector<vector<double>>& samples){
+    vector<string> strSampleIds (sampleIds.size());
+    for (size_t i = 0; i < sampleIds.size(); ++i) strSampleIds[i] = fmt::format("{}[{}]", columnName, sampleIds[i]);
+    string sql = fmt::format("SELECT {} FROM \"{}\" WHERE {}", boost::join(strSampleIds, ","), tableName, sqlId);
+    // auto res = PQexec(pg->conn.get(), sql.c_str());
+    // ck(pg->conn, res);
+    // readArray(PQgetvalue(res, 0, 0), samples);
+    // PQclear(res);
 }
 
 void Stat::getQuantiles(const string& tableName, const string& columnName, const long long& id, vector<double>& quantiles){

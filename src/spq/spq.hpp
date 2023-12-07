@@ -50,6 +50,7 @@ public:
 	void setVariable(const string& var, const double& value);
 	bool validate();
 	bool executable() const;
+	bool hasValue(const Bound& bound) const;
 	double getValue(const Bound& bound) const;
 	Bound getBound(const Bound& bound) const;
 	operator string();

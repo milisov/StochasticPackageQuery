@@ -16,6 +16,7 @@
 
 using std::pair;
 using std::cerr;
+using std::make_unique;
 
 const double Bounder::hardLimit = -log(NUMERIC_EPS/(1-NUMERIC_EPS));
 const double countRelaxationRatio = 0.5;
@@ -33,20 +34,20 @@ Bounder::Bounder(shared_ptr<StochasticPackageQuery> spq, const size_t& N, const 
     vector<unsigned int> seeds (nCores);
     for (size_t i = 0; i < nCores; ++i) seeds[i] = seedGen();
     auto intervals = divideInterval(0, N-1, nCores);
-    vector<string> joinIds (nCores);
+    vector<unique_ptr<Indexer>> idxs (nCores);
 
     #pragma omp parallel num_threads(nCores)
     {
         auto coreIndex = omp_get_thread_num();
         pcg32 gen (seeds[coreIndex]);
-        std::uniform_int_distribution<long long> dist (0LL, n-1);
-        vector<string> strIds; strIds.reserve((intervals[coreIndex+1]-intervals[coreIndex])*iE);
+        std::uniform_int_distribution<long long> dist (1LL, n);
+        vector<long long> ids; ids.reserve((intervals[coreIndex+1]-intervals[coreIndex])*iE);
         for (size_t i = intervals[coreIndex]; i < intervals[coreIndex+1]; ++i){
             for (size_t j = 0; j < iE; ++j){
-                strIds.push_back(to_string(dist(gen)));
+                ids.push_back(dist(gen));
             }
         }
-        joinIds[coreIndex] = boost::join(strIds, ",");
+        idxs[coreIndex] = make_unique<Indexer>(ids);
     }
 
     for (auto con : spq->cons){
@@ -59,13 +60,13 @@ Bounder::Bounder(shared_ptr<StochasticPackageQuery> spq, const size_t& N, const 
             {
                 auto coreIndex = omp_get_thread_num();
                 Stat stat;
-                vector<double> attrs; attrs.reserve((intervals[coreIndex+1]-intervals[coreIndex])*iE);
-                stat.getDetAttrs(spq->tableName, attrCon->attr, joinIds[coreIndex], attrs);
+                vector<double> attrs; attrs.reserve(idxs[coreIndex]->crushedSize());
+                stat.getDetAttrs(spq->tableName, attrCon->attr, idxs[coreIndex]->sqlId, attrs);
                 for (size_t i = intervals[coreIndex]; i < intervals[coreIndex+1]; ++i){
                     double attr = 0;
                     size_t ind = (i-intervals[coreIndex])*iE;
-                    for (size_t j = 0; j < iE-1; ++j) attr += attrs[ind+j];
-                    attr += attrs[ind+iE-1]*fE;
+                    for (size_t j = 0; j < iE-1; ++j) attr += attrs[idxs[coreIndex]->crushedIndex(ind+j)];
+                    attr += attrs[idxs[coreIndex]->crushedIndex(ind+iE-1)]*fE;
                     G[i] = attr;
                 }
             }
@@ -87,20 +88,22 @@ Bounder::Bounder(shared_ptr<StochasticPackageQuery> spq, const size_t& N, const 
             {
                 auto coreIndex = omp_get_thread_num();
                 Stat stat;
-                size_t sz = (intervals[coreIndex+1]-intervals[coreIndex])*iE;
-                vector<double> means; means.reserve(sz);
-                vector<double> vars; vars.reserve(sz);
-                stat.getStoMeanVars(spq->tableName, attrCon->attr, joinIds[coreIndex], means, vars);
+                vector<double> means; means.reserve(idxs[coreIndex]->crushedSize());
+                vector<double> vars; vars.reserve(idxs[coreIndex]->crushedSize());
+                stat.getStoMeanVars(spq->tableName, attrCon->attr, idxs[coreIndex]->sqlId, means, vars);
                 double step_ = 0;
                 for (size_t i = intervals[coreIndex]; i < intervals[coreIndex+1]; ++i){
                     double mean = 0, var = 0;
                     size_t ind = (i-intervals[coreIndex])*iE;
+                    size_t crushedInd;
                     for (size_t j = 0; j < iE-1; ++j){
-                        mean += means[ind+j];
-                        var += vars[ind+j];
+                        crushedInd = idxs[coreIndex]->crushedIndex(ind+j);
+                        mean += means[crushedInd];
+                        var += vars[crushedInd];
                     }
-                    mean += means[ind+iE-1]*fE;
-                    var += vars[ind+iE-1]*fE;
+                    crushedInd = idxs[coreIndex]->crushedIndex(ind+iE-1);
+                    mean += means[crushedInd]*fE;
+                    var += vars[crushedInd]*fE;
                     G[i] = mean + sqrt(var)*c;
                     step_ += var;
                 }
@@ -108,7 +111,7 @@ Bounder::Bounder(shared_ptr<StochasticPackageQuery> spq, const size_t& N, const 
                 step += step_;
             }
             stoKDEs.push_back(std::make_unique<KDE>(G, true));
-            step = sqrt(step/N)*abs(c);
+            step = sqrt(step)/(N*abs(c));
             steps.push_back(step);
         }
     }

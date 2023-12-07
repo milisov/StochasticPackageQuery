@@ -1,10 +1,17 @@
 #include <fmt/core.h>
 #include <algorithm>
+#include <map>
 #include <boost/math/special_functions/logsumexp.hpp>
 #include <boost/functional/hash.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include "unumeric.hpp"
 #include "udebug.hpp"
+#include "uio.hpp"
+
+using std::iota;
+using std::to_string;
+using std::map;
 
 size_t hashSol(const SolIndType& sol){
     size_t seed = 0;
@@ -62,6 +69,73 @@ vector<long long> divideInterval(const long long& start, const long long& end, c
     }
     result.push_back(end + 1);
     return result;
+}
+
+UniqueIndexer::UniqueIndexer(const int& nCores, const long long& size, const vector<long long>& ids){
+    if (ids.size()){
+        auto tmp = ids;
+        std::sort(tmp.begin(), tmp.end());
+        sortedIds.reserve(tmp.size());
+        for (size_t i = 0; i < tmp.size()-1; ++i){
+            if (tmp[i] != tmp[i+1]) sortedIds.push_back(tmp[i]);
+        }
+        sortedIds.push_back(tmp.back());
+    } else{
+        sortedIds.resize(size);
+        iota(sortedIds.begin(), sortedIds.end(), 1LL);
+    }
+    intervals = divideInterval(1, sortedIds.size(), nCores);
+    sqlIds.resize(nCores);
+    for (int i = 0; i < nCores; ++i){
+        if (ids.size()){
+            vector<string> strIds (intervals[i+1]-intervals[i]);
+            for (long long j = intervals[i]; j < intervals[i+1]; ++j) strIds[j] = to_string(j);
+            sqlIds[i] = fmt::format("{} IN ({}) ORDER BY {}", PgManager::id, boost::join(strIds, ","), PgManager::id);
+        } else{
+            sqlIds[i] = fmt::format("{} BETWEEN {} AND {} ORDER BY {}", PgManager::id, intervals[i], intervals[i+1]-1, PgManager::id);
+        }
+    }
+    inds.resize(sortedIds.size());
+    iota(inds.begin(), inds.end(), 0);
+}
+
+string UniqueIndexer::getSql(const int& coreIndex) const{
+    return sqlIds.at(coreIndex);
+}
+
+pair<long long, long long> UniqueIndexer::getInterval(const int& coreIndex) const{
+    return {intervals[coreIndex], intervals[coreIndex+1]-1};
+}
+
+long long UniqueIndexer::at(const size_t& ind) const{
+    return sortedIds.at(ind);
+}
+
+size_t UniqueIndexer::size() const{
+    return sortedIds.size();
+}
+
+Indexer::Indexer(const vector<long long>& ids){
+    map<long long, size_t> sortedIds;
+    for (const auto& id : ids) sortedIds.emplace(id, 0);
+    sz = sortedIds.size();
+    size_t i = 0;
+    vector<string> strIds (sortedIds.size());
+    for (auto& pr : sortedIds){
+        strIds[i] = to_string(pr.first);
+        pr.second = i++;
+    }
+    indexOfIds.resize(ids.size());
+    for (size_t i = 0; i < ids.size(); ++i) indexOfIds[i] = sortedIds.at(ids.at(i));
+    sqlId = fmt::format("{} IN ({}) ORDER BY {}", PgManager::id, boost::join(strIds, ","), PgManager::id);
+}
+
+size_t Indexer::crushedIndex(const size_t& idIndex) const{
+    return indexOfIds.at(idIndex);
+}
+
+size_t Indexer::crushedSize() const{
+    return sz;
 }
 
 double sigmoid(const double& x, const double& k){

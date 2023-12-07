@@ -27,10 +27,11 @@ public:
     unique_ptr<PgManager> pg;
     Stat();
     bool analyze(const string& tableName);
-    void getStoMeanVars(const string& tableName, const string& columnName, const string& joinId, vector<double>& means, vector<double>& vars);
-    void getDetAttrs(const string& tableName, const string& columnName,const string& joinId, vector<double>& attrs);
+    void getStoMeanVars(const string& tableName, const string& columnName, const string& sqlId, vector<double>& means, vector<double>& vars);
+    void getDetAttrs(const string& tableName, const string& columnName,const string& sqlId, vector<double>& attrs);
     pair<double, double> getDetMeanVar(const string& tableName, const string& columnName);
     void getSamples(const string& tableName, const string& columnName, const long long& id, vector<double>& samples);
+    void getSamples(const string& tableName, const string& columnName, const string& sqlId, const vector<size_t>& sampleIds, vector<vector<double>>& samples);
     void getQuantiles(const string& tableName, const string& columnName, const long long& id, vector<double>& quantiles);
 };
 
