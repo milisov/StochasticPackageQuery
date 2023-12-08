@@ -179,7 +179,3 @@ double KDE::getQuickCvarInv(const double& x) const{
 //     if (ind == sup.size()) return 1;
 //     return cumCdf[ind-1] + supPdf[ind-1]*(x-sup[ind-1]);
 // }
-
-MultiKDE::MultiKDE(const vector<double>& X, const vector<double>& Y){
-    
-}

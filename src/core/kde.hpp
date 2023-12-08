@@ -70,10 +70,4 @@ void KDE::getQuantiles(vector<T>& quantiles) const{
     getSortedQuantiles(sortedResults);
     for (size_t i = 0; i < n; ++i) quantiles[sortedQuantiles[i].second] = sortedResults[i];
 }
-
-class MultiKDE{
-public:
-    MultiKDE(const vector<double>& X, const vector<double>& Y);
-};
-
 #endif

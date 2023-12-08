@@ -84,15 +84,15 @@ UniqueIndexer::UniqueIndexer(const int& nCores, const long long& size, const vec
         sortedIds.resize(size);
         iota(sortedIds.begin(), sortedIds.end(), 1LL);
     }
-    intervals = divideInterval(1, sortedIds.size(), nCores);
+    intervals = divideInterval(0, sortedIds.size()-1, nCores);
     sqlIds.resize(nCores);
     for (int i = 0; i < nCores; ++i){
         if (ids.size()){
             vector<string> strIds (intervals[i+1]-intervals[i]);
-            for (long long j = intervals[i]; j < intervals[i+1]; ++j) strIds[j] = to_string(j);
+            for (long long j = intervals[i]+1; j <= intervals[i+1]; ++j) strIds[j] = to_string(j);
             sqlIds[i] = fmt::format("{} IN ({}) ORDER BY {}", PgManager::id, boost::join(strIds, ","), PgManager::id);
         } else{
-            sqlIds[i] = fmt::format("{} BETWEEN {} AND {} ORDER BY {}", PgManager::id, intervals[i], intervals[i+1]-1, PgManager::id);
+            sqlIds[i] = fmt::format("{} BETWEEN {} AND {} ORDER BY {}", PgManager::id, intervals[i]+1, intervals[i+1], PgManager::id);
         }
     }
     inds.resize(sortedIds.size());
@@ -104,7 +104,7 @@ string UniqueIndexer::getSql(const int& coreIndex) const{
 }
 
 pair<long long, long long> UniqueIndexer::getInterval(const int& coreIndex) const{
-    return {intervals[coreIndex], intervals[coreIndex+1]-1};
+    return {intervals[coreIndex], intervals[coreIndex+1]};
 }
 
 long long UniqueIndexer::at(const size_t& ind) const{

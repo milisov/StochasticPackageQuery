@@ -34,7 +34,7 @@ void analyzeAll(){
 void test(){
 	INIT(pro);
 	CLOCK("a");
-	string filePath = "resource/sqls/_stocks_300_100.spaql";
+	string filePath = "resource/sqls/_stocks_3000_100.spaql";
 	auto spq = parseSpaqlFromFile(filePath);
 	if (spq){
 		cout << "Success!\n" << spq;
@@ -50,13 +50,14 @@ void test(){
 		// for (double i = -10; i <= 10; i ++) hards.push_back(i);
 		CLK(pro, "hard");
 		// bounder.generate(hards);
-		bounder.set(3);
+		bounder.set(0);
 		STP(pro, "hard");
 		deb(spq->executable(), spq);
 		CLK(pro, "taylorinit");
 		Taylor taylor (spq, {}, {
 			{"soft_deterministic_constraint", false},
-			{"max_number_of_iterations", 50}});
+			{"max_number_of_iterations", 50},
+			{"dependency_var", true}});
 		STP(pro, "taylorinit");
 		CLK(pro, "taylor");
 		taylor.solve();

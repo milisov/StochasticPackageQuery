@@ -61,6 +61,8 @@ Taylor::Taylor(shared_ptr<StochasticPackageQuery> spq, const vector<long long>& 
             size_t N = stat->pg->getColumnLength(spq->tableName, attrCon->attr);
             stoXs.emplace_back(N, 0);
             varXs.push_back(0.0);
+            zeroPds.emplace_back(n, 0);
+            nsix.push_back(pow(static_cast<double>(N), -1.0/6.0));
             vector<double> means (n), vars (n);
             #pragma omp parallel num_threads(nCores)
             {
@@ -71,8 +73,8 @@ Taylor::Taylor(shared_ptr<StochasticPackageQuery> spq, const vector<long long>& 
                 vector<double> vars_; vars_.reserve(n_);
                 Stat stat_;
                 stat_.getStoMeanVars(spq->tableName, attrCon->attr, idx->getSql(coreIndex), means_, vars_);
-                copy(means_.begin(), means_.end(), means.begin()+interval.first-1);
-                copy(vars_.begin(), vars_.end(), vars.begin()+interval.first-1);
+                copy(means_.begin(), means_.end(), means.begin()+interval.first);
+                copy(vars_.begin(), vars_.end(), vars.begin()+interval.first);
             }
             stoMeans.emplace_back(means);
             stoVars.emplace_back(vars);
@@ -100,7 +102,7 @@ Taylor::Taylor(shared_ptr<StochasticPackageQuery> spq, const vector<long long>& 
                     vector<double> attrs_; attrs_.reserve(n_);
                     Stat stat_;
                     stat_.getDetAttrs(spq->tableName, attrCon->attr, idx->getSql(coreIndex), attrs_);
-                    copy(attrs_.begin(), attrs_.end(), attrs.begin()+interval.first-1);
+                    copy(attrs_.begin(), attrs_.end(), attrs.begin()+interval.first);
                 }
                 detCons.emplace_back(attrs);
                 detNorms.push_back(norm(attrs));
@@ -115,6 +117,7 @@ Taylor::Taylor(shared_ptr<StochasticPackageQuery> spq, const vector<long long>& 
     objValue = 0;
     minVio = POS_INF;
     maxSolutionSize = 0;
+    gamma = 1.0;
     bestObj = 0;
     obj.resize(n);
     fill(obj.begin(), obj.end(), 0);
@@ -132,7 +135,7 @@ Taylor::Taylor(shared_ptr<StochasticPackageQuery> spq, const vector<long long>& 
                     vector<double> attrs_; attrs_.reserve(n_);
                     Stat stat_;
                     stat_.getDetAttrs(spq->tableName, attrObj->obj, idx->getSql(coreIndex), attrs_);
-                    copy(attrs_.begin(), attrs_.end(), obj.begin()+interval.first-1);
+                    copy(attrs_.begin(), attrs_.end(), obj.begin()+interval.first);
                 }
             }
             if (getCount(spq->obj)) fill(obj.begin(), obj.end(), 1.0);
@@ -146,27 +149,24 @@ void Taylor::solve(SolIndType& nextSol){
     CLOCK("pre");
     iter ++;
     size_t nInds = idx->size();
-    size_t n = nInds + spq->nCvar + spq->isStoObj;
+    size_t numvars = nInds + spq->nCvar + spq->isStoObj;
     size_t m = spq->cons.size() + spq->isStoObj;
     size_t nzN = sol.size();
-    vector<double> lb = vector<double>(n, 0);
-    vector<double> ub = vector<double>(n, POS_INF);
-    if (maxSolutionSize > 0){
-        double stepSize = maxSolutionSize / nMaxIters;
-        for (size_t i = 0; i < nInds; ++i){
-            if (sol.count(i)){
-                lb[i] = max(0.0, sol.at(i)-stepSize);
-                ub[i] = sol.at(i)+stepSize;
-            } else ub[i] = stepSize;
-        }
-        if (spq->repeat != StochasticPackageQuery::NO_REPEAT){
-            for (size_t i = 0; i < nInds; ++i) ub[i] = min(ub[i], spq->repeat+1.0);
-        }
-    } else fill(ub.begin(), ub.begin()+nInds, 1.0);
+    vector<double> lb = vector<double>(numvars, 0);
+    vector<double> ub = vector<double>(numvars, POS_INF);
+    for (size_t i = 0; i < nInds; ++i){
+        if (sol.count(i)){
+            lb[i] = max(0.0, sol.at(i)-gamma);
+            ub[i] = sol.at(i)+gamma;
+        } else ub[i] = gamma;
+    }
+    if (spq->repeat != StochasticPackageQuery::NO_REPEAT){
+        for (size_t i = 0; i < nInds; ++i) ub[i] = min(ub[i], spq->repeat+1.0);
+    }
     vector<int> cbeg, cind;
     vector<double> violations (m, 0), detMuls (m, 0), Fxvs, cval, rhs;
     vector<char> sense; sense.reserve(2*m);
-    cbeg.reserve(2*m+1); cind.reserve(2*m*n); cval.reserve(2*m*n); rhs.reserve(2*m);
+    cbeg.reserve(2*m+1); cind.reserve(2*m*numvars); cval.reserve(2*m*numvars); rhs.reserve(2*m);
     cbeg.push_back(0);
     vector<shared_ptr<KDE>> kdes;
     vector<double> softObj = obj;
@@ -237,20 +237,46 @@ void Taylor::solve(SolIndType& nextSol){
             Inequality stoIneq = Inequality::lteq;
             if (getVar(con)){
                 size_t N = stat->pg->getColumnLength(spq->tableName, attrCon->attr);
-                if (isDependentVar){
-                    
-                } else{
-                    CLOCK("sto");
-                    const auto& kde = kdes[stoInd];
-                    double fxv = max(kde->getPdf(v), MACHINE_EPS);
-                    vector<double> dF (nInds);
-                    #pragma omp parallel num_threads(nCores)
-                    {
-                        Stat stat_;
+                CLOCK("sto");
+                const auto& kde = kdes[stoInd];
+                double fxv = kde->getPdf(v);
+                vector<double> dF (nInds, 0);
+                #pragma omp parallel num_threads(nCores)
+                {
+                    Stat stat_;
+                    if (isDependentVar){
                         #pragma omp for schedule(dynamic)
                         for (size_t i = 0; i < nInds; ++i){
                             if (!sol.count(i)){
-                                dF[i] = -fxv*stoMeans[stoInd][i];
+                                if (isEqual(fxv, 0)){
+                                    dF[i] = -stoMeans[stoInd][i]/max(sqrt(stoVars[stoInd][i]), 1.0);
+                                } else dF[i] = zeroPds[stoInd][i];
+                            } else{
+                                vector<double> samples, XiBar (N); 
+                                samples.reserve(N);
+                                stat_.getSamples(spq->tableName, attrCon->attr, idx->at(i), samples);
+                                AccSet acc;
+                                for (size_t j = 0; j < N; ++j){
+                                    XiBar[j] = stoXs[stoInd][j] - sol.at(i)*samples[j];
+                                    acc(XiBar[j]);
+                                }
+                                double a1 = nsix[stoInd]*sqrt(ba::variance(acc));
+                                double a2 = nsix[stoInd]*sqrt(stoVars[stoInd][i]);
+                                for (size_t j = 0; j < N; ++j){
+                                    double left = max(samples[j]-a2, (v-XiBar[j]-a1)/sol.at(i));
+                                    double right = min(samples[j]+a2, (v-XiBar[j]+a1)/sol.at(i));
+                                    if (left < right) dF[i] += -0.125*(right+left)*(right-left);
+                                }
+                            }
+                            stoCon[i] = dF[i];
+                        }
+                    } else{
+                        #pragma omp for schedule(dynamic)
+                        for (size_t i = 0; i < nInds; ++i){
+                            if (!sol.count(i)){
+                                if (isEqual(fxv, 0)){
+                                    dF[i] = -stoMeans[stoInd][i]/max(sqrt(stoVars[stoInd][i]), 1.0);
+                                } else dF[i] = -fxv*stoMeans[stoInd][i];
                             } else{
                                 vector<double> samples, quantiles, XiBar (N); 
                                 samples.reserve(N); quantiles.reserve(2*N+1);
@@ -263,14 +289,17 @@ void Taylor::solve(SolIndType& nextSol){
                             stoCon[i] = dF[i];
                         }
                     }
-                    stoBound = p;
-                    if (probCon->vsign == Inequality::gteq) stoBound = 1-p;
-                    double dot = 0;
-                    for (const auto& p : sol) dot += p.second*dF[p.first];
-                    stoBound += dot-Fxvs[stoInd];
-                    if (probCon->vsign != probCon->psign) stoIneq = Inequality::gteq;
-                    STOP("sto");
                 }
+                // deb(topAbsK(dF, 20));
+                // deb(topK(dF, 20));
+                // deb(lowK(dF, 20));
+                stoBound = p;
+                if (probCon->vsign == Inequality::gteq) stoBound = 1-p;
+                double dot = 0;
+                for (const auto& p : sol) dot += p.second*dF[p.first];
+                stoBound += dot-Fxvs[stoInd];
+                if (probCon->vsign != probCon->psign) stoIneq = Inequality::gteq;
+                STOP("sto");
             }
             CLOCK("stocon");
             if (multiplier > 0){
@@ -339,8 +368,8 @@ void Taylor::solve(SolIndType& nextSol){
     ckg(GRBsetintparam(env, GRB_INT_PAR_METHOD, GRB_METHOD_CONCURRENT), env);
 	ckg(GRBsetintparam(env, GRB_INT_PAR_OUTPUTFLAG, 0), env);
 	ckg(GRBstartenv(env), env);
-    vector<char> vtype (n, GRB_CONTINUOUS);
-	ckgb(GRBnewmodel(env, &model, NULL, n, softObj.data(), lb.data(), ub.data(), vtype.data(), NULL), env, model);
+    vector<char> vtype (numvars, GRB_CONTINUOUS);
+	ckgb(GRBnewmodel(env, &model, NULL, numvars, softObj.data(), lb.data(), ub.data(), vtype.data(), NULL), env, model);
     auto modelSense = objSense == ObjectiveSense::maximize ? GRB_MAXIMIZE : GRB_MINIMIZE;
 	ckgb(GRBsetintattr(model, GRB_INT_ATTR_MODELSENSE, modelSense), env, model);
 	ckgb(GRBaddconstrs(model, rowInd, cind.size(), cbeg.data(), cind.data(), cval.data(), sense.data(), rhs.data(), NULL), env, model);
@@ -354,9 +383,9 @@ void Taylor::solve(SolIndType& nextSol){
             if (!isWarmStart) break;
         }
         if (isWarmStart){
-            ckgb(GRBsetintattrarray(model, GRB_INT_ATTR_VBASIS, 0, n, vStart.data()), env, model);
+            ckgb(GRBsetintattrarray(model, GRB_INT_ATTR_VBASIS, 0, numvars, vStart.data()), env, model);
             ckgb(GRBsetintattrarray(model, GRB_INT_ATTR_CBASIS, 0, rowInd, cStart.data()), env, model);
-            ckgb(GRBsetdblattrarray(model, GRB_DBL_ATTR_PSTART, 0, n, pStart.data()), env, model);
+            ckgb(GRBsetdblattrarray(model, GRB_DBL_ATTR_PSTART, 0, numvars, pStart.data()), env, model);
             ckgb(GRBsetdblattrarray(model, GRB_DBL_ATTR_DSTART, 0, rowInd, dStart.data()), env, model);
         }
     }
@@ -369,9 +398,9 @@ void Taylor::solve(SolIndType& nextSol){
 	int status;
 	ckgb(GRBgetintattr(model, GRB_INT_ATTR_STATUS, &status), env, model);
 	if (status == GRB_OPTIMAL){
-        pStart.resize(n);
-    	ckgb(GRBgetdblattrarray(model, GRB_DBL_ATTR_X, 0, n, pStart.data()), env, model);
-        for (size_t i = 0; i < n; ++i) {
+        pStart.resize(numvars);
+    	ckgb(GRBgetdblattrarray(model, GRB_DBL_ATTR_X, 0, numvars, pStart.data()), env, model);
+        for (size_t i = 0; i < numvars; ++i) {
             if (pStart[i] > 0){
                 nextSol[i] = pStart[i];
             }
@@ -381,9 +410,10 @@ void Taylor::solve(SolIndType& nextSol){
             if (p.first < nInds) solutionSize += p.second;
         }
         maxSolutionSize = max(maxSolutionSize, solutionSize);
+        gamma *= 1-1/maxSolutionSize;
 
-        vStart.resize(n); cStart.resize(rowInd);
-        ckgb(GRBgetintattrarray(model, GRB_INT_ATTR_VBASIS, 0, n, vStart.data()), env, model);
+        vStart.resize(numvars); cStart.resize(rowInd);
+        ckgb(GRBgetintattrarray(model, GRB_INT_ATTR_VBASIS, 0, numvars, vStart.data()), env, model);
         ckgb(GRBgetintattrarray(model, GRB_INT_ATTR_CBASIS, 0, rowInd, cStart.data()), env, model);
         dStart.resize(rowInd);
         ckgb(GRBgetdblattrarray(model, GRB_DBL_ATTR_PI, 0, rowInd, dStart.data()), env, model);
@@ -401,6 +431,7 @@ void Taylor::solve(SolIndType& nextSol){
 }
 
 void Taylor::update(const SolIndType& step){
+    CLOCK("c1");
     assert(step.size());
     int m = spq->cons.size();
     vector<size_t> inds; inds.reserve(step.size());
@@ -440,11 +471,14 @@ void Taylor::update(const SolIndType& step){
             }
         }
     }
+    STOP("c1");
     if (isDependentVar){
+        CLOCK("c2");
         stoInd = 0;
         shared_ptr<ProbConstraint> probCon;
         shared_ptr<AttrConstraint> attrCon;
-        vector<vector<pair<size_t, double>>> changes (m);
+        vector<vector<double>> mulChanges (m);
+        vector<vector<size_t>> indexChanges (m);
         for (const auto& con : spq->cons){
             if (isStochastic(con, probCon, attrCon) && attrCon){
                 if (getVar(con)){
@@ -453,24 +487,30 @@ void Taylor::update(const SolIndType& step){
                     for (auto x : stoXs[stoInd]) acc(x);
                     varXs[stoInd] = ba::variance(acc);
                     auto N = stoXs[stoInd].size();
-                    double range = sqrt(varXs[stoInd])*pow(static_cast<double>(N), -1.0/6.0);
+                    double range = sqrt(varXs[stoInd])*nsix[stoInd];
+                    deb(v, stoXs[stoInd], range);
                     for (size_t j = 0; j < N; ++j){
                         if (fabs(v-stoXs[stoInd][j]) <= range){
                             if (!jvInds[stoInd].count(j)){
-                                changes[stoInd].emplace_back(j, 1.0);
+                                indexChanges[stoInd].push_back(j);
+                                mulChanges[stoInd].push_back(1.0);
                                 jvInds[stoInd].insert(j);
                             }
                         } else{
                             if (jvInds[stoInd].count(j)){
-                                changes[stoInd].emplace_back(j, -1.0);
+                                indexChanges[stoInd].push_back(j);
+                                mulChanges[stoInd].push_back(-1.0);
                                 jvInds[stoInd].erase(j);
                             }
                         }
                     }
+                    deb(indexChanges[stoInd], mulChanges[stoInd]);
                 }
                 stoInd ++;
             }
         }
+        STOP("c2");
+        CLOCK("c3");
         #pragma omp parallel num_threads(nCores)
         {
             auto coreIndex = omp_get_thread_num();
@@ -482,16 +522,25 @@ void Taylor::update(const SolIndType& step){
             size_t n_ = interval.second - interval.first;
             for (const auto& con : spq->cons){
                 if (isStochastic(con, probCon, attrCon) && attrCon){
-                    if (getVar(con) && changes[stoInd].size()){
-                        vector<double> attrs_; attrs_.reserve(n_);
-                        // stat_.getDetAttrs(spq->tableName, attrCon->attr, idx->getSql(coreIndex), attrs_);
-                        // copy(attrs_.begin(), attrs_.end(), attrs.begin()+interval.first-1);
+                    auto sampleSize = indexChanges[stoInd].size();
+                    if (getVar(con) && sampleSize){
+                        auto N = stoXs[stoInd].size();
+                        vector<vector<double>> samples; samples.reserve(n_);
+                        stat_.getSamples(spq->tableName, attrCon->attr, idx->getSql(coreIndex), indexChanges[stoInd], samples);
+                        double coef = -0.5*nsix[stoInd];
+                        for (size_t i = interval.first; i < interval.second; ++i){
+                            size_t ind = i-interval.first;
+                            double a = coef*sqrt(stoVars[stoInd][i]);
+                            for (size_t j = 0; j < sampleSize; ++j) zeroPds[stoInd][i] += mulChanges[stoInd][j]*samples[ind][j]*a;
+                        }
                     }
                     stoInd ++;
                 }
             }
         }
+        STOP("c3");
     }
+    CLOCK("c4");
     for (const auto& p : step){
         double val = p.second;
         if (sol.count(p.first)) val += sol.at(p.first);
@@ -510,6 +559,7 @@ void Taylor::update(const SolIndType& step){
         if (!isCycled) hashedSols[hashed].emplace_back(sol);
         else status = minVio > 0 ? TaylorStatus::cycled : TaylorStatus::found;
     } else hashedSols[hashed] = {sol};
+    STOP("c4");
 }
 
 void Taylor::update(const double& vio, const double& objValue, const SolIndType& sol){
@@ -542,8 +592,11 @@ void Taylor::solve(){
     for (int i = 0; i < nMaxIters; ++i){
         CLOCK("b");
         SolIndType nextSol; solve(nextSol);
-        update(optim->towards(nextSol));
+        deb(nextSol);
         STOP("b");
+        CLOCK("c");
+        update(optim->towards(nextSol));
+        STOP("c");
         PRINT(pro);
         if (status != TaylorStatus::not_yet_found) break;
     }

@@ -6,6 +6,7 @@
 #include <string>
 #include <utility>
 #include <cmath>
+#include <algorithm>
 
 #include <boost/multiprecision/gmp.hpp>
 #include <boost/accumulators/accumulators.hpp>
@@ -20,6 +21,7 @@ using std::string;
 using std::vector;
 using std::ostream;
 using std::pair;
+using std::min;
 
 namespace ba = boost::accumulators;
 typedef ba::accumulator_set<long double, ba::stats<ba::tag::sum, ba::tag::variance>> AccSet;
@@ -37,6 +39,33 @@ bool isLess(const double& a, const double& b);
 bool isGreater(const double& a, const double& b);
 bool isLessEqual(const double& a, const double& b);
 bool isGreaterEqual(const double& a, const double& b);
+
+template<typename T>
+vector<pair<T, size_t>> topAbsK(const vector<T>& vec, const size_t& k){
+    vector<pair<T, size_t>> tmpVec (vec.size());
+    auto sz = min(vec.size(), k);
+    for (size_t i = 0; i < vec.size(); ++i) tmpVec[i] = {abs(vec[i]), i};
+    std::partial_sort(tmpVec.begin(), tmpVec.begin() + sz, tmpVec.end(), std::greater<pair<T, size_t>>());
+    return vector<pair<T, size_t>>(tmpVec.begin(), tmpVec.begin() + sz);
+}
+
+template<typename T>
+vector<pair<T, size_t>> topK(const vector<T>& vec, const size_t& k){
+    vector<pair<T, size_t>> tmpVec (vec.size());
+    auto sz = min(vec.size(), k);
+    for (size_t i = 0; i < vec.size(); ++i) tmpVec[i] = {vec[i], i};
+    std::partial_sort(tmpVec.begin(), tmpVec.begin() + sz, tmpVec.end(), std::greater<pair<T, size_t>>());
+    return vector<pair<T, size_t>>(tmpVec.begin(), tmpVec.begin() + sz);
+}
+
+template<typename T>
+vector<pair<T, size_t>> lowK(const vector<T>& vec, const size_t& k){
+    vector<pair<T, size_t>> tmpVec (vec.size());
+    auto sz = min(vec.size(), k);
+    for (size_t i = 0; i < vec.size(); ++i) tmpVec[i] = {vec[i], i};
+    std::partial_sort(tmpVec.begin(), tmpVec.begin() + sz, tmpVec.end());
+    return vector<pair<T, size_t>>(tmpVec.begin(), tmpVec.begin() + sz);
+}
 
 template<typename T>
 T sortedMedian(const vector<T>& arr, size_t st, size_t fn){

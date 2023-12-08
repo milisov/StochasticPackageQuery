@@ -272,13 +272,18 @@ void Stat::getSamples(const string& tableName, const string& columnName, const l
 
 void Stat::getSamples(const string& tableName, const string& columnName, const string& sqlId, const vector<size_t>& sampleIds, vector<vector<double>>& samples){
     if (!sqlId.size()) return;
-    vector<string> strSampleIds (sampleIds.size());
-    for (size_t i = 0; i < sampleIds.size(); ++i) strSampleIds[i] = fmt::format("{}[{}]", columnName, sampleIds[i]);
+    auto sz = sampleIds.size();
+    vector<string> strSampleIds (sz);
+    for (size_t i = 0; i < sz; ++i) strSampleIds[i] = fmt::format("{}[{}]", columnName, sampleIds[i]+1);
     string sql = fmt::format("SELECT {} FROM \"{}\" WHERE {}", boost::join(strSampleIds, ","), tableName, sqlId);
-    // auto res = PQexec(pg->conn.get(), sql.c_str());
-    // ck(pg->conn, res);
-    // readArray(PQgetvalue(res, 0, 0), samples);
-    // PQclear(res);
+    auto res = PQexec(pg->conn.get(), sql.c_str());
+    ck(pg->conn, res);
+    vector<double> x (sz);
+    for (int i = 0; i < PQntuples(res); ++i){
+        for (size_t j = 0; j < sz; ++j) x[j] = atof(PQgetvalue(res, i, j));
+        samples.emplace_back(x);
+    }
+    PQclear(res);
 }
 
 void Stat::getQuantiles(const string& tableName, const string& columnName, const long long& id, vector<double>& quantiles){

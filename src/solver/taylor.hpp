@@ -34,12 +34,13 @@ private:
     ObjectiveSense objSense;
     int nMaxIters, nCores;
     bool isSoftDetCon, isDependentVar;
-    double sqn; 
+    double sqn, gamma; 
     map<string, Option> options;
     // Persistent members_Deterministic
     vector<vector<double>> detCons;
     vector<double> detNorms, obj;
     // Persistent members_Stochastic
+    vector<double> nsix;
     vector<vector<double>> stoMeans, stoVars;
     map<string, pair<double, double>> adjustments;
     // Persistent members_Stochastic_IsDependentVar
@@ -56,6 +57,7 @@ private:
     vector<vector<double>> stoXs;
     // Stochastic update_IsDependentVar
     vector<double> varXs;
+    vector<vector<double>> zeroPds;
     vector<set<size_t>> jvInds;
     // Deterministic update
     double objValue;
