@@ -34,7 +34,7 @@ void analyzeAll(){
 void test(){
 	INIT(pro);
 	CLOCK("a");
-	string filePath = "resource/sqls/_stocks_3000_100.spaql";
+	string filePath = "resource/sqls/_stocks_300_10000.spaql";
 	auto spq = parseSpaqlFromFile(filePath);
 	if (spq){
 		cout << "Success!\n" << spq;

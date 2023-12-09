@@ -76,6 +76,13 @@ T sortedMedian(const vector<T>& arr, size_t st, size_t fn){
 }
 
 template<typename T>
+T median(const vector<T>& arr){
+    auto tmp = arr;
+    std::sort(tmp.begin(), tmp.end());
+    return sortedMedian(tmp, 0, arr.size()-1);
+}
+
+template<typename T>
 T sortedIQR(const vector<T>& arr){
     size_t half = arr.size()/2;
     if (arr.size()%2) return sortedMedian(arr, half+1, arr.size()-1) - sortedMedian(arr, 0, half-1);

@@ -30,6 +30,15 @@ map<string, Option> defaultOptions = {
 };
 
 const double Taylor::adjustCoef = Config::getInstance()->pt.get<double>("parameters.sample_adjustment_coefficient");
+const double budget = 1e6;
+
+double getKernelRange(const vector<double>& info={}){
+    return info.at(0)*sqrt(info.at(1));
+}
+
+double getKernelIntegral(const double& x, const vector<double>& info={}){
+    return -0.125*x*x;
+}
 
 Taylor::Taylor(shared_ptr<StochasticPackageQuery> spq, const vector<long long>& ids, const map<string, Option>& options): spq(spq), options(options){
     stat = make_unique<Stat>();
@@ -179,7 +188,6 @@ void Taylor::solve(SolIndType& nextSol){
         if (isStochastic(con, probCon)){
             auto kde = make_shared<KDE>(stoXs[stoInd], true);
             Fxvs.push_back(kde->getQuickCdf(spq->getValue(probCon->v)));
-            // deb(stoXs[stoInd], spq->getValue(probCon->v));
             if (getVar(con)){
                 double vio = Fxvs.back();
                 double p = spq->getValue(probCon->p);
@@ -260,12 +268,12 @@ void Taylor::solve(SolIndType& nextSol){
                                     XiBar[j] = stoXs[stoInd][j] - sol.at(i)*samples[j];
                                     acc(XiBar[j]);
                                 }
-                                double a1 = nsix[stoInd]*sqrt(ba::variance(acc));
-                                double a2 = nsix[stoInd]*sqrt(stoVars[stoInd][i]);
+                                double r1 = getKernelRange({nsix[stoInd], static_cast<double>(ba::variance(acc))});
+                                double r2 = getKernelRange({nsix[stoInd], stoVars[stoInd][i]});
                                 for (size_t j = 0; j < N; ++j){
-                                    double left = max(samples[j]-a2, (v-XiBar[j]-a1)/sol.at(i));
-                                    double right = min(samples[j]+a2, (v-XiBar[j]+a1)/sol.at(i));
-                                    if (left < right) dF[i] += -0.125*(right+left)*(right-left);
+                                    double left = max(samples[j]-r2, (v-XiBar[j]-r1)/sol.at(i));
+                                    double right = min(samples[j]+r2, (v-XiBar[j]+r1)/sol.at(i));
+                                    if (left < right) dF[i] += (getKernelIntegral(right)-getKernelIntegral(left));
                                 }
                             }
                             stoCon[i] = dF[i];
@@ -290,9 +298,6 @@ void Taylor::solve(SolIndType& nextSol){
                         }
                     }
                 }
-                // deb(topAbsK(dF, 20));
-                // deb(topK(dF, 20));
-                // deb(lowK(dF, 20));
                 stoBound = p;
                 if (probCon->vsign == Inequality::gteq) stoBound = 1-p;
                 double dot = 0;
@@ -433,6 +438,7 @@ void Taylor::solve(SolIndType& nextSol){
 void Taylor::update(const SolIndType& step){
     CLOCK("c1");
     assert(step.size());
+    auto n = idx->size();
     int m = spq->cons.size();
     vector<size_t> inds; inds.reserve(step.size());
     for (const auto& p : step) inds.push_back(p.first);
@@ -475,6 +481,7 @@ void Taylor::update(const SolIndType& step){
     if (isDependentVar){
         CLOCK("c2");
         stoInd = 0;
+        double nMaxSampleChanges = budget / (n*(spq->nStochastic-spq->nCvar));
         shared_ptr<ProbConstraint> probCon;
         shared_ptr<AttrConstraint> attrCon;
         vector<vector<double>> mulChanges (m);
@@ -487,20 +494,25 @@ void Taylor::update(const SolIndType& step){
                     for (auto x : stoXs[stoInd]) acc(x);
                     varXs[stoInd] = ba::variance(acc);
                     auto N = stoXs[stoInd].size();
-                    double range = sqrt(varXs[stoInd])*nsix[stoInd];
-                    deb(v, stoXs[stoInd], range);
-                    for (size_t j = 0; j < N; ++j){
-                        if (fabs(v-stoXs[stoInd][j]) <= range){
-                            if (!jvInds[stoInd].count(j)){
-                                indexChanges[stoInd].push_back(j);
+                    double range = getKernelRange({nsix[stoInd], varXs[stoInd]});
+                    vector<pair<double, size_t>> coefs (N);
+                    for (size_t j = 0; j < N; ++j) coefs[j] = {-fabs(v-stoXs[stoInd][j])/range, j};
+                    std::sort(coefs.begin(), coefs.end());
+                    int cnt = 0;
+                    for (const auto& pr : coefs){
+                        double coef = -pr.first;
+                        size_t ind = pr.second;
+                        if (coef <= 1){
+                            if (!jvInds[stoInd].count(ind) && (cnt++ < nMaxSampleChanges)){
+                                indexChanges[stoInd].push_back(ind);
                                 mulChanges[stoInd].push_back(1.0);
-                                jvInds[stoInd].insert(j);
+                                jvInds[stoInd].insert(ind);
                             }
                         } else{
-                            if (jvInds[stoInd].count(j)){
-                                indexChanges[stoInd].push_back(j);
+                            if (jvInds[stoInd].count(ind)){
+                                indexChanges[stoInd].push_back(ind);
                                 mulChanges[stoInd].push_back(-1.0);
-                                jvInds[stoInd].erase(j);
+                                jvInds[stoInd].erase(ind);
                             }
                         }
                     }
@@ -527,10 +539,9 @@ void Taylor::update(const SolIndType& step){
                         auto N = stoXs[stoInd].size();
                         vector<vector<double>> samples; samples.reserve(n_);
                         stat_.getSamples(spq->tableName, attrCon->attr, idx->getSql(coreIndex), indexChanges[stoInd], samples);
-                        double coef = -0.5*nsix[stoInd];
                         for (size_t i = interval.first; i < interval.second; ++i){
                             size_t ind = i-interval.first;
-                            double a = coef*sqrt(stoVars[stoInd][i]);
+                            double a = -0.5*getKernelRange({nsix[stoInd], stoVars[stoInd][i]});
                             for (size_t j = 0; j < sampleSize; ++j) zeroPds[stoInd][i] += mulChanges[stoInd][j]*samples[ind][j]*a;
                         }
                     }
@@ -606,13 +617,14 @@ void Taylor::solve(){
 
 SolType Taylor::getSol(const SolIndType& sol) const{
     SolType res;
+    auto n = idx->size();
     if (sol.size()){
         for (const auto& p : sol){
-            if (p.first < idx->size() && p.first >= 0) res[idx->at(p.first)] = p.second;
+            if (p.first < n && p.first >= 0) res[idx->at(p.first)] = p.second;
         }
     } else{
         for (const auto& p : bestSol){
-            if (p.first < idx->size() && p.first >= 0) res[idx->at(p.first)] = p.second;
+            if (p.first < n && p.first >= 0) res[idx->at(p.first)] = p.second;
         }
     }
     return res;

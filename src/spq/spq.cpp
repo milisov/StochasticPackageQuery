@@ -187,6 +187,7 @@ bool StochasticPackageQuery::validate(){
 		if (getCvar(con)) nCvar ++;
 	}
 	isStoObj = obj && !isDeterministic(obj);
+	if (isStoObj) nStochastic++;
 	return true;
 }
 

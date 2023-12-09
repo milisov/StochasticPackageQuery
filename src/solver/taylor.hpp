@@ -43,7 +43,6 @@ private:
     vector<double> nsix;
     vector<vector<double>> stoMeans, stoVars;
     map<string, pair<double, double>> adjustments;
-    // Persistent members_Stochastic_IsDependentVar
     // System-update
     INIT(pro);
     int iter;
