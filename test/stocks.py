@@ -17,8 +17,8 @@ from psycopg2 import Error
 # In[2]:
 
 
-nStocks = 30
-nPaths = 100
+nStocksLog = 3
+nPathsLog = 2
 
 
 # In[3]:
@@ -27,17 +27,24 @@ nPaths = 100
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         try:
-            nStocks = int(sys.argv[1])
+            nStocksLog = int(sys.argv[1])
         except ValueError:
             pass
     if len(sys.argv) > 2:
         try:
-            nPaths = int(sys.argv[2])
+            nPathsLog = int(sys.argv[2])
         except ValueError:
             pass
 
 
 # In[4]:
+
+
+nStocks = 10**nStocksLog
+nPaths = 10**nPathsLog
+
+
+# In[5]:
 
 
 config = configparser.ConfigParser()
@@ -47,23 +54,24 @@ validate_scenarios = int(config['build']['validate_scenarios'])
 validate_seed = int(config['build']['validate_seed'])
 generate_seed = int(config['build']['generate_seed'])
 maturity = 1.0
-days = 365
-nSteps = int(maturity * days)
-timeGrid = np.linspace(0.0, maturity, nSteps + 1)
+stepPerYear = 52
+nSteps = int(maturity * stepPerYear)
 
 pairs = []
 num_cores = multiprocessing.cpu_count() // 2
-table_name = f"stocks_{nStocks}_{nPaths}"
-validate_table_name = f"stocks_{nStocks}_{nPaths}_validate"
+table_name = f"stocks_{nStocksLog}_{nPathsLog}"
+validate_table_name = f"stocks_{nStocksLog}_{nPathsLog}_validate"
 
 stocks = configparser.ConfigParser()
 stocks.read('../resource/stocks/tickers.ini')
 stats = []
 for ticker in stocks.sections():
     stats.append([ticker, float(stocks[ticker]['price']), float(stocks[ticker]['volatility']), float(stocks[ticker]['drift'])])
+POS_INF = 1e30
+NEG_INF = -1e30
 
 
-# In[5]:
+# In[6]:
 
 
 def GeneratePaths(process, maturity, nPaths, nSteps, isValidate):
@@ -73,11 +81,11 @@ def GeneratePaths(process, maturity, nPaths, nSteps, isValidate):
         generator = ql.UniformRandomGenerator(generate_seed)
     sequenceGenerator = ql.UniformRandomSequenceGenerator(nSteps, generator)
     gaussianSequenceGenerator = ql.GaussianRandomSequenceGenerator(sequenceGenerator)
-    paths = np.zeros(shape = (nPaths, nSteps+1))
+    paths = np.zeros(shape = (nPaths, nSteps+1), dtype=np.float32)
     pathGenerator = ql.GaussianPathGenerator(process, maturity, nSteps, gaussianSequenceGenerator, False)
     for i in range(nPaths):
         path = pathGenerator.next().value()
-        paths[i, :] = np.array(path)
+        paths[i, :] = np.clip(np.array(path), NEG_INF, POS_INF)
     return paths
 
 # Define your procedure here
@@ -89,16 +97,18 @@ def simulate(stat):
     GBM = ql.GeometricBrownianMotionProcess(price, vol, drift)
     gbm_paths = GeneratePaths(GBM, maturity, nPaths, nSteps, False)[:, 1:] - price
     data = io.StringIO()
-    for day_index in range(nSteps):
-        profit = "{" + ",".join(map(str, gbm_paths[:, day_index])) + "}"
-        data.write(f"{start_id+day_index}|'{ticker}'|{day_index+1}|{price}|{profit}\n")
+    for week_index in range(nSteps):
+        profit = "{" + ",".join(map(str, gbm_paths[:, week_index])) + "}"
+        day_index = (week_index+1)*(365//stepPerYear)
+        data.write(f"{start_id+week_index}|'{ticker}'|{day_index}|{price}|{profit}\n")
     data.seek(0)
     cur.copy_from(data, table_name, sep='|')
     validate_gbm_paths = GeneratePaths(GBM, maturity, validate_scenarios, nSteps, True)[:, 1:] - price
     validate_data = io.StringIO()
-    for day_index in range(nSteps):
-        profit = "{" + ",".join(map(str, validate_gbm_paths[:, day_index])) + "}"
-        validate_data.write(f"{start_id+day_index}|'{ticker}'|{day_index+1}|{price}|{profit}\n")
+    for week_index in range(nSteps):
+        profit = "{" + ",".join(map(str, validate_gbm_paths[:, week_index])) + "}"
+        day_index = (week_index+1)*(365//stepPerYear)
+        validate_data.write(f"{start_id+week_index}|'{ticker}'|{day_index}|{price}|{profit}\n")
     validate_data.seek(0)
     cur.copy_from(validate_data, validate_table_name, sep='|')
     conn.commit()
@@ -121,7 +131,7 @@ def get_conn_cur(config):
     return conn, cur
 
 
-# In[6]:
+# In[7]:
 
 
 conn, cur = get_conn_cur(config)
@@ -151,7 +161,7 @@ cur.close()
 conn.close()
 
 
-# In[7]:
+# In[8]:
 
 
 if is_populating:
@@ -160,8 +170,10 @@ if is_populating:
     pool = multiprocessing.Pool(processes=num_cores)
     random.seed(generate_seed)
     random.shuffle(stats)
-    start_ids = [i*days+1 for i in range(nStocks)]
-    pool.map(simulate, list(zip(start_ids, stats[:nStocks])))
+    nStocks = min(nStocks//stepPerYear, len(stats))
+    subStats = sorted(stats[:nStocks])
+    start_ids = [i*stepPerYear+1 for i in range(nStocks)]
+    pool.map(simulate, list(zip(start_ids, subStats)))
     pool.close()
     pool.join()
     for conn, cur in pairs:    

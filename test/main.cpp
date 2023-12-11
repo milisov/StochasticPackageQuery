@@ -9,8 +9,8 @@
 #include <gurobi_c.h>
 
 void analyzeAll(){
-	vector<int> nStocks = {3, 30, 300, 3000};
-	vector<int> nPaths = {100, 10000};
+	vector<int> nStocks = {3, 4, 5, 6};
+	vector<int> nPaths = {2, 4};
 	for (auto nStock : nStocks){
 		for (auto nPath : nPaths){
 			INIT(pro);
@@ -34,7 +34,7 @@ void analyzeAll(){
 void test(){
 	INIT(pro);
 	CLOCK("a");
-	string filePath = "resource/sqls/_stocks_300_10000.spaql";
+	string filePath = "resource/sqls/_stocks_5_2.spaql";
 	auto spq = parseSpaqlFromFile(filePath);
 	if (spq){
 		cout << "Success!\n" << spq;
@@ -57,7 +57,7 @@ void test(){
 		Taylor taylor (spq, {}, {
 			{"soft_deterministic_constraint", false},
 			{"max_number_of_iterations", 50},
-			{"dependency_var", true}});
+			{"dependency_var", false}});
 		STP(pro, "taylorinit");
 		CLK(pro, "taylor");
 		taylor.solve();

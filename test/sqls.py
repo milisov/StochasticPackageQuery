@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[37]:
+# In[1]:
 
 
 import configparser, os, glob
@@ -12,7 +12,7 @@ config.read(config_file)
 config['partition'] = {}
 
 
-# In[39]:
+# In[2]:
 
 
 sqls_folder = '../resource/sqls'
@@ -25,12 +25,12 @@ for file_path in files_to_remove:
         print(f"Error: {file_path} : {e.strerror}")
 
 
-# In[31]:
+# In[3]:
 
 
 stock_table = 'stocks'
-nstocks = [3, 30, 300, 3000]
-npaths = [100, 10000]
+nstocks = [3, 4, 5, 6]
+npaths = [2, 4]
 stock_tables = [f'{stock_table}_{nstock}_{npath}' for nstock in nstocks for npath in npaths]
 with open(spaql_file.format(stock_table), 'r') as file:
     content = file.read()
@@ -41,7 +41,7 @@ for table in stock_tables:
     config['partition'][table] = 'price,profit'
 
 
-# In[35]:
+# In[4]:
 
 
 with open('create_tables.sh', 'w') as bashfile:
@@ -54,15 +54,9 @@ with open('create_tables.sh', 'w') as bashfile:
     bashfile.write('\n'.join(lines))
 
 
-# In[36]:
+# In[5]:
 
 
 with open('../_config.cfg', 'w') as configfile:
     config.write(configfile)
-
-
-# In[ ]:
-
-
-
 

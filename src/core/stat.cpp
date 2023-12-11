@@ -114,9 +114,7 @@ void Stat::analyzeStochastic(const string& tableName, const vector<string>& colu
         int N = pg->getColumnLength(tableName, columnNames[i]);
         vector<float> quantile (2*N+1, 0);
         quantile.back() = 1;
-        for (size_t i=1; i < quantile.size()-1; ++i){
-            quantile[i] = static_cast<float>(i)/(2*N);
-        }
+        for (size_t i=1; i < quantile.size()-1; ++i) quantile[i] = static_cast<float>(i)/(2*N);
         quantiles[i] = quantile;
     }
     vector<AccAggregator> aggs (nColumns);
@@ -128,7 +126,8 @@ void Stat::analyzeStochastic(const string& tableName, const vector<string>& colu
     #pragma omp parallel num_threads(nCores)
     {
         auto coreIndex = omp_get_thread_num();
-        SingleRow sr = SingleRow(fmt::format("SELECT {},{} FROM \"{}\" WHERE {} BETWEEN {} AND {}", PgManager::id, selectColumns, tableName, PgManager::id, intervals[coreIndex], intervals[coreIndex+1]-1));
+        string sql = fmt::format("SELECT {},{} FROM \"{}\" WHERE {} BETWEEN {} AND {}", PgManager::id, selectColumns, tableName, PgManager::id, intervals[coreIndex], intervals[coreIndex+1]-1);
+        SingleRow sr = SingleRow(sql);
         BulkCopy bc = BulkCopy(summaryTable);
         while (sr.fetchRow()){
             long long id = sr.getBigInt(0);
@@ -275,12 +274,12 @@ void Stat::getSamples(const string& tableName, const string& columnName, const s
     auto sz = sampleIds.size();
     vector<string> strSampleIds (sz);
     for (size_t i = 0; i < sz; ++i) strSampleIds[i] = fmt::format("{}[{}]", columnName, sampleIds[i]+1);
-    string sql = fmt::format("SELECT {} FROM \"{}\" WHERE {}", boost::join(strSampleIds, ","), tableName, sqlId);
+    string sql = fmt::format("SELECT ARRAY[{}] FROM \"{}\" WHERE {}", boost::join(strSampleIds, ","), tableName, sqlId);
     auto res = PQexec(pg->conn.get(), sql.c_str());
     ck(pg->conn, res);
-    vector<double> x (sz);
     for (int i = 0; i < PQntuples(res); ++i){
-        for (size_t j = 0; j < sz; ++j) x[j] = atof(PQgetvalue(res, i, j));
+        vector<double> x; x.reserve(sz);
+        readArray(PQgetvalue(res, i, 0), x);
         samples.emplace_back(x);
     }
     PQclear(res);

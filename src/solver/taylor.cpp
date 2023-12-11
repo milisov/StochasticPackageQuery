@@ -30,15 +30,34 @@ map<string, Option> defaultOptions = {
 };
 
 const double Taylor::adjustCoef = Config::getInstance()->pt.get<double>("parameters.sample_adjustment_coefficient");
-const double budget = 1e6;
+const double budget = 1e7;
 
 double getKernelRange(const vector<double>& info={}){
     return info.at(0)*sqrt(info.at(1));
 }
 
+// double getKernelIntegral(const double& x, const vector<double>& info={}){
+//     return -0.125*x*x;
+// }
+
+// (const double& r1, const double r2, const double& v, const double& m, const double& xibar, const double& xi, const double& x){
 double getKernelIntegral(const double& x, const vector<double>& info={}){
-    return -0.125*x*x;
+    double b = 1/(info.at(0)*info.at(0));
+    double p = 1/(info.at(1)*info.at(1));
+    double c = info.at(2) - info.at(4);
+    double d = info.at(3);
+    double q = info.at(5);
+    double x2 = x*x;
+    double w1 = p*x2;
+    double w2 = p*q*x;
+    double w3 = p*q*q;
+    double z1 = d*d*x2*(-15+15*w3-24*w2+10*w1);
+    double z2 = 5*c*c*(-6+6*w3-8*w2+3*w1);
+    double z3 = 4*c*d*x*(10-10*w3+15*w2-6*w1);
+    double z4 = 30-5*(6*w3-8*w2+3*w1);
+    return -3/320*x2*(z4+b*(z1+z2+z3));
 }
+
 
 Taylor::Taylor(shared_ptr<StochasticPackageQuery> spq, const vector<long long>& ids, const map<string, Option>& options): spq(spq), options(options){
     stat = make_unique<Stat>();
@@ -273,7 +292,9 @@ void Taylor::solve(SolIndType& nextSol){
                                 for (size_t j = 0; j < N; ++j){
                                     double left = max(samples[j]-r2, (v-XiBar[j]-r1)/sol.at(i));
                                     double right = min(samples[j]+r2, (v-XiBar[j]+r1)/sol.at(i));
-                                    if (left < right) dF[i] += (getKernelIntegral(right)-getKernelIntegral(left));
+                                    if (left < right) dF[i] += 
+                                        (getKernelIntegral(right,{r1,r2,v,sol.at(i),XiBar[j],samples[j]})
+                                        -getKernelIntegral(left,{r1,r2,v,sol.at(i),XiBar[j],samples[j]}));
                                 }
                             }
                             stoCon[i] = dF[i];
@@ -283,7 +304,8 @@ void Taylor::solve(SolIndType& nextSol){
                         for (size_t i = 0; i < nInds; ++i){
                             if (!sol.count(i)){
                                 if (isEqual(fxv, 0)){
-                                    dF[i] = -stoMeans[stoInd][i]/max(sqrt(stoVars[stoInd][i]), 1.0);
+                                    dF[i] = -stoMeans[stoInd][i]/max(sqrt(stoVars[stoInd][i]), 0.1);
+                                    // dF[i] = -NUMERIC_EPS*stoMeans[stoInd][i];
                                 } else dF[i] = -fxv*stoMeans[stoInd][i];
                             } else{
                                 vector<double> samples, quantiles, XiBar (N); 
@@ -414,8 +436,10 @@ void Taylor::solve(SolIndType& nextSol){
         for (const auto& p : nextSol){
             if (p.first < nInds) solutionSize += p.second;
         }
+        if (maxSolutionSize == 0) gamma *= (2*solutionSize/nMaxIters);
         maxSolutionSize = max(maxSolutionSize, solutionSize);
-        gamma *= 1-1/maxSolutionSize;
+        // gamma = maxSolutionSize / nMaxIters;
+        gamma *= (1-1/maxSolutionSize);
 
         vStart.resize(numvars); cStart.resize(rowInd);
         ckgb(GRBgetintattrarray(model, GRB_INT_ATTR_VBASIS, 0, numvars, vStart.data()), env, model);
@@ -495,23 +519,23 @@ void Taylor::update(const SolIndType& step){
                     varXs[stoInd] = ba::variance(acc);
                     auto N = stoXs[stoInd].size();
                     double range = getKernelRange({nsix[stoInd], varXs[stoInd]});
-                    vector<pair<double, size_t>> coefs (N);
-                    for (size_t j = 0; j < N; ++j) coefs[j] = {-fabs(v-stoXs[stoInd][j])/range, j};
-                    std::sort(coefs.begin(), coefs.end());
+                    // vector<pair<double, size_t>> coefs (N);
+                    // for (size_t j = 0; j < N; ++j) coefs[j] = {-fabs(v-stoXs[stoInd][j])/range, j};
+                    // std::sort(coefs.begin(), coefs.end());
                     int cnt = 0;
-                    for (const auto& pr : coefs){
-                        double coef = -pr.first;
-                        size_t ind = pr.second;
+                    for (size_t j = 0; j < N; ++j){
+                        double coef = fabs(v-stoXs[stoInd][j])/range;
+                        size_t ind = j;
                         if (coef <= 1){
                             if (!jvInds[stoInd].count(ind) && (cnt++ < nMaxSampleChanges)){
                                 indexChanges[stoInd].push_back(ind);
-                                mulChanges[stoInd].push_back(1.0);
+                                mulChanges[stoInd].push_back(1.0-coef*coef);
                                 jvInds[stoInd].insert(ind);
                             }
                         } else{
                             if (jvInds[stoInd].count(ind)){
                                 indexChanges[stoInd].push_back(ind);
-                                mulChanges[stoInd].push_back(-1.0);
+                                mulChanges[stoInd].push_back(coef*coef-1);
                                 jvInds[stoInd].erase(ind);
                             }
                         }
@@ -541,7 +565,7 @@ void Taylor::update(const SolIndType& step){
                         stat_.getSamples(spq->tableName, attrCon->attr, idx->getSql(coreIndex), indexChanges[stoInd], samples);
                         for (size_t i = interval.first; i < interval.second; ++i){
                             size_t ind = i-interval.first;
-                            double a = -0.5*getKernelRange({nsix[stoInd], stoVars[stoInd][i]});
+                            double a = -0.75*getKernelRange({nsix[stoInd], stoVars[stoInd][i]});
                             for (size_t j = 0; j < sampleSize; ++j) zeroPds[stoInd][i] += mulChanges[stoInd][j]*samples[ind][j]*a;
                         }
                     }
