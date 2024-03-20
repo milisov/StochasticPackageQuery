@@ -4,6 +4,7 @@
 _*.spaql
 _config.cfg
 build
+deprecated
 CMakeUserPresets.json
 resource/gurobi
 resource/cmake

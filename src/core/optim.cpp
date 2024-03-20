@@ -14,6 +14,7 @@ SolIndType RMSprop::towards(const SolIndType& nextSol){
     v = add(alpha, v, 1-alpha, mul(g, g));
     auto step = div(g, max(add(sqrt(v), MACHINE_EPS), 1.0/lr));
     sol = add(1.0, sol, lr, step);
+    // deb(step, sol);
     return step;
 }
 

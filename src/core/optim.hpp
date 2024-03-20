@@ -15,8 +15,8 @@ public:
 class RMSprop: public Optim{
 private:
     SolIndType v;
-    double lr, alpha;
 public:
+    double lr, alpha;
     RMSprop(const SolIndType& sol={}, const double& lr=1.0, const double& alpha=0.95);
     SolIndType towards(const SolIndType& nextSol) override;
 };

@@ -177,6 +177,9 @@ bool StochasticPackageQuery::validate(){
 				return false;
 			}
 		}
+	} else{
+		cerr << fmt::format("No objective\n");
+		return false;
 	}
 	isValid = true;
 
@@ -186,7 +189,7 @@ bool StochasticPackageQuery::validate(){
 		if (isStochastic(con)) nStochastic ++;
 		if (getCvar(con)) nCvar ++;
 	}
-	isStoObj = obj && !isDeterministic(obj);
+	isStoObj = !isDeterministic(obj);
 	if (isStoObj) nStochastic++;
 	return true;
 }

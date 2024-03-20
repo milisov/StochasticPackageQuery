@@ -5,6 +5,7 @@
 #include "core/stat.hpp"
 #include "spq/bounder.hpp"
 #include "core/checker.hpp"
+#include "solver/starter.hpp"
 
 #include <gurobi_c.h>
 
@@ -31,44 +32,70 @@ void analyzeAll(){
 
 #include "solver/taylor.hpp"
 
-void test(){
-	INIT(pro);
-	CLOCK("a");
-	string filePath = "resource/sqls/_stocks_5_2.spaql";
+void testInit(){
+	string filePath = fmt::format("resource/sqls/_stocks_4_2.spaql");
 	auto spq = parseSpaqlFromFile(filePath);
 	if (spq){
-		cout << "Success!\n" << spq;
-		deb(spq->validate());
+		spq->validate();
 		unique_ptr<Stat> stat = std::make_unique<Stat>();
 		stat->analyze(spq->tableName);
 		size_t N = 10000;
 		double E = 50;
-		CLK(pro, "initBounder");
 		Bounder bounder (spq, N, E);
-		STP(pro, "initBounder");
-		vector<double> hards;
-		// for (double i = -10; i <= 10; i ++) hards.push_back(i);
-		CLK(pro, "hard");
-		// bounder.generate(hards);
 		bounder.set(0);
-		STP(pro, "hard");
 		deb(spq->executable(), spq);
-		CLK(pro, "taylorinit");
-		Taylor taylor (spq, {}, {
+		// Starter starter (spq, {}, {});
+		Taylor taylor (spq, {}, {{0,1}}, {
 			{"soft_deterministic_constraint", false},
-			{"max_number_of_iterations", 50},
-			{"dependency_var", false}});
-		STP(pro, "taylorinit");
-		CLK(pro, "taylor");
-		taylor.solve();
-		STP(pro, "taylor");
-		deb(taylor.status);
-		SPQChecker chk (spq);
-		chk.display(taylor.getSol());
+			{"max_number_of_iterations", 50}
+		});
 	}
-	STOP("a");
-	// PRINT(pro);
 }
+
+// void test(){
+// 	INIT(pro);
+// 	CLOCK("a");
+// 	for (int i = 6; i <= 6; i ++){
+// 		string filePath = fmt::format("resource/sqls/_stocks_{}_2.spaql", i);
+// 		auto spq = parseSpaqlFromFile(filePath);
+// 		if (spq){
+// 			// cout << "Success!\n" << spq;
+// 			// deb(spq->validate());
+// 			spq->validate();
+// 			unique_ptr<Stat> stat = std::make_unique<Stat>();
+// 			stat->analyze(spq->tableName);
+// 			size_t N = 10000;
+// 			double E = 50;
+// 			CLK(pro, "initBounder");
+// 			Bounder bounder (spq, N, E);
+// 			STP(pro, "initBounder");
+// 			vector<double> hards;
+// 			for (double i = -10; i <= 10; i ++) hards.push_back(i);
+// 			CLK(pro, "hard");
+// 			bounder.generate(hards);
+// 			for (auto h : hards){
+// 				bounder.set(h);
+// 				STP(pro, "hard");
+// 				deb(spq->executable(), spq);
+// 				CLK(pro, "taylorinit");
+// 				Taylor taylor (spq, {}, {
+// 					{"soft_deterministic_constraint", false},
+// 					{"max_number_of_iterations", 50},
+// 					{"dependency_var", true}});
+// 				STP(pro, "taylorinit");
+// 				CLK(pro, "taylor");
+// 				taylor.solve();
+// 				STP(pro, "taylor");
+// 				deb(filePath, h, taylor.status);
+// 				SPQChecker chk (spq);
+// 				chk.display(taylor.getSol());
+// 			}
+// 			// chk.display({{104,36.7424},{984,38.2576}});
+// 		}
+// 		STOP("a");
+// 		// PRINT(pro);	
+// 	}
+// }
 
 #include "oneapi/tbb/concurrent_unordered_map.h"
 using oneapi::tbb::concurrent_unordered_map;
@@ -269,7 +296,8 @@ int main() {
 	// testgb();
 	// testNumeric();
 	// analyzeAll();
-	test();
+	// test();
+	testInit();
 	// testOmp();
 	// testTBB();
 	// testHighs();

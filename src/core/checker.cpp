@@ -87,7 +87,7 @@ bool SPQChecker::feasible(const SolType& sol) const{
 }
 
 void SPQChecker::display(const SolType& sol) const{
-    deb(sol);
+    // deb(sol);
     for (const auto& p : sol) if (isLess(p.second, 0)){
         cout << fmt::format("sol[{}]={}{}{}<0\n", p.first, RED, p.second, RESET);
     }

@@ -46,7 +46,8 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/${SRC}
 )
 
-set(MAIN_NAME main)
+#set(MAIN_NAME main)
+set(MAIN_NAME hello)
 
 file(GLOB ALL_SRCS
   "${PROJECT_SOURCE_DIR}/${TEST}/${MAIN_NAME}.cpp"
