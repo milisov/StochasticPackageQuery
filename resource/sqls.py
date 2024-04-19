@@ -45,12 +45,11 @@ for table in stock_tables:
 
 
 with open('create_tables.sh', 'w') as bashfile:
-    lines = ["cd test"]
+    lines = []
     for table in stock_tables:
         lines.append(f'echo "Creating table {table}..."')
         command = ' '.join(table.split('_')[1:])
         lines.append(f"python3 stocks.py {command}")
-    lines.append("cd ..")
     bashfile.write('\n'.join(lines))
 
 

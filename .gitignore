@@ -10,5 +10,7 @@ resource/gurobi
 resource/cmake
 test/*.ipynb
 test/*.sh
+resource/*.ipynb
+resource/*.sh
 test.sh
 ebnf.txt

@@ -38,9 +38,9 @@ private:
     map<string, Option> options;
     SolIndType sol, bestSol;
     // double sqn, gamma, preVio; 
-    // // Persistent members_Deterministic
-    // vector<vector<double>> detCons;
-    // vector<double> detNorms, obj;
+    // Persistent members_Deterministic
+    vector<vector<double>> detCons;
+    vector<double> obj;
     // // Persistent members_Stochastic
     // vector<double> nsix;
     // vector<vector<double>> stoMeans, stoVars;

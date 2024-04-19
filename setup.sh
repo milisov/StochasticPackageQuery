@@ -108,9 +108,8 @@ if [ ! -d build ]; then
 fi
 conan install . --output-folder=build --build=missing --settings=build_type=$build_type
 
-cd test
 echo "Creating table spaqls..."
+cd resource
 python3 sqls.py
+bash create_tables.sh
 cd ..
-
-bash test/create_tables.sh
