@@ -81,28 +81,28 @@ Taylor::Taylor(shared_ptr<StochasticPackageQuery> spq, const vector<long long>& 
     objValue = 0;
     obj.resize(n);
     fill(obj.begin(), obj.end(), 0);
-    objSense = ObjectiveSense::minimize;
-    if (spq->obj){
-        objSense = spq->obj->objSense;
-        shared_ptr<AttrObjective> attrObj;
-        if (isDeterministic(spq->obj, attrObj)){
-            if (attrObj){
-                #pragma omp parallel num_threads(nCores)
-                {
-                    auto coreIndex = omp_get_thread_num();
-                    const auto& interval = idx->getInterval(coreIndex);
-                    size_t n_ = interval.second - interval.first;
-                    vector<double> attrs_; attrs_.reserve(n_);
-                    Stat stat_;
-                    stat_.getDetAttrs(spq->tableName, attrObj->obj, idx->getSql(coreIndex), attrs_);
-                    copy(attrs_.begin(), attrs_.end(), obj.begin()+interval.first);
-                }
-            }
-            if (getCount(spq->obj)) fill(obj.begin(), obj.end(), 1.0);
-        }
-        if (objSense == ObjectiveSense::maximize) bestObj = NEG_INF;
-        else bestObj = POS_INF;
-    }
+    // objSense = ObjectiveSense::minimize;
+    // if (spq->obj){
+    //     objSense = spq->obj->objSense;
+    //     shared_ptr<AttrObjective> attrObj;
+    //     if (isDeterministic(spq->obj, attrObj)){
+    //         if (attrObj){
+    //             #pragma omp parallel num_threads(nCores)
+    //             {
+    //                 auto coreIndex = omp_get_thread_num();
+    //                 const auto& interval = idx->getInterval(coreIndex);
+    //                 size_t n_ = interval.second - interval.first;
+    //                 vector<double> attrs_; attrs_.reserve(n_);
+    //                 Stat stat_;
+    //                 stat_.getDetAttrs(spq->tableName, attrObj->obj, idx->getSql(coreIndex), attrs_);
+    //                 copy(attrs_.begin(), attrs_.end(), obj.begin()+interval.first);
+    //             }
+    //         }
+    //         if (getCount(spq->obj)) fill(obj.begin(), obj.end(), 1.0);
+    //     }
+    //     if (objSense == ObjectiveSense::maximize) bestObj = NEG_INF;
+    //     else bestObj = POS_INF;
+    // }
 
     update(initSol);
     // deb(detXs);

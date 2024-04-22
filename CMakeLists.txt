@@ -28,7 +28,6 @@ find_library(GUROBI_LIBRARY NAMES gurobi110 PATHS "$ENV{GUROBI_HOME}/lib" NO_DEF
 find_library(GUROBI_CXX_LIBRARY NAMES gurobi_c++ PATHS "$ENV{GUROBI_HOME}/lib" NO_DEFAULT_PATH)
 include_directories(${GUROBI_INCLUDE_DIR})
 
-find_package(HIGHS REQUIRED)
 find_package(Threads REQUIRED)
 find_package(fmt REQUIRED)
 find_package(PostgreSQL REQUIRED)
@@ -46,8 +45,8 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/${SRC}
 )
 
-set(MAIN_NAME main)
-#set(MAIN_NAME hello)
+#set(MAIN_NAME main)
+set(MAIN_NAME hello)
 
 file(GLOB ALL_SRCS
   "${PROJECT_SOURCE_DIR}/${TEST}/${MAIN_NAME}.cpp"
@@ -63,7 +62,6 @@ file(GLOB ALL_SRCS
 
 add_executable(${EXECUTABLE_NAME} ${ALL_SRCS})
 target_link_libraries(${EXECUTABLE_NAME} OpenMP::OpenMP_CXX)
-target_link_libraries(${EXECUTABLE_NAME} highs::highs)
 target_link_libraries(${EXECUTABLE_NAME} fmt::fmt)
 target_link_libraries(${EXECUTABLE_NAME} PostgreSQL::PostgreSQL)
 target_link_libraries(${EXECUTABLE_NAME} boost::boost)

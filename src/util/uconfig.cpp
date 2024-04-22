@@ -6,7 +6,7 @@
 using std::make_shared;
 
 fs::path getProjectDir(){
-	return fs::current_path().parent_path();
+	return fs::current_path().parent_path().parent_path().parent_path();
 }
 
 Config::Config(){

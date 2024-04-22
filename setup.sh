@@ -33,6 +33,14 @@ if ! command -v cmake >/dev/null 2>&1; then
         echo "export PATH=$(pwd)/bin:\$PATH" >> $project_folder/.bashrc
     fi
     cd ../../..
+else
+    cmp=3.21
+    ver=$(cmake --version | head -1 | cut -f3 -d" ")
+    mapfile -t sorted < <(printf "%s\n" "$ver" "$cmp" | sort -V)
+    if ! [[ ${sorted[0]} == "$cmp" ]]; then
+        echo "cmake version needs to be at least $cmp"
+        exit 1
+    fi
 fi
 
 if [ ! -d resource/gurobi ]; then
@@ -103,10 +111,10 @@ fi
 
 pip3 install -r requirements.txt
 conan profile detect --force
-if [ ! -d build ]; then
-    mkdir build
+if [ -d build ]; then
+    rm -r build
 fi
-conan install . --output-folder=build --build=missing --settings=build_type=$build_type
+conan install . --output-folder=. --build=missing --settings=build_type=$build_type
 
 echo "Creating table spaqls..."
 cd resource
