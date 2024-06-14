@@ -19,10 +19,14 @@ private:
     unique_ptr<Stat> stat;
     shared_ptr<StochasticPackageQuery> spq;
     map<string, Option> options;
+    unique_ptr<UniqueIndexer> idx;
+    int nCores;
+
+    void solveCurrentSystem(SolIndType& currentSol);
 public:
     SolIndType sol;
     Starter(shared_ptr<StochasticPackageQuery> spq, const vector<long long>& ids={}, const map<string, Option>& options={});
-    
+    void solve();
 };
 
 #endif

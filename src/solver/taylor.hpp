@@ -33,6 +33,7 @@ private:
     unique_ptr<UniqueIndexer> idx;
     unique_ptr<Stat> stat;
     shared_ptr<StochasticPackageQuery> spq;
+    ObjectiveSense objSense;
     int nMaxIters, nCores;
     bool isSoftDetCon;
     map<string, Option> options;
@@ -47,6 +48,7 @@ private:
     // map<string, pair<double, double>> adjustments;
     // // System-update
     // INIT(pro);
+    double bestObj;
     // double maxSolutionSize, minVio, bestObj;
     // unordered_map<size_t, vector<SolIndType>> hashedSols;
     // // System update_Gurobi
@@ -60,13 +62,13 @@ private:
 private:
     // void doAdjustment();
     // void undoAdjustment();
-    // void solve(SolIndType& nextSol);
+    void solve(SolIndType& nextSol);
     void update(const SolIndType& step);
     // void update(const double& vio, const double& objValue, const SolIndType& sol);
 public:
     TaylorStatus status;
     Taylor(shared_ptr<StochasticPackageQuery> spq, const vector<long long>& ids={}, const SolIndType& initSol={}, const map<string, Option>& options={});
-    // void solve();
+    void solve();
     // SolType getSol(const SolIndType& sol={}) const;
 };
 

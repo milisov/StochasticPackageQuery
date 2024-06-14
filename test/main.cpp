@@ -44,11 +44,13 @@ void testInit(){
 		Bounder bounder (spq, N, E);
 		bounder.set(0);
 		deb(spq->executable(), spq);
-		// Starter starter (spq, {}, {});
-		Taylor taylor (spq, {}, {{0,1}}, {
-			{"soft_deterministic_constraint", false},
-			{"max_number_of_iterations", 50}
-		});
+		Starter starter (spq, {}, {});
+		starter.solve();
+		// Taylor taylor (spq, {}, {{0,1}}, {
+		// 	{"soft_deterministic_constraint", false},
+		// 	{"max_number_of_iterations", 50}
+		// });
+		// taylor.solve();
 	}
 }
 
