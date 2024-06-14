@@ -109,15 +109,15 @@ if [ $((total_cores*2)) -ge $max_connections ]; then
     exit 1
 fi
 
-pip3 install -r requirements.txt
-conan profile detect --force
-if [ -d build ]; then
+#pip3 install -r requirements.txt
+# conan profile detect --force
+if [ -d build ]; thens
     rm -r build
 fi
 conan install . --output-folder=. --build=missing --settings=build_type=$build_type
 
-echo "Creating table spaqls..."
-cd resource
-python3 sqls.py
-bash create_tables.sh
-cd ..
+# echo "Creating table spaqls..."
+# cd resource
+# python3 sqls.py
+# bash create_tables.sh
+# cd ..

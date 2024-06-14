@@ -32,15 +32,20 @@ void analyzeAll(){
 
 #include "solver/taylor.hpp"
 
+//
 void testInit(){
 	string filePath = fmt::format("resource/sqls/_stocks_4_2.spaql");
+	//convert query to class
 	auto spq = parseSpaqlFromFile(filePath);
 	if (spq){
+		//make sure it's correct
 		spq->validate();
 		unique_ptr<Stat> stat = std::make_unique<Stat>();
 		stat->analyze(spq->tableName);
 		size_t N = 10000;
 		double E = 50;
+		//N is number of scenarios in order to approx, E - expected package size in sol
+		//set values that are variables in the query
 		Bounder bounder (spq, N, E);
 		bounder.set(0);
 		deb(spq->executable(), spq);
@@ -51,6 +56,8 @@ void testInit(){
 		});
 	}
 }
+
+//class summarysearch input spq, options (arctan, different epsilon)
 
 // void test(){
 // 	INIT(pro);
