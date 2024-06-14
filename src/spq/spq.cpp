@@ -182,16 +182,15 @@ bool StochasticPackageQuery::validate(){
 		return false;
 	}
 	isValid = true;
-
-	nStochastic = 0;
-	nCvar = 0;
-	for (const auto& con : cons){
-		if (isStochastic(con)) nStochastic ++;
-		if (getCvar(con)) nCvar ++;
-	}
-	isStoObj = !isDeterministic(obj);
-	if (isStoObj) nStochastic++;
 	return true;
+}
+
+int StochasticPackageQuery::getCvarCount() const{
+	int res = 0;
+	for (const auto& con : cons){
+		if (getCvar(con)) res ++;
+	}
+	return res;
 }
 
 bool StochasticPackageQuery::executable() const{
@@ -218,6 +217,10 @@ bool StochasticPackageQuery::hasValue(const Bound& bound) const{
 	string var = boost::get<string>(bound);
 	if (varTable.count(var) && varTable.at(var)) return true;
 	return false;
+}
+
+bool StochasticPackageQuery::isStochasticObjective() const{
+	return !isDeterministic(obj);
 }
 
 double StochasticPackageQuery::getValue(const Bound& bound) const{

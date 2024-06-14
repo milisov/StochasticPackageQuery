@@ -37,7 +37,7 @@ public:
 	static const int NO_REPEAT = -1;
 	string tableName;
 	vector<string> attrList;
-	int repeat, nStochastic, nCvar;
+	int repeat;
 	vector<shared_ptr<Constraint>> cons;
 	shared_ptr<Objective> obj;
 public:
@@ -51,6 +51,8 @@ public:
 	bool validate();
 	bool executable() const;
 	bool hasValue(const Bound& bound) const;
+	bool isStochasticObjective() const;
+	int getCvarCount() const;
 	double getValue(const Bound& bound) const;
 	Bound getBound(const Bound& bound) const;
 	operator string();
