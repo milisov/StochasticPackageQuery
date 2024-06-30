@@ -6,6 +6,7 @@
 #include "spq/bounder.hpp"
 #include "core/checker.hpp"
 #include "solver/starter.hpp"
+#include "dlib/optimization.h"
 
 #include <gurobi_c.h>
 
