@@ -6,20 +6,26 @@
 #include "spq/bounder.hpp"
 #include "core/checker.hpp"
 #include "solver/starter.hpp"
-
+#include "solver/SummarySearch.hpp"
+#include "gurobi_c++.h"
 #include <gurobi_c.h>
 
-void analyzeAll(){
+void analyzeAll()
+{
 	vector<int> nStocks = {3, 4, 5, 6};
 	vector<int> nPaths = {2, 4};
-	for (auto nStock : nStocks){
-		for (auto nPath : nPaths){
+	for (auto nStock : nStocks)
+	{
+		for (auto nPath : nPaths)
+		{
 			INIT(pro);
 			CLOCK("a");
 			string filePath = fmt::format("resource/sqls/_stocks_{}_{}.spaql", nStock, nPath);
 			auto spq = parseSpaqlFromFile(filePath);
-			if (spq){
-				cout << "Success!\n" << spq;
+			if (spq)
+			{
+				cout << "Success!\n"
+					 << spq;
 				deb(spq->validate());
 				unique_ptr<Stat> stat = std::make_unique<Stat>();
 				stat->analyze(spq->tableName);
@@ -33,24 +39,57 @@ void analyzeAll(){
 #include "solver/taylor.hpp"
 
 //
-void testInit(){
-	string filePath = fmt::format("resource/sqls/_stocks_4_2.spaql");
-	//convert query to class
+void testInit()
+{
+	string filePath = fmt::format("resource/sqls/_stocks_3_2.spaql");
+	// convert query to class
 	auto spq = parseSpaqlFromFile(filePath);
-	if (spq){
-		//make sure it's correct
+	if (spq)
+	{
+		// make sure it's correct
 		spq->validate();
 		unique_ptr<Stat> stat = std::make_unique<Stat>();
 		stat->analyze(spq->tableName);
 		size_t N = 10000;
 		double E = 50;
-		//N is number of scenarios in order to approx, E - expected package size in sol
-		//set values that are variables in the query
-		Bounder bounder (spq, N, E);
+		// N is number of scenarios in order to approx, E - expected package size in sol
+		// set values that are variables in the query
+		Bounder bounder(spq, N, E);
 		bounder.set(0);
+
 		deb(spq->executable(), spq);
-		Starter starter (spq, {}, {});
-		starter.solve();
+
+		// Starter starter (spq, {}, {});
+		// starter.solve();
+		cout << "Call to Constructor" << endl;
+		SummarySearch SS(100, 1e6, spq);
+
+		SS.validate(SS.x, SS.spq, SS.M_hat, SS.DB_optim);
+
+		// THE FOLLOWING SECTION WILL TAKE PLACE OF THE BASE OF THE ALGORITHM
+		// for each constraint, check if it's a probabilistic
+		// before calling the summarize function for that constraint invoke reshuffleShuffler
+		// the shuffler vector is then reshuffled which helps with random partition
+		int cnt = 0;
+		vector<vector<vector<double>>> summaries;
+		for (int i = 0; i < SS.spq->cons.size(); i++)
+		{
+			shared_ptr<ProbConstraint> probCon;
+			shared_ptr<AttrConstraint> attrCon;
+			bool isstoch = isStochastic(spq->cons[i], probCon, attrCon);
+			if (isstoch)
+			{
+				SS.reshuffleShuffler(SS.shuffler);
+				vector<vector<double>> summariesCons = SS.summarize(SS.x, 10, 0.66, SS.DB_optim, probCon, attrCon, cnt);
+				summaries.push_back(summariesCons);
+				cnt++;
+			}
+		}
+
+		for(int q = 0; q < 2; q ++)
+		{
+			SS.formulateSAA(summaries,q);
+		}
 		// Taylor taylor (spq, {}, {{0,1}}, {
 		// 	{"soft_deterministic_constraint", false},
 		// 	{"max_number_of_iterations", 50}
@@ -59,7 +98,7 @@ void testInit(){
 	}
 }
 
-//class summarysearch input spq, options (arctan, different epsilon)
+// class summarysearch input spq, options (arctan, different epsilon)
 
 // void test(){
 // 	INIT(pro);
@@ -102,7 +141,7 @@ void testInit(){
 // 			// chk.display({{104,36.7424},{984,38.2576}});
 // 		}
 // 		STOP("a");
-// 		// PRINT(pro);	
+// 		// PRINT(pro);
 // 	}
 // }
 
@@ -111,7 +150,8 @@ using oneapi::tbb::concurrent_unordered_map;
 #include <pcg_random.hpp>
 #include "util/uconfig.hpp"
 
-void testTBB(){
+void testTBB()
+{
 	// concurrent_unordered_map<int, int> cmap;
 	// cmap[0] = 1;
 	// deb(cmap);
@@ -121,48 +161,55 @@ void testTBB(){
 	// deb(seeds);
 }
 
-void testOmp(){
+void testOmp()
+{
 	size_t N = 10000000;
 	size_t R = 10;
-	vector<double> v (N);
+	vector<double> v(N);
 	std::iota(v.begin(), v.end(), 0);
 	INIT(pro);
-	for (size_t r = 0; r < R; ++r){
+	for (size_t r = 0; r < R; ++r)
+	{
 		CLK(pro, "a");
 		double norm = 0;
-		vector<double> vv (N);
-		for (size_t i = 0; i < N; ++i){
-			norm += v[i]*v[i];
+		vector<double> vv(N);
+		for (size_t i = 0; i < N; ++i)
+		{
+			norm += v[i] * v[i];
 		}
 		norm = sqrt(norm);
-		for (size_t i = 0; i < N; ++i){
-			vv[i] = v[i]/norm;
+		for (size_t i = 0; i < N; ++i)
+		{
+			vv[i] = v[i] / norm;
 		}
 		STP(pro, "a");
 	}
 	int core = 80;
-	for (size_t r = 0; r < R; ++r){
+	for (size_t r = 0; r < R; ++r)
+	{
 		CLK(pro, "b");
-		vector<double> vv (N);
+		vector<double> vv(N);
 		double norm;
-		#pragma omp parallel num_threads(core)
+#pragma omp parallel num_threads(core)
 		{
 			double norm_ = 0;
-			#pragma omp for nowait
-			for (size_t i = 0; i < N; ++i){
-				norm_ += v[i]*v[i];
+#pragma omp for nowait
+			for (size_t i = 0; i < N; ++i)
+			{
+				norm_ += v[i] * v[i];
 			}
-			#pragma omp atomic
+#pragma omp atomic
 			norm += norm_;
-			#pragma omp barrier
-			#pragma omp master
+#pragma omp barrier
+#pragma omp master
 			{
 				norm = sqrt(norm);
 			}
-			#pragma omp barrier
-			#pragma omp for nowait
-			for (size_t i = 0; i < N; ++i){
-				vv[i] = v[i]/norm;
+#pragma omp barrier
+#pragma omp for nowait
+			for (size_t i = 0; i < N; ++i)
+			{
+				vv[i] = v[i] / norm;
 			}
 		}
 		STP(pro, "b");
@@ -170,15 +217,17 @@ void testOmp(){
 	PRINT(pro);
 }
 
-void testNumeric(){
+void testNumeric()
+{
 	vector<double> v = {0, 0};
 	deb(normalize(v));
 	deb(v);
 }
 
-void testgb(){
-	GRBenv* env = NULL;
-	GRBmodel* model = NULL;
+void testgb()
+{
+	GRBenv *env = NULL;
+	GRBmodel *model = NULL;
 	ckg(GRBemptyenv(&env), env);
 	ckg(GRBsetintparam(env, GRB_INT_PAR_PRESOLVE, GRB_PRESOLVE_OFF), env);
 	ckg(GRBsetintparam(env, GRB_INT_PAR_SIFTING, 2), env);
@@ -204,16 +253,20 @@ void testgb(){
 	ckgb(GRBoptimize(model), env, model);
 	int status;
 	ckgb(GRBgetintattr(model, GRB_INT_ATTR_STATUS, &status), env, model);
-	if (status == GRB_OPTIMAL){
-		vector<double> sol (numvars);
-    	ckgb(GRBgetdblattrarray(model, GRB_DBL_ATTR_X, 0, numvars, sol.data()), env, model);
+	if (status == GRB_OPTIMAL)
+	{
+		vector<double> sol(numvars);
+		ckgb(GRBgetdblattrarray(model, GRB_DBL_ATTR_X, 0, numvars, sol.data()), env, model);
 		deb(sol);
 	}
-	if (model) GRBfreemodel(model);
-	if (env) GRBfreeenv(env);
+	if (model)
+		GRBfreemodel(model);
+	if (env)
+		GRBfreeenv(env);
 }
 
-int main() {
+int main()
+{
 	// testgb();
 	// testNumeric();
 	// analyzeAll();

@@ -265,7 +265,7 @@ pair<double, double> Stat::getDetMeanVar(const string& tableName, const string& 
 void Stat::getSamples(const string& tableName, const string& columnName, const long long& id, vector<double>& samples){
     string sql = fmt::format("SELECT {} FROM \"{}\" WHERE {}={}", columnName, tableName, PgManager::id, id);
     auto res = PQexec(pg->conn.get(), sql.c_str());
-    ck(pg->conn, res);
+    ck(pg->conn, res); 
     readArray(PQgetvalue(res, 0, 0), samples);
     PQclear(res);
 }
