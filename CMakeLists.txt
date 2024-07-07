@@ -35,6 +35,7 @@ find_package(Boost REQUIRED)
 find_package(pcg-cpp REQUIRED)
 find_package(gmp REQUIRED)
 find_package(TBB REQUIRED)
+find_package(dlib REQUIRED)
 
 find_package(OpenMP REQUIRED)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
@@ -45,8 +46,8 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/${SRC}
 )
 
-set(MAIN_NAME main)
-#set(MAIN_NAME hello)
+#set(MAIN_NAME main)
+set(MAIN_NAME hello)
 
 file(GLOB ALL_SRCS
   "${PROJECT_SOURCE_DIR}/${TEST}/${MAIN_NAME}.cpp"
@@ -67,5 +68,6 @@ target_link_libraries(${EXECUTABLE_NAME} PostgreSQL::PostgreSQL)
 target_link_libraries(${EXECUTABLE_NAME} boost::boost)
 target_link_libraries(${EXECUTABLE_NAME} pcg-cpp::pcg-cpp)
 target_link_libraries(${EXECUTABLE_NAME} gmp::gmp)
+target_link_libraries(${EXECUTABLE_NAME} dlib::dlib)
 target_link_libraries(${EXECUTABLE_NAME} TBB::tbb)
 target_link_libraries(${EXECUTABLE_NAME} ${GUROBI_LIBRARY} ${GUROBI_CXX_LIBRARY})
