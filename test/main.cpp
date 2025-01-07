@@ -196,27 +196,24 @@ void debugNaive()
 	}
 }
 
-
 void testSSvsNaive()
 {
-	int M = 10000;
+	int M = 100;
 	int M_hat = 1e6;
 	double epsilon = 0.46;
 
 	map<string, Option> countConstraintOptions = {
-    {"omit count constraint", false}, 
-    {"scale down", false}, 
-    {"scale factor", -1.0},
+		{"omit count constraint", false},
+		{"scale down", false},
+		{"scale factor", -1.0},
 	};
 
 	map<string, Option> curveFitOptions = {
-    {"arctan", false}, 
-    {"binarySearch", true} 
-	};
+		{"arctan", false},
+		{"binarySearch", true}};
 
-	string filePath = fmt::format("resource/sqls/_stocks_4_4.spaql");
+	string filePath = fmt::format("resource/sqls/_stocks_4_2.spaql");
 	auto spq = parseSpaqlFromFile(filePath);
-
 
 	if (spq)
 	{
@@ -229,19 +226,19 @@ void testSSvsNaive()
 		// set values that are variables in the query
 		Bounder bounder(spq, N, E);
 		deb(spq->executable(), spq);
-		std::vector<std::string> headers = {"Hardness","SS-objective","SS-Feas","Z","RuntimeSummarySearch","Naive-objective","Naive-Feas","RuntimeNaive"};
-		DataWriter writer("/home/fm2288/StochasticPackageQuery/test/BinarySearchCurveFit/SSvsNaive_4_4_eps046.csv", headers);
+		std::vector<std::string> headers = {"Hardness", "SS-objective", "SS-Feas", "Z", "RuntimeSummarySearch", "Naive-objective", "Naive-Feas", "RuntimeNaive"};
+		DataWriter writer("/home/fm2288/StochasticPackageQuery/test/BinarySearchCurveFit/SSvsNaive_4_2_eps046.csv", headers);
 
 		Profiler stopwatchSS;
 		Profiler stopwatchNaive;
 
-		vector<int>reducedIds;
+		vector<int> reducedIds;
 		bool reduced = false;
-		for (int h = -4; h <= 4; h = h + 1)
+		for (int h = -4; h <= -4; h = h + 1)
 		{
 			double SSObjective;
 			bool SSFeas;
-			double NaiveObjective; 
+			double NaiveObjective;
 			bool NaiveFeas;
 			int Z;
 			bounder.set(h);
@@ -250,7 +247,7 @@ void testSSvsNaive()
 
 			string labelSS = "SummarySearch with Hardness" + std::to_string(h);
 			stopwatchSS.clock(labelSS);
-			SolutionMetadata sol = SS.summarySearch(SS.spq, SS.M_hat, SS.M, 5, 1, reducedIds, reduced, countConstraintOptions,curveFitOptions);
+			SolutionMetadata sol = SS.summarySearch(SS.spq, SS.M_hat, SS.M, 5, 1, reducedIds, reduced, countConstraintOptions, curveFitOptions);
 			stopwatchSS.stop(labelSS);
 			double totalTimeSS = stopwatchSS.getTime(labelSS);
 
@@ -259,7 +256,7 @@ void testSSvsNaive()
 			deb(sol.x);
 
 			SPQChecker Check(SS.spq);
-			if(sol.x.size() > 0)
+			if (sol.x.size() > 0)
 			{
 				deb(sol.x);
 				SolType res;
@@ -275,11 +272,11 @@ void testSSvsNaive()
 				SSObjective = Check.getObjective(res);
 				SSFeas = Check.feasible(res);
 				Z = sol.Z;
-
-			}else
+			}
+			else
 			{
 				SSObjective = -1;
-				SSFeas = 0;	
+				SSFeas = 0;
 				Z = sol.Z;
 			}
 
@@ -293,7 +290,7 @@ void testSSvsNaive()
 
 			SolType resNaive;
 
-			if(solu.x.size() > 0)
+			if (solu.x.size() > 0)
 			{
 				for (int i = 0; i < Nai.NTuples; i++)
 				{
@@ -313,15 +310,16 @@ void testSSvsNaive()
 				cout << (Check.feasible(resNaive) ? "Validation Feasible Solution" : "Validation Infeasible Solution") << endl;
 				cout << "Training Objective Naive  = " << Check.getObjective(resNaive) << endl;
 
-				NaiveObjective = Check.getObjective(resNaive); 
+				NaiveObjective = Check.getObjective(resNaive);
 				NaiveFeas = Check.feasible(resNaive);
-			}else
+			}
+			else
 			{
-				NaiveObjective = -1; 
+				NaiveObjective = -1;
 				NaiveFeas = 0;
 			}
 			//{"Hardness","SS-objective","SS-Feas","TimeSummarySearch","Naive-objective","Naive-Feas","TimeNaive"}
-			writer.addRow(h, SSObjective, SSFeas, Z,totalTimeSS, NaiveObjective, NaiveFeas, totalTimeNaive);
+			writer.addRow(h, SSObjective, SSFeas, Z, totalTimeSS, NaiveObjective, NaiveFeas, totalTimeNaive);
 		}
 	}
 }
@@ -329,22 +327,21 @@ void testSSvsNaive()
 void testStochDualRed()
 {
 	map<string, Option> countConstraintOptions = {
-    {"omit count constraint", true}, 
-    {"scale down", false}, 
-    {"scale factor", -1.0},
+		{"omit count constraint", true},
+		{"scale down", false},
+		{"scale factor", -1.0},
 	};
 
 	map<string, Option> curveFitOptions = {
-    {"arctan", false}, 
-    {"binarySearch", true} 
-	};
+		{"arctan", false},
+		{"binarySearch", true}};
 
-	int M = 100;
+	int M = 10000;
 	int M_hat = 1e6;
 	double epsilon = 0.46;
-	int qSz = 500; 
+	int qSz = 500;
 
-	string filePath = fmt::format("resource/sqls/_stocks_5_2.spaql");
+	string filePath = fmt::format("resource/sqls/_stocks_3_4.spaql");
 	// convert query to class
 	auto spq = parseSpaqlFromFile(filePath);
 	if (spq)
@@ -357,13 +354,12 @@ void testStochDualRed()
 
 		Bounder bounder(spq, N, E);
 		deb(spq->executable(), spq);
-		std::vector<std::string> headers = {"hardness", "SDR-Objective", "SDR-feas","Z", "Binary Search Steps", "Runtime"};
-		DataWriter writer("/home/fm2288/StochasticPackageQuery/test/StochDualReducerNoCountConstBinarySearchFit/stochdualred_5_2_eps046_qsz500.csv", headers);
+		std::vector<std::string> headers = {"hardness", "SDR-Objective", "SDR-feas", "SDR-optimal", "Z", "qSz", "Binary Search Steps", "Runtime"};
+		DataWriter writer("/home/fm2288/StochasticPackageQuery/test/SDRNoCntConstBinarySearchFallBackEasy-DetCVar/stochdualred_3_4_epsExperiment_qsz500.csv", headers);
 
 		Profiler stopwatchSDR;
 
-
-		vector<int>reducedIds;
+		vector<int> reducedIds;
 		bool reduced = false;
 		for (int h = -4; h <= 4; h = h + 1)
 		{
@@ -373,14 +369,14 @@ void testStochDualRed()
 
 			string labelSS = "SummarySearch with Hardness" + std::to_string(h);
 			stopwatchSDR.clock(labelSS);
-			SolutionMetadata sol = SS.stochDualReducer(SS.spq,qSz,countConstraintOptions,curveFitOptions);
+			SolutionMetadata sol = SS.stochDualReducer(SS.spq, qSz, countConstraintOptions, curveFitOptions);
 			stopwatchSDR.stop(labelSS);
 			double totalTimeSS = stopwatchSDR.getTime(labelSS);
 
 			cout << "Summary Search Produces" << endl;
 			cout << (sol.isFeasible ? "Feasible Solution" : "Infeasible Solution") << endl;
-			
-			if(sol.x.size() > 0)
+
+			if (sol.x.size() > 0)
 			{
 				deb(sol.x);
 
@@ -398,16 +394,15 @@ void testStochDualRed()
 				cout << "Training Objective Summary Search = " << sol.w << endl;
 				cout << "Validation Objective Summary Search = " << obj << endl;
 
-				writer.addRow(h,obj,feasible,sol.Z,sol.binarySearchSteps, totalTimeSS);
-			}else
-			{
-				writer.addRow(h, -1, 0, sol.Z,sol.binarySearchSteps, totalTimeSS);
+				writer.addRow(h, obj, feasible, sol.isOptimal, sol.Z, sol.qSz, sol.binarySearchSteps, totalTimeSS);
 			}
+			// else
+			// {
+			// 	writer.addRow(h, -1, 0, sol.Z, sol.qSz, sol.binarySearchSteps, totalTimeSS);
+			// }
 		}
 	}
 }
-
-
 
 //
 // void testInit()
@@ -491,7 +486,6 @@ void testStochDualRed()
 // 	}
 // }
 
-
 // void testInit2()
 // {
 // 	string filePath = fmt::format("resource/sqls/_stocks_3_2.spaql");
@@ -527,7 +521,7 @@ void testStochDualRed()
 // 			cout << (sol.isFeasible ? "Feasible Solution" : "Infeasible Solution") << endl;
 // 			deb(sol.x);
 // 			SPQChecker Check(SS.spq);
-			
+
 // 			if(sol.isFeasible)
 // 			{
 // 				SolType res;
@@ -571,9 +565,6 @@ void testStochDualRed()
 // 		}
 // 	}
 // }
-
-
-
 
 // class summarysearch input spq, options (arctan, different epsilon)
 
@@ -752,10 +743,10 @@ int main()
 	//testSSvsNaive();
 
 	testStochDualRed();
-	//experimentEpsilonvsObj(2);
-	//testNaive();
+	// experimentEpsilonvsObj(2);
+	// testNaive();
 
-	//debugNaive();
+	// debugNaive();
 
 	// testOmp();
 	// testTBB();

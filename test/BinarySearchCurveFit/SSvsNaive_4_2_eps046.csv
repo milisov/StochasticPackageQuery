@@ -8,3 +8,5 @@ Hardness,SS-objective,SS-Feas,Z,RuntimeSummarySearch,Naive-objective,Naive-Feas,
 2,11044.9,1,1,17080.6,13388.6,1,135768
 3,9408.9,1,100,220977,9408.9,1,144441
 4,6061.18,1,100,253909,6061.18,1,171873
+Hardness,SS-objective,SS-Feas,Z,RuntimeSummarySearch,Naive-objective,Naive-Feas,RuntimeNaive
+-4,65780.1,1,1,17825.8,69550.1,1,108867

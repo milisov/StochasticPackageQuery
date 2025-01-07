@@ -19,6 +19,7 @@ void printConstraints(GRBModel &model)
     int numConstrs = model.get(GRB_IntAttr_NumConstrs);
 
     cout << "NUMBER OF CONSTRAINTS ADDED: " << numConstrs << endl;
+
     for (int i = 0; i < numConstrs; i++)
     {
         int maxCoef = 0;
@@ -945,6 +946,24 @@ void SummarySearch::formSumCons(GRBModel &model, shared_ptr<Constraint> cons, GR
     cout << "formulated sum constraint" << endl;
 }
 
+void clearConstr(GRBModel &model)
+{
+    cout << "deleting constraints" << endl;
+    GRBConstr *constraints = model.getConstrs();
+
+    for (int i = 0; i < model.get(GRB_IntAttr_NumConstrs); i++)
+    {
+        model.remove(constraints[i]);
+    }
+
+    GRBGenConstr *genConstraints = model.getGenConstrs();
+    for (int i = 0; i < model.get(GRB_IntAttr_NumGenConstrs); i++)
+    {
+        model.remove(genConstraints[i]);
+    }
+    model.update();
+}
+
 // go through the constraints and delete them
 void removeProbConstr(GRBModel &model, std::vector<GRBVar> &yy, std::vector<GRBGenConstr> &genCon, std::vector<GRBConstr> &sumyCon)
 {
@@ -988,8 +1007,10 @@ void SummarySearch::formProbCons(GRBModel &model, shared_ptr<Constraint> cons, G
     {
         return;
     }
+    cout << "removing prob constr" << endl;
     removeProbConstr(model, yy, genCon, sumyCon);
     model.update();
+    cout << "removed prob constr" << endl;
     // calculate the number of yk indicator variables
     int Z = summaries[probConOrder].size();
     double v = spq->getValue(probCon->v);
@@ -1112,12 +1133,12 @@ void SummarySearch::formCVaR(GRBModel &model, shared_ptr<Constraint> cons, GRBVa
 
     string selectcols = fmt::format("{},{}_{}", "id", attrCon->attr, "quantiles");
     string table = fmt::format("{}_{}", DB_optim, "summary");
-    cout<<"here"<<endl;
+    cout << "here" << endl;
     int qtileNumber = pg.getColumnLength(table, fmt::format("{}_{}", attrCon->attr, "quantiles"));
-    cout<<"qtileNumber"<<qtileNumber<<endl;
+    cout << "qtileNumber" << qtileNumber << endl;
     int qtileIdx = getQuantileIdx(1 - p, qtileNumber);
 
-    cout<<"QTILEIDX = "<<qtileIdx<<endl;
+    cout << "QTILEIDX = " << qtileIdx << endl;
 
     // string sql = fmt::format(
     //     "SELECT id, "
@@ -1134,7 +1155,6 @@ void SummarySearch::formCVaR(GRBModel &model, shared_ptr<Constraint> cons, GRBVa
         ") AS unnested_table "
         "GROUP BY id",
         qtileIdx, table);
-
 
     SingleRow sr = SingleRow(sql);
     GRBLinExpr CVarExpr;
@@ -1237,6 +1257,7 @@ void SummarySearch::formulateSAA(GRBModel &model, std::vector<std::vector<std::v
     {
         if (q == 0)
         {
+            cout << "tuka" << endl;
             formCountCons(model, spq->cons[i], xx, reducedIds, reduced, cntoptions);
             formSumCons(model, spq->cons[i], xx, reducedIds, reduced);
             formExpCons(model, spq->cons[i], xx, reducedIds, reduced);
@@ -1504,14 +1525,15 @@ BinarySearchMetadata SummarySearch::guessOptimalConservativenessBinarySearch(dou
     BinarySearchMetadata metadata(0.0, 0.0, 0.0);
     if (rk < 0)
     {
-        cout<<"UPPPPPPP"<<endl;
+        // the solution is infeasible -> use more conservative summary
+        cout << "UPPPPPPP" << endl;
         metadata.low = alpha;
         metadata.high = high;
         metadata.alpha = alpha;
     }
     else
     {
-        cout<<"DOWNNN"<<endl;
+        cout << "DOWNNN" << endl;
         // the solution is feasible but suboptimal or the system is infeasible -> use less conservative summary
         metadata.low = low;
         metadata.high = alpha;
@@ -1529,13 +1551,16 @@ SolutionMetadata SummarySearch::CSASolveBinSearch(std::vector<int> &x, int M, in
     initializeVector(history, probConstCnt, alpha_KMetadata);
     std::vector<double> alpha;
     initializeVector(alpha, probConstCnt, 0.0);
-    // std::vector<std::tuple<double,double, int, double>>binarySearchMetadata;
     int q = 0;
+    int qAfterZequalsM = 0;
+
+    SolutionMetadata bestSol(x, 0, 0, false);
+
     while (true)
     {
         cout << "Iteration: " << q << " Z = " << Z << endl;
         // validate() -> this will set the rk values, and calculate the Wq
-        if(x.size()>0)
+        if (x.size() > 0)
         {
 
             validate(x, this->spq, 1e6, this->DB_optim);
@@ -1560,15 +1585,35 @@ SolutionMetadata SummarySearch::CSASolveBinSearch(std::vector<int> &x, int M, in
             if (isFeas && epsilonQ <= this->epsilon)
             {
                 SolutionMetadata sol(x, W_q, epsilonQ, true);
-                sol.Z = Z;
-                return sol;
+                bestSol.Z = Z;
+                bestSol.x = x;
+                bestSol.w = W_q;
+                bestSol.epsilon = epsilonQ;
+                bestSol.isFeasible = true;
+                bestSol.isOptimal = true;
+                return bestSol;
             }
-        }else
+            else if (isFeas)
+            {
+                bestSol.Z = Z;
+                bestSol.x = x;
+                bestSol.w = W_q;
+                bestSol.epsilon = epsilonQ;
+                bestSol.isFeasible = true;
+                bestSol.isOptimal = false;
+            }
+        }
+        else
         {
-            cout<<"FORMULATION IS INFEASIBLE"<<endl;
+            SolutionMetadata sol(x, 0, 0, false);
+            return sol;
         }
 
         q = q + 1;
+        if (Z == cntScenarios)
+        {
+            qAfterZequalsM += 1;
+        }
 
         // call the binary search function with for each constraint
 
@@ -1576,33 +1621,27 @@ SolutionMetadata SummarySearch::CSASolveBinSearch(std::vector<int> &x, int M, in
         {
             int ScenariosLow = (int)ceil(history[i].low * (this->cntScenarios / Z));
             int ScenariosRight = (int)ceil(history[i].high * (this->cntScenarios / Z));
-            if (ScenariosLow != ScenariosRight || Z == cntScenarios)
+            if (ScenariosLow != ScenariosRight || (Z == cntScenarios && qAfterZequalsM <= 1))
             {
-                if(x.size()==0)
+                if (x.size() == 0)
                 {
-                    cout<<"Before call of Binary Search INFEASIBLE: "<<history[i].low<<" "<<history[i].high<<" "<<1<<endl;
-                    BinarySearchMetadata metadata = guessOptimalConservativenessBinarySearch(history[i].low, history[i].high, 1);
-                    history[i].low = metadata.low;
-                    history[i].high = metadata.high;
-                    history[i].alpha = metadata.alpha;
-                    alpha[i] = metadata.alpha;
-                    cout<<"After call of Binary Search: "<<history[i].low<<" "<<history[i].high<<" "<<r[i]<<endl;
-                }else
+                    cout << "Before call of Binary Search INFEASIBLE"<<endl;
+                }
+                else
                 {
-                    cout<<"Before call of Binary Search: "<<history[i].low<<" "<<history[i].high<<" "<<r[i]<<endl;
+                    cout << "Before call of Binary Search: " << history[i].low << " " << history[i].high << " " << r[i] << endl;
                     BinarySearchMetadata metadata = guessOptimalConservativenessBinarySearch(history[i].low, history[i].high, r[i]);
                     history[i].low = metadata.low;
                     history[i].high = metadata.high;
                     history[i].alpha = metadata.alpha;
                     alpha[i] = metadata.alpha;
-                    cout<<"After call of Binary Search: "<<history[i].low<<" "<<history[i].high<<" "<<r[i]<<endl;
+                    cout << "After call of Binary Search: " << history[i].low << " " << history[i].high << " " << r[i] << endl;
                 }
             }
             else
             {
                 cout << "BINARY SEARCH END CONDITION MET" << endl;
-                SolutionMetadata sol(x, 0, 0, false);
-                return sol;
+                return bestSol;
             }
         }
 
@@ -1623,7 +1662,6 @@ SolutionMetadata SummarySearch::CSASolveBinSearch(std::vector<int> &x, int M, in
                 cnt++;
             }
         }
-
         formulateSAA(this->modelILP, summaries, q, this->xxILP.get(), reducedIds, reduced, cntoptions);
         solve(this->modelILP, x, this->xxILP.get(), reducedIds, reduced);
     }
@@ -1632,7 +1670,14 @@ SolutionMetadata SummarySearch::CSASolveBinSearch(std::vector<int> &x, int M, in
 SolutionMetadata SummarySearch::summarySearch(shared_ptr<StochasticPackageQuery> spq, int M_hat, int M, int m, int z, vector<int> &reducedIds, bool reduced, map<string, Option> &cntoptions, map<string, Option> &curveFitOptions)
 {
     std::vector<std::vector<std::vector<double>>> summaries;
+    // modelILP is global so we need to delete the constraints for each time we run new Summary Search
+    clearConstr(this->modelILP);
+    yy.clear();
+    genCon.clear();
+    sumyCon.clear();
+    // formulate Deterministic ILP
     formulateSAA(this->modelILP, summaries, 0, this->xxILP.get(), reducedIds, reduced, cntoptions);
+    //printConstraints(this->modelILP);
     vector<int> x0;
     initializeVector(x0, NTuples, 0);
     solve(this->modelILP, x0, this->xxILP.get(), reducedIds, reduced);
@@ -1699,6 +1744,34 @@ void findUnion(vector<double> &solLP1, vector<double> &solLP2, vector<int> &redu
     }
 }
 
+void findUnionDetCVaR(vector<double> &solDet, vector<double> &solCVaR, set<int> &reducedIds)
+{
+    for(int i = 0; i < solDet.size(); i++)
+    {
+        if(solCVaR[i] > 0 || solDet[i] > 0)
+        {
+            reducedIds.insert(i + 1);
+        }
+    }
+}
+
+void findUnionDetCVaR2(vector<double> &solDet, vector<double> &solCVaR, vector<double> &solLP1)
+{
+    for(int i = 0; i < solDet.size(); i++)
+    {
+        double value = (solDet[i] + solCVaR[i])/2;
+        solLP1[i] = value;
+    }
+}
+
+void populateReducedIds(vector<double> &solLP, set<int> &reducedIds)
+{
+    for(int i = 0; i < solLP.size(); i++)
+    {
+        reducedIds.insert(i + 1);
+    }
+}
+
 void SummarySearch::solveLP2(GRBModel &model, vector<double> &sol, GRBVar *xx, double ub, vector<int> dummyVect)
 {
     for (int i = 0; i < NTuples; i++)
@@ -1709,90 +1782,465 @@ void SummarySearch::solveLP2(GRBModel &model, vector<double> &sol, GRBVar *xx, d
     solve(model, sol, xx, dummyVect, false);
 }
 
+void SummarySearch::formulateDeterministicLP(GRBModel &model, GRBVar *xx, bool reduced, map<string, Option> &cntoptions)
+{
+    cout << "Formulating Deterministic LP" << endl;
+    vector<int> reducedIds;
+    int numCons = spq->cons.size();
+    int probConOrder = 0;
+    for (int i = 0; i < numCons; i++)
+    {
+        formCountCons(model, spq->cons[i], xx, reducedIds, reduced, cntoptions);
+        formSumCons(model, spq->cons[i], xx, reducedIds, reduced);
+    }
+    formSumObj(model, spq->obj, xx, reducedIds, reduced);
+    formCntObj(model, spq->obj, xx, reducedIds, reduced);
+    formExpSumObj(model, spq->obj, xx, reducedIds, reduced);
+    model.update();
+}
+
+void SummarySearch::formulateCVaRLP(GRBModel &model, GRBVar *xx, bool reduced, map<string, Option> &cntoptions)
+{
+    cout << "Formulating CVaR LP" << endl;
+    vector<int> reducedIds;
+    int numCons = spq->cons.size();
+    int probConOrder = 0;
+    for (int i = 0; i < numCons; i++)
+    {
+        formCVaR(model, spq->cons[i], xx);
+    }
+    formSumObj(model, spq->obj, xx, reducedIds, reduced);
+    formCntObj(model, spq->obj, xx, reducedIds, reduced);
+    formExpSumObj(model, spq->obj, xx, reducedIds, reduced);
+    model.update();
+}
+
+// '''The idea here is that if the LP1 system is infeasible
+//      --> formulate separate LPDet1 and LPCVaR1, so that we get tuples that will satisfy both constraints
+//          i.e. narrow the number of tuples down only to tuples that are meaningful for the problem itself'''
 SolutionMetadata SummarySearch::stochDualReducer(shared_ptr<StochasticPackageQuery> spq, int qSz, map<string, Option> &cntoptions, map<string, Option> &curveFitOptions)
 {
+    bool stochLP1feas = true;
+
     // GRBModel &model, GRBVar *xx, bool reduced
     xxLP1 = std::make_unique<GRBVar[]>(NTuples);
+    xxDetLP1 = std::make_unique<GRBVar[]>(NTuples);
+    xxCVaRLP1 = std::make_unique<GRBVar[]>(NTuples);
+
     for (int i = 0; i < NTuples; i++)
     {
         xxLP1[i] = modelLP1.addVar(0.0, 1.0, 0.0, GRB_CONTINUOUS, "xxLP1[" + to_string(i) + "]");
+        xxDetLP1[i] = modelDetLP1.addVar(0.0, 1.0, 0.0, GRB_CONTINUOUS, "xxDetLP1[" + to_string(i) + "]");
+        xxCVaRLP1[i] = modelCVaRLP1.addVar(0.0, 1.0, 0.0, GRB_CONTINUOUS, "xxCVaRLP1[" + to_string(i) + "]");
     }
 
     vector<int> dummyVect; // empty vector passing to solve
     vector<double> solLP1;
+    vector<double> solDetLP1;
+    vector<double> solCVaRLP1;
+
     initializeVector(solLP1, NTuples, 0.0);
     formulateLP(modelLP1, xxLP1.get(), false, cntoptions);
     solve(modelLP1, solLP1, xxLP1.get(), dummyVect, false);
 
-    // validate(solLP1,spq, M_hat, DB_optim);
-    // deb(r);
-
-    xxLP2 = std::make_unique<GRBVar[]>(NTuples);
+    if (solLP1.size() == 0)
+    {
+        stochLP1feas = false;
+        initializeVector(solLP1, NTuples, 0.0);
+        initializeVector(solDetLP1, NTuples, 0.0);
+        initializeVector(solCVaRLP1, NTuples, 0.0);
+        // formulate and solve the deterministic and CVaR LP
+        formulateDeterministicLP(modelDetLP1, xxDetLP1.get(), false, cntoptions);
+        formulateCVaRLP(modelCVaRLP1, xxCVaRLP1.get(), false, cntoptions);
+        solve(modelDetLP1, solDetLP1, xxDetLP1.get(), dummyVect, false);
+        solve(modelCVaRLP1, solCVaRLP1, xxCVaRLP1.get(), dummyVect, false);
+        findUnionDetCVaR2(solDetLP1, solCVaRLP1, solLP1);
+    }
     double E = calculateE(solLP1);
 
-    deb(solLP1);
-
-    double ub = E / qSz;
-    vector<double> solLP2;
-    initializeVector(solLP2, NTuples, 0.0);
-    if (ub > 0)
+    while (true)
     {
-        solveLP2(modelLP1, solLP2, xxLP1.get(), ub, dummyVect);
-    }
-    else
-    {
-        vector<int> v;
-        SolutionMetadata sol(v, -1.0, -1.0, 0);
-        return sol;
-    }
-
-    vector<int> reducedIds;
-    findUnion(solLP1, solLP2, reducedIds);
-
-    int steps = 0;
-    if (reducedIds.size() < qSz)
-    {
-        double low = ub;
-        double high = 1.0;
-        double eps = 1e-6;
-        while (high - low > eps)
+        double ub = E / qSz;
+        vector<double> solLP2;
+        initializeVector(solLP2, NTuples, 0.0);
+        set<int> reducedIds2;
+        if (ub > 0)
         {
-            steps += 1;
-            reducedIds.clear();
-            double mid = low + (high - low) / 2;
-            cout << "Mid = " << mid << endl;
-            solveLP2(modelLP1, solLP2, xxLP1.get(), mid, dummyVect);
-            findUnion(solLP1, solLP2, reducedIds);
-            cout << "Count of positive indices = " << reducedIds.size() << endl;
-            if (reducedIds.size() >= qSz)
+            if (stochLP1feas)
             {
-                break;
+                solveLP2(modelLP1, solLP2, xxLP1.get(), ub, dummyVect);
             }
-
-            if (reducedIds.size() < qSz)
+            else
             {
-                high = mid;
-            }
-
-            if (solLP2.size() == 0)
-            {
-                low = mid;
+                vector<double> solDetLP2;
+                vector<double> solCVaRLP2;
+                initializeVector(solDetLP2, NTuples, 0.0);
+                initializeVector(solCVaRLP2, NTuples, 0.0);
+                // find the union of both solutions and store it in solLP1 in solve2 we ubdate the upper bound
+                solveLP2(modelDetLP1, solDetLP2, xxDetLP1.get(), ub, dummyVect);
+                solveLP2(modelCVaRLP1, solCVaRLP2, xxCVaRLP1.get(), ub, dummyVect);
+                findUnionDetCVaR2(solDetLP2, solCVaRLP2, solLP2);
             }
         }
-    }
-    else
-    {
-        cout << "HERE!" << endl;
-    }
+        else
+        {
+            // if the solution is empty even on deterministic LP then it's infeasible
+            vector<int> v;
+            SolutionMetadata sol(v, -1.0, -1.0, 0);
+            return sol;
+        }
 
-    deb(reducedIds);
-    cntoptions["omit count constraint"] = false;
-    cntoptions["scale down"] = false;
+        vector<int> reducedIds;
+        findUnion(solLP1, solLP2, reducedIds);
 
-    SolutionMetadata sol = summarySearch(this->spq, M_hat, M, 5, 1, reducedIds, true, cntoptions, curveFitOptions);
-    sol.binarySearchSteps = steps;
-    return sol;
+        int steps = 0;
+        if (reducedIds.size() < qSz)
+        {
+            double low = ub;
+            double high = 1.0;
+            double eps = 1e-6;
+            while (high - low > eps)
+            {
+                steps += 1;
+                reducedIds.clear();
+                reducedIds2.clear();
+                double mid = low + (high - low) / 2;
+                cout << "Low = " << low << endl;
+                cout << "High = " << high << endl;
+                cout << "Mid = " << mid << endl;
+                if (stochLP1feas)
+                {
+                    //solveLP2 updates the upper bound as well
+                    solveLP2(modelLP1, solLP2, xxLP1.get(), mid, dummyVect);
+                }
+                else
+                {
+                    vector<double> solDetLP2;
+                    vector<double> solCVaRLP2;
+                    initializeVector(solDetLP2, NTuples, 0.0);
+                    initializeVector(solCVaRLP2, NTuples, 0.0);
+                    // find the union of both solutions and store it in solLP1 in solve2 we ubdate the upper bound
+                    solveLP2(modelDetLP1, solDetLP2, xxDetLP1.get(), ub, dummyVect);
+                    solveLP2(modelCVaRLP1, solCVaRLP2, xxCVaRLP1.get(), ub, dummyVect);
+                    findUnionDetCVaR2(solDetLP2, solCVaRLP2, solLP2);
+                }
+
+                findUnion(solLP1, solLP2, reducedIds);
+
+                if (reducedIds.size() >= qSz)
+                {
+                    break;
+                }
+
+                if (reducedIds.size() < qSz && solLP2.size() > 0)
+                {
+                    high = mid;
+                }
+
+                if (solLP2.size() == 0)
+                {
+                    low = mid;
+                }
+            }
+        }
+
+        cntoptions["omit count constraint"] = false;
+        cntoptions["scale down"] = false;
+
+        SolutionMetadata sol = summarySearch(this->spq, M_hat, M, 5, 1, reducedIds, true, cntoptions, curveFitOptions);
+        if (sol.isFeasible || qSz == NTuples)
+        {
+            sol.binarySearchSteps = steps;
+            sol.qSz = qSz;
+            return sol;
+        }
+        else
+        {
+            qSz = min(2 * qSz, NTuples);
+        }
+    }
 }
+
+
+
+// SolutionMetadata SummarySearch::stochDualReducer(shared_ptr<StochasticPackageQuery> spq, int qSz, map<string, Option> &cntoptions, map<string, Option> &curveFitOptions)
+// {
+//     bool stochLP1feas = true;
+
+//     // GRBModel &model, GRBVar *xx, bool reduced
+//     xxLP1 = std::make_unique<GRBVar[]>(NTuples);
+//     xxDetLP1 = std::make_unique<GRBVar[]>(NTuples);
+//     xxCVaRLP1 = std::make_unique<GRBVar[]>(NTuples);
+
+//     for (int i = 0; i < NTuples; i++)
+//     {
+//         xxLP1[i] = modelLP1.addVar(0.0, 1.0, 0.0, GRB_CONTINUOUS, "xxLP1[" + to_string(i) + "]");
+//         xxDetLP1[i] = modelDetLP1.addVar(0.0, 1.0, 0.0, GRB_CONTINUOUS, "xxDetLP1[" + to_string(i) + "]");
+//         xxCVaRLP1[i] = modelCVaRLP1.addVar(0.0, 1.0, 0.0, GRB_CONTINUOUS, "xxCVaRLP1[" + to_string(i) + "]");
+//     }
+
+//     vector<int> dummyVect; // empty vector passing to solve
+//     vector<double> solLP1;
+//     vector<double> solDetLP1;
+//     vector<double> solCVaRLP1;
+//     set<int> reducedIds1;
+
+//     initializeVector(solLP1, NTuples, 0.0);
+//     formulateLP(modelLP1, xxLP1.get(), false, cntoptions);
+//     solve(modelLP1, solLP1, xxLP1.get(), dummyVect, false);
+//     populateReducedIds(solLP1, reducedIds1);
+
+
+//     double E = calculateE(solLP1);
+
+
+//     if (solLP1.size() == 0)
+//     {
+//         stochLP1feas = false;
+//         initializeVector(solLP1, NTuples, 0.0);
+//         initializeVector(solDetLP1, NTuples, 0.0);
+//         initializeVector(solCVaRLP1, NTuples, 0.0);
+//         // formulate and solve the deterministic and CVaR LP
+//         formulateDeterministicLP(modelDetLP1, xxDetLP1.get(), false, cntoptions);
+//         formulateCVaRLP(modelCVaRLP1, xxCVaRLP1.get(), false, cntoptions);
+//         solve(modelDetLP1, solDetLP1, xxDetLP1.get(), dummyVect, false);
+//         solve(modelCVaRLP1, solCVaRLP1, xxCVaRLP1.get(), dummyVect, false);
+//         double E1 = calculateE(solDetLP1);
+//         double E2 = calculateE(solCVaRLP1);
+//         // find the union of both solutions and store it in solLP1
+//         //findUnion between solDetLP1, solCVaRLP1 --> for each index if either lp has a positive value store it in reducedIds vector
+//         findUnionDetCVaR(solDetLP1, solCVaRLP1, reducedIds1);
+//         E = (E1 + E2) / 2;
+//         cout << "Size = " << E << endl;
+//     }
+
+//     while (true)
+//     {
+//         double ub = E / qSz;
+//         vector<double> solLP2;
+//         initializeVector(solLP2, NTuples, 0.0);
+//         set<int> reducedIds2;
+//         if (ub > 0)
+//         {
+//             if (stochLP1feas)
+//             {
+//                 solveLP2(modelLP1, solLP2, xxLP1.get(), ub, dummyVect);
+//                 populateReducedIds(solLP2, reducedIds2);
+//             }
+//             else
+//             {
+//                 vector<double> solDetLP2;
+//                 vector<double> solCVaRLP2;
+//                 initializeVector(solDetLP2, NTuples, 0.0);
+//                 initializeVector(solCVaRLP2, NTuples, 0.0);
+//                 // find the union of both solutions and store it in solLP1 in solve2 we ubdate the upper bound
+//                 solveLP2(modelDetLP1, solDetLP2, xxDetLP1.get(), ub, dummyVect);
+//                 solveLP2(modelCVaRLP1, solCVaRLP2, xxCVaRLP1.get(), ub, dummyVect);
+//                 findUnionDetCVaR(solDetLP2, solCVaRLP2, reducedIds2);
+//             }
+//         }
+//         else
+//         {
+//             // if the solution is empty even on deterministic LP then it's infeasible
+//             vector<int> v;
+//             SolutionMetadata sol(v, -1.0, -1.0, 0);
+//             return sol;
+//         }
+
+//         vector<int> reducedIds;
+//         std::set_union(reducedIds2.begin(), reducedIds2.end(),reducedIds1.begin(), reducedIds1.end(),std::back_inserter(reducedIds));
+
+//         int steps = 0;
+//         if (reducedIds.size() < qSz)
+//         {
+//             double low = ub;
+//             double high = 1.0;
+//             double eps = 1e-6;
+//             while (high - low > eps)
+//             {
+//                 steps += 1;
+//                 reducedIds.clear();
+//                 reducedIds2.clear();
+//                 double mid = low + (high - low) / 2;
+//                 cout << "Low = " << low << endl;
+//                 cout << "High = " << high << endl;
+//                 cout << "Mid = " << mid << endl;
+//                 if (stochLP1feas)
+//                 {
+//                     //solveLP2 updates the upper bound as well
+//                     solveLP2(modelLP1, solLP2, xxLP1.get(), mid, dummyVect);
+//                     populateReducedIds(solLP2, reducedIds2);
+//                 }
+//                 else
+//                 {
+//                     vector<double> solDetLP2;
+//                     vector<double> solCVaRLP2;
+//                     initializeVector(solDetLP2, NTuples, 0.0);
+//                     initializeVector(solCVaRLP2, NTuples, 0.0);
+//                     // find the union of both solutions and store it in solLP1 in solve2 we ubdate the upper bound
+//                     solveLP2(modelDetLP1, solDetLP2, xxDetLP1.get(), ub, dummyVect);
+//                     solveLP2(modelCVaRLP1, solCVaRLP2, xxCVaRLP1.get(), ub, dummyVect);
+//                     findUnionDetCVaR(solDetLP2, solCVaRLP2, reducedIds2);
+//                 }
+//                 std::set_union(reducedIds2.begin(), reducedIds2.end(),reducedIds1.begin(), reducedIds1.end(),std::back_inserter(reducedIds));
+//                 cout << "Count of positive indices = " << reducedIds.size() << endl;
+//                 if (reducedIds.size() >= qSz)
+//                 {
+//                     break;
+//                 }
+
+//                 if (reducedIds.size() < qSz && solLP2.size() > 0)
+//                 {
+//                     high = mid;
+//                 }
+
+//                 if (solLP2.size() == 0)
+//                 {
+//                     low = mid;
+//                 }
+//             }
+//         }
+
+//         cntoptions["omit count constraint"] = false;
+//         cntoptions["scale down"] = false;
+
+//         SolutionMetadata sol = summarySearch(this->spq, M_hat, M, 5, 1, reducedIds, true, cntoptions, curveFitOptions);
+//         if (sol.isFeasible || qSz == NTuples)
+//         {
+//             sol.binarySearchSteps = steps;
+//             sol.qSz = qSz;
+//             return sol;
+//         }
+//         else
+//         {
+//             qSz = min(2 * qSz, NTuples);
+//         }
+//     }
+// }
+
+
+
+// The commented implementation contains an implementation that only solves a deterministic LP, if the LP1 is system infeasible
+//  SolutionMetadata SummarySearch::stochDualReducer(shared_ptr<StochasticPackageQuery> spq, int qSz, map<string, Option> &cntoptions, map<string, Option> &curveFitOptions)
+//  {
+//      bool stochLP1feas = true;
+
+//     // GRBModel &model, GRBVar *xx, bool reduced
+//     xxLP1 = std::make_unique<GRBVar[]>(NTuples);
+//     xxDetLP1 = std::make_unique<GRBVar[]>(NTuples);
+
+//     for (int i = 0; i < NTuples; i++)
+//     {
+//         xxLP1[i] = modelLP1.addVar(0.0, 1.0, 0.0, GRB_CONTINUOUS, "xxLP1[" + to_string(i) + "]");
+//         xxDetLP1[i] = modelDetLP1.addVar(0.0, 1.0, 0.0, GRB_CONTINUOUS, "xxDetLP1[" + to_string(i) + "]");
+//     }
+
+//     vector<int> dummyVect; // empty vector passing to solve
+//     vector<double> solLP1;
+//     initializeVector(solLP1, NTuples, 0.0);
+//     formulateLP(modelLP1, xxLP1.get(), false, cntoptions);
+//     solve(modelLP1, solLP1, xxLP1.get(), dummyVect, false);
+
+//     double E = calculateE(solLP1);
+
+//     deb(solLP1);
+
+//     if (solLP1.size() == 0)
+//     {
+//         stochLP1feas = false;
+//         initializeVector(solLP1, NTuples, 0.0);
+//         formulateDeterministicLP(modelDetLP1, xxDetLP1.get(), false, cntoptions);
+//         solve(modelDetLP1, solLP1, xxDetLP1.get(), dummyVect, false);
+//         E = calculateE(solLP1);
+//         deb(solLP1);
+//         cout<<"Size = "<<E<<endl;
+//     }
+
+//     while (true)
+//     {
+//         double ub = E / qSz;
+//         vector<double> solLP2;
+//         initializeVector(solLP2, NTuples, 0.0);
+//         if (ub > 0)
+//         {
+//             if(stochLP1feas)
+//             {
+//                 solveLP2(modelLP1, solLP2, xxLP1.get(), ub, dummyVect);
+//             }else
+//             {
+//                 solveLP2(modelDetLP1, solLP2, xxDetLP1.get(), ub, dummyVect);
+//             }
+//         }
+//         else
+//         {
+//             // if the solution is empty even on deterministic LP then it's infeasible
+//             vector<int> v;
+//             SolutionMetadata sol(v, -1.0, -1.0, 0);
+//             return sol;
+//         }
+
+//         vector<int> reducedIds;
+//         findUnion(solLP1, solLP2, reducedIds);
+
+//         int steps = 0;
+//         if (reducedIds.size() < qSz)
+//         {
+//             double low = ub;
+//             double high = 1.0;
+//             double eps = 1e-6;
+//             while (high - low > eps)
+//             {
+//                 steps += 1;
+//                 reducedIds.clear();
+//                 double mid = low + (high - low) / 2;
+//                 cout << "Low = "<< low <<endl;
+//                 cout<< "High = " << high << endl;
+//                 cout << "Mid = " << mid << endl;
+//                 if(stochLP1feas)
+//                 {
+//                     solveLP2(modelLP1, solLP2, xxLP1.get(), mid, dummyVect);
+//                 }else
+//                 {
+//                     solveLP2(modelDetLP1, solLP2, xxDetLP1.get(), mid, dummyVect);
+//                 }
+//                 findUnion(solLP1, solLP2, reducedIds);
+//                 cout << "Count orf positive indices = " << reducedIds.size() << endl;
+//                 if (reducedIds.size() >= qSz)
+//                 {
+//                     break;
+//                 }
+
+//                 if (reducedIds.size() < qSz && solLP2.size() > 0)
+//                 {
+//                     high = mid;
+//                 }
+
+//                 if (solLP2.size() == 0)
+//                 {
+//                     low = mid;
+//                 }
+//             }
+//         }
+
+//         deb(reducedIds);
+//         cout << "Number of Reduced Ids = " << reducedIds.size() << endl;
+
+//         cntoptions["omit count constraint"] = false;
+//         cntoptions["scale down"] = false;
+
+//         SolutionMetadata sol = summarySearch(this->spq, M_hat, M, 5, 1, reducedIds, true, cntoptions, curveFitOptions);
+//         if (sol.isFeasible || qSz == NTuples)
+//         {
+//             sol.binarySearchSteps = steps;
+//             sol.qSz = qSz;
+//             return sol;
+//         }
+//         else
+//         {
+//             qSz = min(2 * qSz, NTuples);
+//         }
+//     }
+// }
 
 void SummarySearch::populateShuffler(vector<int> &v)
 {
@@ -1813,7 +2261,6 @@ void SummarySearch::populateShuffler(vector<int> &v)
                 vector<double> realization;
                 sr.getArray(0, realization);
                 numScenarios = realization.size();
-                // cntScenarios = numScenarios;
                 cout << "POPULATING SHUFFLER WITH " << numScenarios << " ELEMENTS" << endl;
                 for (int j = 0; j < numScenarios; j++)
                 {

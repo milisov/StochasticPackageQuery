@@ -8,3 +8,6 @@ hardness,SDR-Objective,SDR-feas,Z,Binary Search Steps,Runtime
 2,11032,1,1,0,482.158
 3,6374.78,1,1,1,451.331
 4,-1,0,0,-1,249.265
+hardness,SDR-Objective,SDR-feas,Z,qSz,Binary Search Steps,Runtime
+3,6399.92,1,1,500,19,590.043
+4,6061.18,1,100,2000,20,18751.1

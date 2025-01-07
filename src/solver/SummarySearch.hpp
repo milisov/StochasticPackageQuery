@@ -37,9 +37,11 @@ public:
     double w;
     double epsilon;
     bool isFeasible;
+    bool isOptimal;
     double Runtime;
     int binarySearchSteps = -1;
     int Z = 0;
+    int qSz = 0;
     SolutionMetadata(const std::vector<int>& xInit, double wInit, double epsilonInit, bool isFeasibleInit): x(xInit), w(wInit), epsilon(epsilonInit), isFeasible(isFeasibleInit) {}
     SolutionMetadata(){}
 };
@@ -61,9 +63,6 @@ private:
     PgManager pg;
     string fitFunction = "atan";
     std::vector<std::vector<double>> innerConstraints;
-    std::vector<GRBVar> yy;
-    std::vector<GRBGenConstr> genCon;
-    std::vector<GRBConstr> sumyCon;
     double W_q;
     double W0;
     double epsilonQ;
@@ -78,8 +77,17 @@ public:
     GRBModel modelLP1 = GRBModel(env);
     std::unique_ptr<GRBVar[]> xxLP1;
 
-    GRBModel modelLP2 = GRBModel(env);
-    std::unique_ptr<GRBVar[]> xxLP2;
+    GRBModel modelDetLP1 = GRBModel(env);
+    std::unique_ptr<GRBVar[]> xxDetLP1;
+
+    
+    GRBModel modelCVaRLP1 = GRBModel(env);
+    std::unique_ptr<GRBVar[]> xxCVaRLP1;
+
+    //needed for deleting probConstraints
+    std::vector<GRBVar> yy;
+    std::vector<GRBGenConstr> genCon;
+    std::vector<GRBConstr> sumyCon;
 
     CurveFitter fitter;
     //std::vector<int> x;
@@ -119,7 +127,10 @@ public:
 
     void formulateSAA(GRBModel &model, std::vector<std::vector<std::vector<double>>> &summaries, int q, GRBVar *xx, vector<int>&reducedIds, bool reduced, map<string, Option>& cntoptions);
     void formulateLP(GRBModel &model, GRBVar *xx, bool reduced, map<string, Option>& cntoptions);
-    void solveLP2(GRBModel &model, vector<double>&sol, GRBVar *xx, double ub,  vector<int>dummyVect);
+    void formulateDeterministicLP(GRBModel &model, GRBVar *xx, bool reduced, map<string, Option>& cntoptions);
+    void formulateCVaRLP(GRBModel &model, GRBVar *xx, bool reduced, map<string, Option> &cntoptions);
+
+
     void formCountCons(GRBModel &model, shared_ptr<Constraint> cons, GRBVar *xx, vector<int>&reducedIds, bool reduced, map<string, Option>& options);
     void formSumCons(GRBModel &model, shared_ptr<Constraint> cons, GRBVar *xx, vector<int>&reducedIds, bool reduced);
     void formProbCons(GRBModel &model, shared_ptr<Constraint> cons, GRBVar *xx, std::vector<std::vector<std::vector<double>>> &summaries, 
@@ -137,6 +148,7 @@ public:
     BinarySearchMetadata guessOptimalConservativenessBinarySearch(double low, double high, double rk);
 
 
+    void solveLP2(GRBModel &model, vector<double>&sol, GRBVar *xx, double ub,  vector<int>dummyVect);
     template<typename T>
     void solve(GRBModel &model, std::vector<T> &x, GRBVar *xx, vector<int>&reducedIds, bool reduced);
 
