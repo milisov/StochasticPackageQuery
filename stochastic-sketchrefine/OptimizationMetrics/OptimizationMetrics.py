@@ -1,0 +1,93 @@
+import time
+import json
+
+class OptimizationMetrics:
+
+    def __init__(
+        self,
+        algorithm_name: str,
+        linear_relaxation: bool,
+    ) -> None:
+        self.__algorithm_name = \
+            algorithm_name
+        self.__linear_relaxation = \
+            linear_relaxation
+        self.__runtime = 0
+        self.__objective_value = 0
+        self.__optimizer_starting_time = None
+        self.__optimizer_runtime = 0
+        self.__number_of_optimization_calls = 0
+        self.__number_of_scenarios_needed = 0
+        self.__starting_time = None
+        self.__package = []
+        self.__query = None
+        self.__hardness = None
+
+    def start_execution(self):
+       self.__starting_time = time.time()
+
+    def end_execution(
+        self, objective_value, no_of_scenarios
+    ):
+        assert self.__starting_time is not None
+        self.__runtime = \
+            time.time() - self.__starting_time
+        self.__objective_value = \
+            objective_value
+        self.__number_of_scenarios_needed = \
+            no_of_scenarios
+
+
+    def start_optimizer(self):
+        self.__optimizer_starting_time = \
+            time.time()
+
+
+    def end_optimizer(self):
+        assert self.__optimizer_starting_time\
+            is not None
+        self.__optimizer_runtime += time.time()\
+            - self.__optimizer_starting_time
+        self.__number_of_optimization_calls += 1
+
+    def set_package(self, res_package):
+        self.__package = res_package
+
+    def set_query(self, q):
+        self.__query = q
+
+    def set_hardness(self, h):
+        self.__hardness = h
+
+    def log(self):
+        print('Algorithm:',
+              self.__algorithm_name)
+        print('Linear Relaxation:',
+              self.__linear_relaxation)
+        print('Runtime:',
+              self.__runtime)
+        print('Objective Value:',
+              self.__objective_value)
+        print('Number of optimization calls:', 
+              self.__number_of_optimization_calls)
+        print('Total Optimizer Runtime:',
+              self.__optimizer_runtime)
+        print('Number of scenarios needed:',
+              self.__number_of_scenarios_needed)
+
+    def log_to_json(self, filename="results.json"):
+        data = {
+            "Algorithm": self.__algorithm_name,
+            "Query": self.__query,
+            "Hardness": self.__hardness,
+            "Linear Relaxation": self.__linear_relaxation,
+            "Runtime": self.__runtime,
+            "Package": self.__package,
+            "Objective Value": self.__objective_value,
+            "Number of Optimization Calls": self.__number_of_optimization_calls,
+            "Total Optimizer Runtime": self.__optimizer_runtime,
+            "Number of Scenarios Needed": self.__number_of_scenarios_needed
+        }
+
+        with open(filename, "w") as json_file:
+            json.dump(data, json_file, indent=4)
