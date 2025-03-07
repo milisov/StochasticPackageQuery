@@ -1,0 +1,63 @@
+[31mFile /home/fm2288/StochasticPackageQuery/test/main.cpp, Line 265[0m
+spq = SELECT PACKAGE(day, id, price, profit, stock) FROM stocks_3_2 SUCH THAT
+	COUNT(*) BETWEEN 25 AND 75 AND
+	SUM(price) <= 47607.8 AND
+	SUM(profit) >= 969.186 WITH PROBABILITY >= 0.95
+MAXIMIZE EXPECTED SUM(profit)
+
+[31mFile /home/fm2288/StochasticPackageQuery/test/main.cpp, Line 265[0m
+spq = SELECT PACKAGE(day, id, price, profit, stock) FROM stocks_3_2 SUCH THAT
+	COUNT(*) BETWEEN 25 AND 75 AND
+	SUM(price) <= 43627 AND
+	SUM(profit) >= 1293.97 WITH PROBABILITY >= 0.95
+MAXIMIZE EXPECTED SUM(profit)
+
+[31mFile /home/fm2288/StochasticPackageQuery/test/main.cpp, Line 265[0m
+spq = SELECT PACKAGE(day, id, price, profit, stock) FROM stocks_3_2 SUCH THAT
+	COUNT(*) BETWEEN 25 AND 75 AND
+	SUM(price) <= 39351.8 AND
+	SUM(profit) >= 1725.92 WITH PROBABILITY >= 0.95
+MAXIMIZE EXPECTED SUM(profit)
+
+[31mFile /home/fm2288/StochasticPackageQuery/test/main.cpp, Line 265[0m
+spq = SELECT PACKAGE(day, id, price, profit, stock) FROM stocks_3_2 SUCH THAT
+	COUNT(*) BETWEEN 25 AND 75 AND
+	SUM(price) <= 34727.6 AND
+	SUM(profit) >= 2304.1 WITH PROBABILITY >= 0.95
+MAXIMIZE EXPECTED SUM(profit)
+
+[31mFile /home/fm2288/StochasticPackageQuery/test/main.cpp, Line 265[0m
+spq = SELECT PACKAGE(day, id, price, profit, stock) FROM stocks_3_2 SUCH THAT
+	COUNT(*) BETWEEN 25 AND 75 AND
+	SUM(price) <= 29872.6 AND
+	SUM(profit) >= 3066.9 WITH PROBABILITY >= 0.95
+MAXIMIZE EXPECTED SUM(profit)
+
+[31mFile /home/fm2288/StochasticPackageQuery/test/main.cpp, Line 265[0m
+spq = SELECT PACKAGE(day, id, price, profit, stock) FROM stocks_3_2 SUCH THAT
+	COUNT(*) BETWEEN 25 AND 75 AND
+	SUM(price) <= 25282.2 AND
+	SUM(profit) >= 3944.8 WITH PROBABILITY >= 0.95
+MAXIMIZE EXPECTED SUM(profit)
+
+[31mFile /home/fm2288/StochasticPackageQuery/test/main.cpp, Line 265[0m
+spq = SELECT PACKAGE(day, id, price, profit, stock) FROM stocks_3_2 SUCH THAT
+	COUNT(*) BETWEEN 25 AND 75 AND
+	SUM(price) <= 21274.2 AND
+	SUM(profit) >= 4852.63 WITH PROBABILITY >= 0.95
+MAXIMIZE EXPECTED SUM(profit)
+
+[31mFile /home/fm2288/StochasticPackageQuery/test/main.cpp, Line 265[0m
+spq = SELECT PACKAGE(day, id, price, profit, stock) FROM stocks_3_2 SUCH THAT
+	COUNT(*) BETWEEN 25 AND 75 AND
+	SUM(price) <= 18142.9 AND
+	SUM(profit) >= 5679.98 WITH PROBABILITY >= 0.95
+MAXIMIZE EXPECTED SUM(profit)
+
+[31mFile /home/fm2288/StochasticPackageQuery/test/main.cpp, Line 265[0m
+spq = SELECT PACKAGE(day, id, price, profit, stock) FROM stocks_3_2 SUCH THAT
+	COUNT(*) BETWEEN 25 AND 75 AND
+	SUM(price) <= 15619.2 AND
+	SUM(profit) >= 6482.78 WITH PROBABILITY >= 0.95
+MAXIMIZE EXPECTED SUM(profit)
+

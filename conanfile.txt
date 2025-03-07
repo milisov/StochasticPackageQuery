@@ -6,6 +6,7 @@ pcg-cpp/cci.20220409
 gmp/6.3.0
 onetbb/2021.10.0
 dlib/19.24.2
+nlohmann_json/3.11.3
 
 [generators]
 CMakeDeps

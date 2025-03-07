@@ -28,8 +28,8 @@ double SPQChecker::getObjective(const SolType& sol) const{
                 vector<double> attrs; attrs.reserve(n);
                 vector<string> strIds; strIds.reserve(n);
                 for (const auto& p : sol) strIds.push_back(to_string(p.first));
-                stat->getDetAttrs(spq->tableName, attrObj->obj, fmt::format("{} IN ({}) ORDER BY {}", PgManager::id, boost::join(strIds, ","), PgManager::id), attrs);
-                //stat->getDetAttrs(validateTableName, attrObj->obj, fmt::format("{} IN ({}) ORDER BY {}", PgManager::id, boost::join(strIds, ","), PgManager::id), attrs);
+                //stat->getDetAttrs(spq->tableName, attrObj->obj, fmt::format("{} IN ({}) ORDER BY {}", PgManager::id, boost::join(strIds, ","), PgManager::id), attrs);
+                stat->getDetAttrs(validateTableName, attrObj->obj, fmt::format("{} IN ({}) ORDER BY {}", PgManager::id, boost::join(strIds, ","), PgManager::id), attrs);
                 size_t i = 0;
                 for (const auto& p : sol) res += p.second*attrs[i++];
             }
@@ -44,6 +44,7 @@ double SPQChecker::getConIndicator(const SolType& sol, shared_ptr<Constraint> co
     shared_ptr<ProbConstraint> probCon;
     shared_ptr<BoundConstraint> boundCon;
     shared_ptr<AttrConstraint> attrCon;
+    cout<<"TABLE = "<<validateTableName<<endl;
     if (isStochastic(con, probCon, attrCon) && attrCon){
         size_t N = stat->pg->getColumnLength(validateTableName, attrCon->attr);
         vector<double> X (N, 0);

@@ -1856,6 +1856,7 @@ SolutionMetadata SummarySearch::stochDualReducer(shared_ptr<StochasticPackageQue
         solve(modelCVaRLP1, solCVaRLP1, xxCVaRLP1.get(), dummyVect, false);
         findUnionDetCVaR2(solDetLP1, solCVaRLP1, solLP1);
     }
+    //if union empty no sol
     double E = calculateE(solLP1);
 
     while (true)

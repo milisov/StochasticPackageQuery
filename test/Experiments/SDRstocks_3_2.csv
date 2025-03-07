@@ -1,0 +1,18 @@
+hardness,SDR-Objective,SDR-feas,SDR-optimal,Z,qSz,Binary Search Steps,Runtime
+-4,26498.3,1,1,1,500,20,325.337
+hardness,SDR-Objective,SDR-feas,SDR-optimal,Z,qSz,Binary Search Steps,Runtime
+-4,26328.2,1,1,1,500,20,283.412
+hardness,SDR-Objective,SDR-feas,SDR-optimal,Z,qSz,Binary Search Steps,Runtime
+-4,26328.2,1,1,1,500,20,350.798
+hardness,SDR-Objective,SDR-feas,SDR-optimal,Z,qSz,Binary Search Steps,Runtime
+-4,26328.2,1,1,1,500,20,266.007
+hardness,SDR-Objective,SDR-feas,SDR-optimal,Z,qSz,Binary Search Steps,Runtime
+-4,26328.2,1,1,1,500,20,341.17
+-3,23813.2,1,1,1,500,20,331.962
+-2,21811.8,1,1,1,500,20,247.065
+-1,19131,1,1,1,500,20,250.576
+0,16865.4,1,1,1,500,20,254.331
+1,13632.9,1,1,1,500,20,246.066
+2,12933.1,1,1,1,500,19,1468.77
+3,10220.4,1,1,4,500,19,3233.26
+4,10344.7,1,1,100,500,19,4986.59

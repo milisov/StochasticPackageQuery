@@ -11,16 +11,14 @@
 #include "solver/Naive.hpp"
 #include "gurobi_c++.h"
 #include <gurobi_c.h>
-#include "nlohmann/json.hpp"
 
 using std::map;
 using std::vector;
-using json = nlohmann::json;
 
 #include "solver/taylor.hpp"
 
 
-void testNaive(string path, int M_input, string outPath)
+void testNaive(string path, int M_input)
 {
 	int M = M_input;
 	int M_hat = 1e6;
@@ -41,7 +39,7 @@ void testNaive(string path, int M_input, string outPath)
 		Bounder bounder(spq, N, E);
 		deb(spq->executable(), spq);
 		std::vector<std::string> headers = {"Hardness", "Naive-objective", "Naive-Feas", "RuntimeNaive"};
-		string output = "/home/fm2288/StochasticPackageQuery/test/Experiments/Naive" + outPath + ".csv";
+		string output = "/home/fm2288/StochasticPackageQuery/test/Experiments/Naive" + path + ".csv";
 		DataWriter writer(output, headers);
 
 		Profiler stopwatchNaive;
@@ -84,7 +82,7 @@ void testNaive(string path, int M_input, string outPath)
 }
 
 
-void testSummarySearch(string path, int M_input, string outPath)
+void testSummarySearch(string path, int M_input)
 {
 	int M = M_input;
 	int M_hat = 1e6;
@@ -115,14 +113,14 @@ void testSummarySearch(string path, int M_input, string outPath)
 		Bounder bounder(spq, N, E);
 		deb(spq->executable(), spq);
 		std::vector<std::string> headers = {"Hardness", "SS-objective", "SS-Feas", "Z", "RuntimeSummarySearch"};
-		string output = "/home/fm2288/StochasticPackageQuery/test/Experiments/SS" + outPath + ".csv";
+		string output = "/home/fm2288/StochasticPackageQuery/test/Experiments/SS" + path + ".csv";
 		DataWriter writer(output, headers);
 
 		Profiler stopwatchSS;
 
 		vector<int> reducedIds;
 		bool reduced = false;
-		for (int h = -4; h <= 4; h = h + 1)
+		for (int h = -4; h <= -4; h = h + 1)
 		{
 			double SSObjective;
 			bool SSFeas;
@@ -146,8 +144,8 @@ void testSummarySearch(string path, int M_input, string outPath)
 				{
 					res[i + 1] = sol.x[i];
 				}
+				SSObjective = Check.getObjective(res);
 				SSFeas = Check.feasible(res);
-				SSObjective = Check.getObjective(res); //we need to change this to validation objective
 				Z = sol.Z;
 			}
 			else
@@ -162,7 +160,7 @@ void testSummarySearch(string path, int M_input, string outPath)
 	}
 }
 
-void testStochDualRed(string path, int M_input, string outPath)
+void testStochDualRed(string path, int M_input)
 {
 	map<string, Option> countConstraintOptions = {
 		{"omit count constraint", true},
@@ -193,8 +191,7 @@ void testStochDualRed(string path, int M_input, string outPath)
 		Bounder bounder(spq, N, E);
 		deb(spq->executable(), spq);
 		std::vector<std::string> headers = {"hardness", "SDR-Objective", "SDR-feas", "SDR-optimal", "Z", "qSz", "Binary Search Steps", "Runtime"};
-		string output = "/home/fm2288/StochasticPackageQuery/test/Experiments/SDR" + outPath + ".csv";
-		cout<<output<<endl;
+		string output = "/home/fm2288/StochasticPackageQuery/test/Experiments/SDR" + path + ".csv";
 		DataWriter writer(output, headers);
 
 		Profiler stopwatchSDR;
@@ -237,139 +234,33 @@ void testStochDualRed(string path, int M_input, string outPath)
 	}
 }
 
-void generateQuerywithHardness(string path, string outPath, int n, int m)
-{
-    string filePath = path;
-    auto spq = parseSpaqlFromFile(filePath);
-
-    if (spq)
-    {
-		string output = "/home/fm2288/StochasticPackageQuery/test/Queries/" + outPath;
-        spq->validate();
-        unique_ptr<Stat> stat = std::make_unique<Stat>();
-        stat->analyze(spq->tableName);
-        size_t N = 10000;
-        double E = 50;
-        Bounder bounder(spq, N, E);
-
-		for (int h = -4; h <= 4; h = h + 1)
-		{
-			bounder.set(h);
-			std::string filename = output + "_" + std::to_string(h) + ".spaql";
-			std::ofstream outFile(filename);
-			
-			if (!outFile) {
-				std::cerr << "Error: Could not open " << filename << " for writing.\n";
-				continue;  // Skip this iteration if file couldn't be opened
-			}
-			std::string queryString = static_cast<std::string>(*spq);
-			outFile << queryString << std::endl;
-			outFile.close();
-			std::cout << "Saved query for h = " << h << " to " << filename << std::endl;
-		}
-		
-    }
-}
-
-void validation(string path)
-{
-    // Open JSON file
-    std::ifstream file(path);
-    if (!file) {
-        std::cerr << "Error: Could not open file!" << std::endl;
-        return;
-    }
-
-    json jsonData;
-    file >> jsonData;
-
-    // Check if jsonData is an array (multiple records) or a single object
-    if (!jsonData.is_array()) {
-        jsonData = json::array({jsonData}); // Wrap single object in an array for uniform processing
-    }
-
-    for (const auto& record : jsonData)
-    {
-        std::cout << "Processing new record..." << std::endl;
-        
-        string query = record["Query"];
-        string dbPath = fmt::format("resource/sqls/_{}.spaql", query);
-        int h = record["Hardness"];
-
-        auto spq = parseSpaqlFromFile(dbPath);
-        if (!spq) {
-            std::cerr << "Error: Could not parse SPARQL file!" << std::endl;
-            continue;
-        }
-
-        spq->validate();
-        unique_ptr<Stat> stat = std::make_unique<Stat>();
-        stat->analyze(spq->tableName);
-        size_t N = 10000;
-        double E = 50;
-        Bounder bounder(spq, N, E);
-        bounder.set(h);
-        deb(spq);
-
-        SPQChecker Check(spq);
-        SolType res;
-        PgManager pg;
-        int nTuples = pg.getTableSize(spq->tableName);
-        std::cout << "Number of Tuples: " << nTuples << std::endl;
-
-        for (int i = 0; i < nTuples; i++) {
-            res[i + 1] = 0;
-        }
-
-
-        for (const auto& [key, value] : record["Package"].items()) 
-		{
-            int intKey = std::stoi(key);
-            res[intKey] = static_cast<int>(value);
-        }
-
-        bool feas = Check.feasible(res);
-        double objective = Check.getObjective(res);
-        std::cout << (feas ? "Validation Feasible Solution" : "Validation Infeasible Solution") << std::endl;
-        std::cout << "Validation Objective = " << objective << std::endl;
-    }
-}
-
 int main(int argc, char* argv[]) {
     if (argc < 4) {
         std::cerr << "Usage: " << argv[0] << " <N> <M> <algorithm>" << std::endl;
         return 1;
     }
-	
-	string path = "/home/fm2288/StochasticPackageQuery/stochastic-sketchrefine/results.json";
-	validation(path);
+
     int N = std::stoi(argv[1]);
     int M = std::stoi(argv[2]);
     std::string algorithm = argv[3];
 
     std::string dbPath = fmt::format("resource/sqls/_stocks_{}_{}.spaql", N, M);
-	std::string outPath = fmt::format("stocks_{}_{}", N, M);
 
     std::cout << "File Path: " << dbPath << std::endl;
     std::cout << "Algorithm: " << algorithm << std::endl;
 
 	if(algorithm == "Naive")
 	{
-		testNaive(dbPath, M, outPath);
+		testNaive(dbPath, M);
 	}else
 	if(algorithm == "SummarySearch")
 	{
-		testSummarySearch(dbPath, M, outPath);
+		testSummarySearch(dbPath, M);
 	}else
 	if(algorithm == "SDR")
 	{
-		testStochDualRed(dbPath, M, outPath);
+		testStochDualRed(dbPath, M);
 	}else
-	if(algorithm == "generate")
-	{
-		generateQuerywithHardness(dbPath, outPath, N, M);
-	}
-	else
 	{
 		cout<<"Please enter a correct algorithm name next time"<<endl;
 	}

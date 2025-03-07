@@ -42,7 +42,7 @@ string StochasticPackageQuery::substitute(const shared_ptr<Constraint>& con, con
 		boundCon->lb = getBound(boundCon->lb);
 		boundCon->ub = getBound(boundCon->ub);
 		res = con->toStr(info);
-		cout<<"INFO: "<<res<<endl;
+		//cout<<"INFO: "<<res<<endl;
 		boundCon->lb = bounds.first;
 		boundCon->ub = bounds.second;
 		return res;
