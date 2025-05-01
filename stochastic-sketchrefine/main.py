@@ -59,7 +59,7 @@ if __name__ == '__main__':
     for tuple in id_lists:
         ids.append(tuple[0])
     iter = 0
-    workload_directory = '/home/fm2288/StochasticPackageQuery/test/Queries/'
+    workload_directory = '/home/fm2288/StochasticPackageQuery/test/Queries/stocks_4_2'
     for file in os.listdir(workload_directory):
         queryNameHardness = re.search(r"(stocks_\d_\d)_(.*).spaql", file)
         queryName = queryNameHardness.group(1)
@@ -68,7 +68,7 @@ if __name__ == '__main__':
             workload_directory + '/' + file, 'r') as f:
             query = Parser().parse(f.readlines())
             SeedManager.reinitialize_seed()
-            #start timer
+            start_time = time.time()
             rclSolve = RCLSolve(
                 query=query, linear_relaxation=False,
                 dbInfo=PortfolioInfo,
@@ -78,61 +78,14 @@ if __name__ == '__main__':
                 sampling_tolerance=0.2,
                 bisection_threshold=0.01,
             )
-            rclSolve.solve(can_add_scenarios = False)
-            #finish solve
-            rclMetrics = rclSolve.get_metrics()
-            rclMetrics.set_query(queryName)
-            rclMetrics.set_hardness(hardness)
-            rclMetrics.log()
-            rclMetrics.log_to_json()
-        break
-            # eval = HardnessEvaluator(
-            #     query=query,
-            #     solver=rclSolve,
-            #     dbInfo=PortfolioInfo,
-            #     validator= Validator(
-            #         query=query, dbInfo=PortfolioInfo,
-            #         no_of_validation_scenarios=10000,
-            #     ),
-            #     foraging_period=2,
-            # )
+        rclSolve.solve(can_add_scenarios = False)
+        end_time = time.time()
 
-            #eval.log_hardness(iter+1, 'Porfolio')
-    #         '''
-    #         lpRcl = RCLSolve(
-    #             query=query, linear_relaxation=True,
-    #             dbInfo=PortfolioInfo,
-    #             init_no_of_scenarios=100,
-    #             no_of_validation_scenarios=1000000,
-    #             approximation_bound=0.02,
-    #             sampling_tolerance=0.20,
-    #             bisection_threshold=0.1,
-    #         )
-    #         lpRcl.solve()
-    #         lpRclMetrics = lpRcl.get_metrics()
-    #         SeedManager.reinitialize_seed()
-    #         start_time = time.time()
-    #         summarySearch = SummarySearch(
-    #             query=query, linear_relaxation=False,
-    #             dbInfo=PortfolioInfo, init_no_of_scenarios=100,
-    #             init_no_of_summaries=1,
-    #             no_of_validation_scenarios=1000000,
-    #             approximation_bound=0.02)
-    #         package, objective_value = summarySearch.solve()
-    #         summarySearch.display_package(package)
-    #         summarySearchMetrics = summarySearch.get_metrics()
-    #         SeedManager.reinitialize_seed()
-    #         lpSummarySearch = SummarySearch(
-    #             query=query, linear_relaxation=True,
-    #             dbInfo=PortfolioInfo, init_no_of_scenarios=100,
-    #             init_no_of_summaries=1,
-    #             no_of_validation_scenarios=1000000,
-    #             approximation_bound=0.02)
-    #         lpSummarySearch.solve()
-    #         lpSearchMetrics = lpSummarySearch.get_metrics()
-    #         '''
-    #         iter += 1
-    #         #rclMetrics.log()
-    #         #summarySearchMetrics.log()
-    #         #lpRclMetrics.log()
-    #         #lpSearchMetrics.log()
+        runtime = end_time - start_time
+        runtime_in_ms = runtime * 1000
+
+        rclMetrics = rclSolve.get_metrics()
+        rclMetrics.set_query(queryName)
+        rclMetrics.set_hardness(hardness)
+        filename = queryName + ".json"
+        rclMetrics.log_to_json(filename, runtime_in_ms)

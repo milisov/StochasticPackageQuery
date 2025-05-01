@@ -1,5 +1,6 @@
 import time
 import json
+import os
 
 class OptimizationMetrics:
 
@@ -75,7 +76,8 @@ class OptimizationMetrics:
         print('Number of scenarios needed:',
               self.__number_of_scenarios_needed)
 
-    def log_to_json(self, filename="results.json"):
+    def log_to_json(self, filename="results.json", runtime_in_ms = None):
+        print(runtime_in_ms)
         data = {
             "Algorithm": self.__algorithm_name,
             "Query": self.__query,
@@ -86,8 +88,25 @@ class OptimizationMetrics:
             "Objective Value": self.__objective_value,
             "Number of Optimization Calls": self.__number_of_optimization_calls,
             "Total Optimizer Runtime": self.__optimizer_runtime,
-            "Number of Scenarios Needed": self.__number_of_scenarios_needed
+            "Number of Scenarios Needed": self.__number_of_scenarios_needed,
+            "Runtime": runtime_in_ms
         }
 
+        # Check if file exists and read existing data
+        if os.path.exists(filename):
+            with open(filename, "r") as json_file:
+                try:
+                    existing_data = json.load(json_file)  # Load existing JSON
+                    if not isinstance(existing_data, list):
+                        existing_data = []  # Ensure it's a list
+                except json.JSONDecodeError:
+                    existing_data = []  # Handle case where file is empty or invalid
+        else:
+            existing_data = []
+
+        # Append new data
+        existing_data.append(data)
+
+        # Write back to file in valid JSON format
         with open(filename, "w") as json_file:
-            json.dump(data, json_file, indent=4)
+            json.dump(existing_data, json_file, indent=4)

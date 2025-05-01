@@ -115,7 +115,7 @@ void testSummarySearch(string path, int M_input, string outPath)
 		Bounder bounder(spq, N, E);
 		deb(spq->executable(), spq);
 		std::vector<std::string> headers = {"Hardness", "SS-objective", "SS-Feas", "Z", "RuntimeSummarySearch"};
-		string output = "/home/fm2288/StochasticPackageQuery/test/Experiments/SS" + outPath + ".csv";
+		string output = "/home/fm2288/StochasticPackageQuery/test/Experiments/SummarySearch/SS" + outPath + ".csv";
 		DataWriter writer(output, headers);
 
 		Profiler stopwatchSS;
@@ -193,7 +193,7 @@ void testStochDualRed(string path, int M_input, string outPath)
 		Bounder bounder(spq, N, E);
 		deb(spq->executable(), spq);
 		std::vector<std::string> headers = {"hardness", "SDR-Objective", "SDR-feas", "SDR-optimal", "Z", "qSz", "Binary Search Steps", "Runtime"};
-		string output = "/home/fm2288/StochasticPackageQuery/test/Experiments/SDR" + outPath + ".csv";
+		string output = "/home/fm2288/StochasticPackageQuery/test/Experiments/SDR/SDR" + outPath + ".csv";
 		cout<<output<<endl;
 		DataWriter writer(output, headers);
 
@@ -244,7 +244,7 @@ void generateQuerywithHardness(string path, string outPath, int n, int m)
 
     if (spq)
     {
-		string output = "/home/fm2288/StochasticPackageQuery/test/Queries/" + outPath;
+		string output = "/home/fm2288/StochasticPackageQuery/test/Queries/" + outPath + "/" + outPath;
         spq->validate();
         unique_ptr<Stat> stat = std::make_unique<Stat>();
         stat->analyze(spq->tableName);
@@ -267,14 +267,15 @@ void generateQuerywithHardness(string path, string outPath, int n, int m)
 			outFile.close();
 			std::cout << "Saved query for h = " << h << " to " << filename << std::endl;
 		}
-		
     }
 }
 
-void validation(string path)
+void validation(string filepath, string outpath)
 {
+	std::vector<std::string> headers = {"hardness", "objective", "feas", "Runtime"};
+	
     // Open JSON file
-    std::ifstream file(path);
+    std::ifstream file(filepath);
     if (!file) {
         std::cerr << "Error: Could not open file!" << std::endl;
         return;
@@ -287,6 +288,10 @@ void validation(string path)
     if (!jsonData.is_array()) {
         jsonData = json::array({jsonData}); // Wrap single object in an array for uniform processing
     }
+	
+	string output = "/home/fm2288/StochasticPackageQuery/test/Experiments/RCL/RCL" + outpath + ".csv";
+	cout<<output<<endl;
+	DataWriter writer(output, headers);
 
     for (const auto& record : jsonData)
     {
@@ -332,6 +337,7 @@ void validation(string path)
         double objective = Check.getObjective(res);
         std::cout << (feas ? "Validation Feasible Solution" : "Validation Infeasible Solution") << std::endl;
         std::cout << "Validation Objective = " << objective << std::endl;
+		writer.addRow(h, objective, feas, record["Runtime"]);
     }
 }
 
@@ -341,8 +347,8 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 	
-	string path = "/home/fm2288/StochasticPackageQuery/stochastic-sketchrefine/results.json";
-	validation(path);
+	// validation(path);
+	// return 1;
     int N = std::stoi(argv[1]);
     int M = std::stoi(argv[2]);
     std::string algorithm = argv[3];
@@ -368,6 +374,11 @@ int main(int argc, char* argv[]) {
 	if(algorithm == "generate")
 	{
 		generateQuerywithHardness(dbPath, outPath, N, M);
+	}else
+	if(algorithm == "validate")
+	{
+		string path = fmt::format("/home/fm2288/StochasticPackageQuery/stochastic-sketchrefine/{}.json", outPath);
+		validation(path ,outPath);
 	}
 	else
 	{
