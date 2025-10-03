@@ -44,7 +44,6 @@ double SPQChecker::getConIndicator(const SolType& sol, shared_ptr<Constraint> co
     shared_ptr<ProbConstraint> probCon;
     shared_ptr<BoundConstraint> boundCon;
     shared_ptr<AttrConstraint> attrCon;
-    cout<<"TABLE = "<<validateTableName<<endl;
     if (isStochastic(con, probCon, attrCon) && attrCon){
         size_t N = stat->pg->getColumnLength(validateTableName, attrCon->attr);
         vector<double> X (N, 0);
@@ -54,12 +53,22 @@ double SPQChecker::getConIndicator(const SolType& sol, shared_ptr<Constraint> co
             for (size_t i = 0; i < N; ++i) X[i] += samples[i]*p.second;
         }
         KDE kde (X, true);
+        int cnt = 0;
         double v = spq->getValue(probCon->v);
+        for(int i = 0; i < X.size(); i++)
+        {
+            if(X[i] >= v)
+            {
+                cnt++;
+            }
+        }
+        deb(cnt, N);
         if (getVar(con)){
             res = kde.getQuickCdf(v);
             if (probCon->vsign == Inequality::gteq) res = 1-res;
         }
     }
+    deb(res);
     if (isDeterministic(con, boundCon, attrCon)){
         if (attrCon){
             auto n = sol.size();
@@ -75,7 +84,7 @@ double SPQChecker::getConIndicator(const SolType& sol, shared_ptr<Constraint> co
     return res;
 }
 
-bool SPQChecker::feasible(const SolType& sol) const{
+bool SPQChecker::feasible(const SolType& sol, double &distance) const{
     for (const auto& p : sol) if (isLess(p.second, 0)) return false;
     if (spq->repeat != StochasticPackageQuery::NO_REPEAT){
         for (const auto& p : sol) if (isGreater(p.second, spq->repeat+1)) return false;
@@ -83,7 +92,36 @@ bool SPQChecker::feasible(const SolType& sol) const{
     auto tableSize = stat->pg->getTableSize(spq->tableName);
     for (const auto& p : sol) if (p.first < 1 || p.first > tableSize) return false;
     for (const auto& con : spq->cons){
-        if (con->isViolate({getConIndicator(sol, con)})) return false;
+        shared_ptr<ProbConstraint>probCon;
+        shared_ptr<AttrConstraint>attrCon;
+        shared_ptr<BoundConstraint>boundCon;
+        if(isStochastic(con, probCon, attrCon))
+        {
+            if(probCon->psign == Inequality::gteq)
+            {
+                distance = getConIndicator(sol, con) - boost::get<double>(spq->getBound(probCon->p));
+            }else 
+            {
+                distance = boost::get<double>(spq->getBound(probCon->p)) - getConIndicator(sol,con);
+            }
+            if(con->isViolate({getConIndicator(sol, con), boost::get<double>(spq->getBound(probCon->p)),boost::get<double>(spq->getBound(probCon->v))})) return false;
+        }else
+        if(isDeterministic(con,boundCon))
+        {
+            double lb = -NEG_INF;
+            double ub = POS_INF;
+            Bound lb_getBound = spq->getBound(boundCon->lb);
+            if(lb_getBound.which() == 1)
+            {
+                lb = boost::get<double>(spq->getBound(lb_getBound));
+            }
+            Bound ub_getBound = spq->getBound(boundCon->ub);
+            if(ub_getBound.which() == 1)
+            {
+                ub = boost::get<double>(spq->getBound(ub_getBound));
+            } 
+            if (con->isViolate({getConIndicator(sol, con), lb, ub})) return false;
+        }
     }
     return true;
 }

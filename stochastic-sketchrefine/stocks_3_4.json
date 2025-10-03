@@ -4,7 +4,7 @@
         "Query": "stocks_3_4",
         "Hardness": -4.0,
         "Linear Relaxation": false,
-        "Runtime": 3899.3754386901855,
+        "Runtime": 4087.8210067749023,
         "Package": {
             "48": 1.0,
             "49": 1.0,
@@ -84,7 +84,7 @@
         },
         "Objective Value": 27199.89745665362,
         "Number of Optimization Calls": 1,
-        "Total Optimizer Runtime": 0.24973464012145996,
+        "Total Optimizer Runtime": 0.21567392349243164,
         "Number of Scenarios Needed": 0
     },
     {
@@ -92,7 +92,7 @@
         "Query": "stocks_3_4",
         "Hardness": -3.0,
         "Linear Relaxation": false,
-        "Runtime": 3880.565404891968,
+        "Runtime": 4466.621398925781,
         "Package": {
             "48": 1.0,
             "49": 1.0,
@@ -172,7 +172,7 @@
         },
         "Objective Value": 25243.850350778233,
         "Number of Optimization Calls": 1,
-        "Total Optimizer Runtime": 0.21836280822753906,
+        "Total Optimizer Runtime": 0.1822826862335205,
         "Number of Scenarios Needed": 0
     },
     {
@@ -180,7 +180,7 @@
         "Query": "stocks_3_4",
         "Hardness": -2.0,
         "Linear Relaxation": false,
-        "Runtime": 3526.9076824188232,
+        "Runtime": 4024.840831756592,
         "Package": {
             "49": 1.0,
             "50": 1.0,
@@ -260,7 +260,7 @@
         },
         "Objective Value": 23112.171360518696,
         "Number of Optimization Calls": 1,
-        "Total Optimizer Runtime": 0.11958861351013184,
+        "Total Optimizer Runtime": 0.08675432205200195,
         "Number of Scenarios Needed": 0
     },
     {
@@ -268,7 +268,7 @@
         "Query": "stocks_3_4",
         "Hardness": -1.0,
         "Linear Relaxation": false,
-        "Runtime": 3962.5024795532227,
+        "Runtime": 4344.261884689331,
         "Package": {
             "50": 1.0,
             "51": 1.0,
@@ -348,7 +348,7 @@
         },
         "Objective Value": 20755.988948884475,
         "Number of Optimization Calls": 1,
-        "Total Optimizer Runtime": 0.16731667518615723,
+        "Total Optimizer Runtime": 0.08292150497436523,
         "Number of Scenarios Needed": 0
     },
     {
@@ -356,7 +356,7 @@
         "Query": "stocks_3_4",
         "Hardness": 0.0,
         "Linear Relaxation": false,
-        "Runtime": 3821.087598800659,
+        "Runtime": 3756.9351196289062,
         "Package": {
             "50": 1.0,
             "51": 1.0,
@@ -436,7 +436,7 @@
         },
         "Objective Value": 18240.373747268048,
         "Number of Optimization Calls": 1,
-        "Total Optimizer Runtime": 0.14617228507995605,
+        "Total Optimizer Runtime": 0.07961535453796387,
         "Number of Scenarios Needed": 0
     },
     {
@@ -444,7 +444,7 @@
         "Query": "stocks_3_4",
         "Hardness": 1.0,
         "Linear Relaxation": false,
-        "Runtime": 3828.2113075256348,
+        "Runtime": 4228.950023651123,
         "Package": {
             "52": 1.0,
             "92": 1.0,
@@ -524,7 +524,7 @@
         },
         "Objective Value": 15799.975984316747,
         "Number of Optimization Calls": 1,
-        "Total Optimizer Runtime": 0.2395939826965332,
+        "Total Optimizer Runtime": 0.17485547065734863,
         "Number of Scenarios Needed": 0
     },
     {
@@ -532,7 +532,7 @@
         "Query": "stocks_3_4",
         "Hardness": 2.0,
         "Linear Relaxation": false,
-        "Runtime": 3786.8542671203613,
+        "Runtime": 3739.6342754364014,
         "Package": {
             "52": 1.0,
             "92": 1.0,
@@ -612,7 +612,7 @@
         },
         "Objective Value": 13654.945688366022,
         "Number of Optimization Calls": 1,
-        "Total Optimizer Runtime": 0.15349531173706055,
+        "Total Optimizer Runtime": 0.09487247467041016,
         "Number of Scenarios Needed": 0
     },
     {
@@ -620,7 +620,7 @@
         "Query": "stocks_3_4",
         "Hardness": 3.0,
         "Linear Relaxation": false,
-        "Runtime": 5332.976341247559,
+        "Runtime": 62857.877254486084,
         "Package": {
             "52": 1.0,
             "92": 1.0,
@@ -700,15 +700,15 @@
         },
         "Objective Value": 11938.82909202369,
         "Number of Optimization Calls": 2,
-        "Total Optimizer Runtime": 0.4531872272491455,
-        "Number of Scenarios Needed": 100
+        "Total Optimizer Runtime": 0.346529483795166,
+        "Number of Scenarios Needed": 10000
     },
     {
         "Algorithm": "RCLSolve",
         "Query": "stocks_3_4",
         "Hardness": 4.0,
         "Linear Relaxation": false,
-        "Runtime": 4861.680746078491,
+        "Runtime": 61977.61511802673,
         "Package": {
             "92": 1.0,
             "93": 1.0,
@@ -788,7 +788,7 @@
         },
         "Objective Value": 10551.00515521239,
         "Number of Optimization Calls": 2,
-        "Total Optimizer Runtime": 0.18730807304382324,
-        "Number of Scenarios Needed": 100
+        "Total Optimizer Runtime": 0.08388328552246094,
+        "Number of Scenarios Needed": 10000
     }
 ]

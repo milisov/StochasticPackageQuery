@@ -1,4 +1,6 @@
 #include <iostream>
+#include "solver/solversCore.hpp"
+#include "spq/naiveformulator.hpp"
 #include "util/udebug.hpp"
 #include "spq/spq.hpp"
 #include "core/stat.hpp"
@@ -9,7 +11,7 @@
 #include "spq/cons.hpp"
 #include <fmt/core.h>
 #include "gurobi_c++.h"
-
+#pragma once
 using namespace std;
 
 
@@ -23,45 +25,53 @@ public:
     Solution(const std::vector<int>& xInit, double W_qinit, bool isFeasibleInit): x(xInit), W_q(W_qinit), isFeasible(isFeasibleInit) {}
 };
 
-class Naive
-{
+class Naive : public Solver {
 private:
-    PgManager pg;
-    double W_q;
-    std::vector<std::vector<double>> innerConstraints;
+    int M_hat;
     std::vector<GRBVar> yy;
     std::vector<GRBGenConstr> genCon;
     std::vector<GRBConstr> sumyCon;
 
 public:
-    GRBEnv env = GRBEnv();
-    GRBModel model = GRBModel(env);
-    std::unique_ptr<GRBVar[]> xx;
-    vector<double>r;
-    int cntScenarios;
-    int M;
-    int M_hat;
-    int NTuples;
-    string DB_optim;
-    string DB_valid;
-    shared_ptr<StochasticPackageQuery> spq;
-    int probConstCnt = 0;
-    Naive(int M = 1e4, int M_hat = 1e6, shared_ptr<StochasticPackageQuery> spq = nullptr);
-    void validate(std::vector<int> &x, shared_ptr<StochasticPackageQuery> spq, int M_hat, string DB_optim);
-    void solve(std::vector<int> &x, GRBVar *xx);
-    Solution solveNaive(shared_ptr<StochasticPackageQuery> spq, int m, int M, int M_hat);
+    Data& data;
+    Naive(std::shared_ptr<StochasticPackageQuery> spq = nullptr) : data(Data::getInstance())
+    {
+        this->spq = spq;
+        this->DB_optim = spq->tableName;
+        this->DB_valid = fmt::format("{}_{}", DB_optim, "validate");
+        this->NTuples = pg.getTableSize(spq->tableName);
+        this->cntScenarios = pg.getColumnLength(spq->tableName, "profit");
+        this->probConstCnt = countProbConst(spq);
+        std::cout << "Success Constructor (Naive)" << std::endl;
+    }
 
-    void formulateSAA();
-    void formCountCons(shared_ptr<Constraint> cons, GRBVar *xx);
-    void formSumCons(shared_ptr<Constraint> cons, GRBVar *xx);
-    void formProbCons(shared_ptr<Constraint> cons, GRBVar *xx);
-    void formExpCons(shared_ptr<Constraint> cons, GRBVar *xx);
-    void formSumObj(shared_ptr<Objective> obj, GRBVar *xx);
-    void formExpSumObj(shared_ptr<Objective> obj, GRBVar *xx);
-    void formCntObj(shared_ptr<Objective> obj, GRBVar *xx);
-
-    double calculateObj(std::vector<int> &x, std::vector<int> &selectIds, shared_ptr<Objective> obj, string DB_optim);
-    double calculateCntObj(std::vector<int> &x, std::vector<int> &selectIds, shared_ptr<CountObjective> cntObj, string DB_optim);
-    double calculateSumObj(std::vector<int> &x, std::vector<int> &selectIds, shared_ptr<AttrObjective> attrObj, string DB_optim);
-    double calculateExpSumObj(std::vector<int> &x, std::vector<int> &selectIds, shared_ptr<AttrObjective> attrObj, string DB_optim);
+    template <typename T>
+    SolutionMetadata<T> solveNaive(shared_ptr<StochasticPackageQuery> spq, FormulateOptions& formOptions)
+    {
+        deb("solveNaive");
+        NaiveFormulator formulator(spq);
+        GRBModel model = formulator.formulate(spq, formOptions);
+        deb("here");
+        vector<int>x;
+        initializeVector(x,NTuples,0);
+        SolveOptions options;
+        options.reduced = formOptions.reduced;
+        options.reducedIds = formOptions.reducedIds;
+        options.computeActiveness = formOptions.computeActiveness;
+        solve(model,x, options);
+        validate(model, x, spq, options);
+        SolutionMetadata<T> sol;
+        if(isFeasible(r))
+        {
+            sol.x = x;
+            sol.isFeasible = true; 
+        }else
+        {
+            sol.x = x;
+            sol.isFeasible = false;
+        }
+        return sol;
+    }
 };
+
+

@@ -664,14 +664,14 @@ class RCLSolve:
             self.__get_objective_value_among_optimization_scenarios(
                 package_with_indices, no_of_scenarios
             )
-        print('Obj value optimization:',
-              objective_value_optimization_scenarios)
+        # print('Obj value optimization:',
+        #       objective_value_optimization_scenarios)
         objective_value_validation_scenarios =\
             self.__validator.get_validation_objective_value(
                 package
             )
-        print('Obj value validation:',
-              objective_value_validation_scenarios)
+        # # print('Obj value validation:',
+        #       objective_value_validation_scenarios)
         diff = objective_value_optimization_scenarios - \
                     objective_value_validation_scenarios
         
@@ -682,7 +682,7 @@ class RCLSolve:
         rel_diff = diff / (objective_value_validation_scenarios
             + 0.00001)
         
-        print('Relative difference:', rel_diff)
+        # print('Relative difference:', rel_diff)
         if rel_diff > self.__sampling_tolerance:
             return True, objective_value_validation_scenarios
         return False, objective_value_validation_scenarios
@@ -696,12 +696,12 @@ class RCLSolve:
 
         if objective.get_objective_type() == \
             ObjectiveType.MAXIMIZATION:
-            print('Objective Value is', objective_value)
-            print('Upper bound is', objective_upper_bound)
-            print('Epsilon is', self.__approximation_bound)
-            print('Objective Value needs to be at least',
-                  (1 - self.__approximation_bound) *
-                    objective_upper_bound)
+            # print('Objective Value is', objective_value)
+            # print('Upper bound is', objective_upper_bound)
+            # print('Epsilon is', self.__approximation_bound)
+            # print('Objective Value needs to be at least',
+            #       (1 - self.__approximation_bound) *
+            #         objective_upper_bound)
             return objective_value >= \
                 (1 - self.__approximation_bound) *\
                     objective_upper_bound
@@ -921,10 +921,10 @@ class RCLSolve:
                     cvar_upper_bounds[ind]) / 2.0
                 )
             
-            print('Bisecting for thresholds')
-            print('CVaR upper bounds:', cvar_upper_bounds)
-            print('CVaR lower bounds:', cvar_lower_bounds)
-            print('CVaR mid thresholds:', cvar_mid_thresholds)
+            # print('Bisecting for thresholds')
+            # print('CVaR upper bounds:', cvar_upper_bounds)
+            # print('CVaR lower bounds:', cvar_lower_bounds)
+            # print('CVaR mid thresholds:', cvar_mid_thresholds)
 
             if not is_model_setup:
                 self.__model_setup(
@@ -949,14 +949,14 @@ class RCLSolve:
                         risk_constraint_index += 1
             
             package = self.__get_package()
-            print('Package:', package)
+            # print('Package:', package)
             if package is None:
                 cvar_lower_bounds = cvar_mid_thresholds
                 continue
             
             package_with_indices = \
                 self.__get_package_with_indices()
-            print('Packages with indices:', package_with_indices)
+            # print('Packages with indices:', package_with_indices)
             
             unacceptable_diff, validation_objective_value = \
                 self.__is_objective_value_relative_diff_high(
@@ -965,7 +965,7 @@ class RCLSolve:
                 )
             
             if unacceptable_diff and can_add_scenarios:
-                print('Unacceptable diff for objective')
+                # print('Unacceptable diff for objective')
                 result = CVaRificationSearchResults()
                 result.set_needs_more_scenarios(True)
                 return result
@@ -984,19 +984,19 @@ class RCLSolve:
                                     no_of_scenarios, constraint
                                 )
                             if unacceptable_diff and can_add_scenarios:
-                                print('Unacceptable diff for cvar')
+                                # print('Unacceptable diff for cvar')
                                 result = CVaRificationSearchResults()
                                 result.set_needs_more_scenarios(True)
                                 return result
                             if self.__is_cvar_constraint_satisfied(
                                 constraint, cvar_validation
                             ):
-                                print('CVaR constraint satisfied')
+                                # print('CVaR constraint satisfied')
                                 all_constraints_violated = False
                                 cvar_lower_bounds[risk_constraint_index] = \
                                     cvar_mid_thresholds[risk_constraint_index]
                             else:
-                                print('CVaR constraint not satisfied')
+                                # print('CVaR constraint not satisfied')
                                 all_constraints_satisfied = False
                                 cvar_upper_bounds[risk_constraint_index] = \
                                     cvar_mid_thresholds[risk_constraint_index]
@@ -1008,19 +1008,19 @@ class RCLSolve:
                                     no_of_scenarios, constraint
                                 )
                             if unacceptable_diff and can_add_scenarios:
-                                print('Unacceptable diff for var')
+                                # print('Unacceptable diff for var')
                                 result = CVaRificationSearchResults()
                                 result.set_needs_more_scenarios(True)
                                 return result
                             if self.__is_var_constraint_satisfied(
                                 constraint, var_validation
                             ):
-                                print('VaR constraint satisfied')
+                                # print('VaR constraint satisfied')
                                 all_constraints_violated = False
                                 cvar_lower_bounds[risk_constraint_index] = \
                                     cvar_mid_thresholds[risk_constraint_index]
                             else:
-                                print('VaR constraint not satisfied')
+                                # print('VaR constraint not satisfied')
                                 all_constraints_satisfied = False
                                 cvar_upper_bounds[risk_constraint_index] = \
                                     cvar_mid_thresholds[risk_constraint_index]
@@ -1038,7 +1038,7 @@ class RCLSolve:
                         return result
                 
                 if all_constraints_violated:
-                    print('All constraints were violated')
+                    # print('All constraints were violated')
                     if self.__query.get_objective().get_objective_type() ==\
                         ObjectiveType.MAXIMIZATION:
 
@@ -1355,8 +1355,8 @@ class RCLSolve:
 
             probabilistically_unconstrained_package = \
                 self.__get_package()
-            print('Probabilistically unconstrained package:',
-                probabilistically_unconstrained_package)
+            # # print('Probabilistically unconstrained package:',
+            #     probabilistically_unconstrained_package)
             if probabilistically_unconstrained_package is None:
                 self.__metrics.end_execution(0, 0)
                 return
@@ -1377,13 +1377,13 @@ class RCLSolve:
 
             no_of_scenarios *= 2
         
-        print('Objective value upper bound:',
-              objective_upper_bound)
+        # print('Objective value upper bound:',
+        #       objective_upper_bound)
 
         if self.__validator.is_package_validation_feasible(
             probabilistically_unconstrained_package):
-            print('Probabilistically unconstrained package'
-                  'is validation feasible')
+            # print('Probabilistically unconstrained package'
+            #       'is validation feasible')
             self.__metrics.end_execution(
                 objective_upper_bound, 0)
             #add the package to the metrics
@@ -1403,13 +1403,13 @@ class RCLSolve:
 
         is_model_setup = False
             
-        print('CVaR upper bounds:', cvar_upper_bounds)
-        print('CVaR lower bounds:', cvar_lower_bounds)
-        print('Min No of Scenarios to consider:',
-                min_no_of_scenarios_to_consider)
-        print('Max no of scenarios to consider:',
-                max_no_of_scenarios_to_consider)
-        print('Trivial constraints:', trivial_constraints)
+        #print('CVaR upper bounds:', cvar_upper_bounds)
+        #print('CVaR lower bounds:', cvar_lower_bounds)
+        # print('Min No of Scenarios to consider:',
+        #         min_no_of_scenarios_to_consider)
+        # print('Max no of scenarios to consider:',
+        #         max_no_of_scenarios_to_consider)
+        # print('Trivial constraints:', trivial_constraints)
 
         init_diff = self.__l_inf(
             cvar_upper_bounds, cvar_lower_bounds)
@@ -1419,13 +1419,13 @@ class RCLSolve:
                 self.__l_inf(min_no_of_scenarios_to_consider,
                                 max_no_of_scenarios_to_consider) >= 1:
             
-            print('CVaR upper bounds:', cvar_upper_bounds)
-            print('CVaR lower bounds:', cvar_lower_bounds)
-            print('Min No of Scenarios to consider:',
-                min_no_of_scenarios_to_consider)
-            print('Max no of scenarios to consider:',
-                max_no_of_scenarios_to_consider)
-            print('Trivial constraints:', trivial_constraints)
+            # print('CVaR upper bounds:', cvar_upper_bounds)
+            # print('CVaR lower bounds:', cvar_lower_bounds)
+            # print('Min No of Scenarios to consider:',
+            #     min_no_of_scenarios_to_consider)
+            # print('Max no of scenarios to consider:',
+            #     max_no_of_scenarios_to_consider)
+            # print('Trivial constraints:', trivial_constraints)
 
             coefficient_search_result = \
                 self.__cvar_coefficient_search(

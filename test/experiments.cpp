@@ -11,6 +11,7 @@
 #include "solver/Naive.hpp"
 #include "gurobi_c++.h"
 #include <gurobi_c.h>
+#include "spq/formulator.hpp"
 
 using std::map;
 using std::vector;
@@ -54,7 +55,18 @@ void testNaive(string path, int M_input)
 
 			string labelNaive = "Naive with Hardness" + std::to_string(h);
 			stopwatchNaive.clock(labelNaive);
-			Solution solu = Nai.solveNaive(Nai.spq, 10, M, M_hat);
+
+			FormulateOptions formOptions;
+			formOptions.reduced = false; 
+
+			DecisionVarOptions decVarOptions;
+			
+			decVarOptions.lb = 0.0;
+			decVarOptions.ub = 1.0;
+			decVarOptions.obj = 0.0;
+			decVarOptions.varType = GrbVarType::Binary;
+			
+			Solution solu = Nai.solveNaive(Nai.spq, 10, M, M_hat, formOptions, decVarOptions);
 			stopwatchNaive.stop(labelNaive);
 			double totalTimeNaive = stopwatchNaive.getTime(labelNaive);
 

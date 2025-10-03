@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <dlib/optimization.h>
+#pragma once
 
 typedef dlib::matrix<double, 1, 1> input_vector;
 typedef dlib::matrix<double, 4, 1> parameter_vector;

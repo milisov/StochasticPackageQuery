@@ -16,7 +16,7 @@ protected:
 public:
     Checker();
     virtual double getObjective(const SolType& sol) const = 0;
-    virtual bool feasible(const SolType& sol) const = 0;
+    virtual bool feasible(const SolType& sol, double &distance) const = 0;
     virtual void display(const SolType& sol) const = 0;
 };
 
@@ -29,7 +29,7 @@ private:
 public:
     SPQChecker(shared_ptr<StochasticPackageQuery> spq);
     double getObjective(const SolType& sol) const override;
-    bool feasible(const SolType& sol) const override;
+    bool feasible(const SolType& sol, double &distance) const override;
     void display(const SolType& sol) const override;
 };
 

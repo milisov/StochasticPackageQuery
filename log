@@ -1,0 +1,817 @@
+CMake Warning (dev) at CMakeLists.txt:5 (enable_language):
+  project() should be called prior to this enable_language() call.
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+-- Using Conan toolchain: /home/fm2288/StochasticPackageQuery/build/Debug/generators/conan_toolchain.cmake
+-- Conan toolchain: C++ Standard 14 with extensions ON
+-- The CXX compiler identification is GNU 13.3.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- The C compiler identification is GNU 13.3.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Conan: Component target declared 'fmt::fmt'
+-- Conan: Component target declared 'libpq::pgport'
+-- Conan: Component target declared 'libpq::pgcommon'
+-- Conan: Component target declared 'libpq::pq'
+-- Conan: Target declared 'PostgreSQL::PostgreSQL'
+-- Conan: Component target declared 'Boost::diagnostic_definitions'
+-- Conan: Component target declared 'Boost::disable_autolinking'
+-- Conan: Component target declared 'Boost::dynamic_linking'
+-- Conan: Component target declared 'Boost::headers'
+-- Conan: Component target declared 'Boost::boost'
+-- Conan: Component target declared 'boost::_libboost'
+-- Conan: Component target declared 'Boost::atomic'
+-- Conan: Component target declared 'Boost::container'
+-- Conan: Component target declared 'Boost::context'
+-- Conan: Component target declared 'Boost::date_time'
+-- Conan: Component target declared 'Boost::exception'
+-- Conan: Component target declared 'Boost::math'
+-- Conan: Component target declared 'Boost::math_c99'
+-- Conan: Component target declared 'Boost::math_c99f'
+-- Conan: Component target declared 'Boost::math_c99l'
+-- Conan: Component target declared 'Boost::math_tr1'
+-- Conan: Component target declared 'Boost::math_tr1f'
+-- Conan: Component target declared 'Boost::math_tr1l'
+-- Conan: Component target declared 'Boost::program_options'
+-- Conan: Component target declared 'Boost::regex'
+-- Conan: Component target declared 'Boost::serialization'
+-- Conan: Component target declared 'Boost::stacktrace'
+-- Conan: Component target declared 'Boost::stacktrace_addr2line'
+-- Conan: Component target declared 'Boost::stacktrace_backtrace'
+-- Conan: Component target declared 'Boost::stacktrace_basic'
+-- Conan: Component target declared 'Boost::stacktrace_noop'
+-- Conan: Component target declared 'Boost::system'
+-- Conan: Component target declared 'Boost::test'
+-- Conan: Component target declared 'Boost::test_exec_monitor'
+-- Conan: Component target declared 'Boost::timer'
+-- Conan: Component target declared 'Boost::url'
+-- Conan: Component target declared 'Boost::wserialization'
+-- Conan: Component target declared 'Boost::chrono'
+-- Conan: Component target declared 'Boost::coroutine'
+-- Conan: Component target declared 'Boost::filesystem'
+-- Conan: Component target declared 'Boost::json'
+-- Conan: Component target declared 'Boost::nowide'
+-- Conan: Component target declared 'Boost::prg_exec_monitor'
+-- Conan: Component target declared 'Boost::random'
+-- Conan: Component target declared 'Boost::thread'
+-- Conan: Component target declared 'Boost::type_erasure'
+-- Conan: Component target declared 'Boost::unit_test_framework'
+-- Conan: Component target declared 'Boost::wave'
+-- Conan: Component target declared 'Boost::contract'
+-- Conan: Component target declared 'Boost::fiber'
+-- Conan: Component target declared 'Boost::fiber_numa'
+-- Conan: Component target declared 'Boost::graph'
+-- Conan: Component target declared 'Boost::iostreams'
+-- Conan: Component target declared 'Boost::locale'
+-- Conan: Component target declared 'Boost::log'
+-- Conan: Component target declared 'Boost::log_setup'
+-- Conan: Target declared 'boost::boost'
+-- Conan: Target declared 'BZip2::BZip2'
+-- Conan: Including build module from '/home/fm2288/.conan2/p/b/bzip26203029aaa844/p/lib/cmake/conan-official-bzip2-variables.cmake'
+-- Conan: Target declared 'libbacktrace::libbacktrace'
+-- Conan: Target declared 'ZLIB::ZLIB'
+-- Conan: Target declared 'pcg-cpp::pcg-cpp'
+-- Conan: Component target declared 'gmp::libgmp'
+-- Conan: Component target declared 'gmp::gmpxx'
+-- Conan: Target declared 'gmp::gmp'
+-- Conan: Component target declared 'TBB::tbb'
+-- Conan: Component target declared 'TBB::tbbmalloc'
+-- Conan: Component target declared 'TBB::tbbmalloc_proxy'
+-- Conan: Target declared 'onetbb::onetbb'
+-- Conan: Target declared 'hwloc::hwloc'
+-- Conan: Target declared 'dlib::dlib'
+-- Conan: Target declared 'GIF::GIF'
+-- Conan: Target declared 'JPEG::JPEG'
+-- Conan: Target declared 'PNG::PNG'
+-- Conan: Component target declared 'WebP::webpdecoder'
+-- Conan: Component target declared 'WebP::sharpyuv'
+-- Conan: Component target declared 'WebP::webp'
+-- Conan: Component target declared 'WebP::webpdemux'
+-- Conan: Component target declared 'WebP::libwebpmux'
+-- Conan: Target declared 'libwebp::libwebp'
+-- Conan: Component target declared 'SQLite::SQLite3'
+-- Conan: Component target declared 'OpenBLAS::pthread'
+-- Conan: Target declared 'OpenBLAS::OpenBLAS'
+-- Conan: Target declared 'nlohmann_json::nlohmann_json'
+-- Found OpenMP_C: -fopenmp (found version "4.5")
+-- Found OpenMP_CXX: -fopenmp (found version "4.5")
+-- Found OpenMP: TRUE (found version "4.5")
+-- Configuring done (2.6s)
+-- Generating done (0.1s)
+-- Build files have been written to: /home/fm2288/StochasticPackageQuery/build/Debug/generators
+[  3%] Building CXX object CMakeFiles/main.dir/src/solver/RobustSatisficing.cpp.o
+[  7%] Building CXX object CMakeFiles/main.dir/src/solver/SummarySearch.cpp.o
+[ 11%] Building CXX object CMakeFiles/main.dir/test/main.cpp.o
+[ 15%] Linking CXX executable main
+[100%] Built target main
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+solve0
+Set parameter Presolve to value 0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 3 rows, 988 columns and 2964 nonzeros
+Model fingerprint: 0xc4e3e140
+Coefficient statistics:
+  Matrix range     [8e-02, 4e+03]
+  Objective range  [9e-04, 2e+03]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0    1.3712502e+05   8.218997e+03   0.000000e+00      0s
+       4    1.3659916e+04   0.000000e+00   0.000000e+00      0s
+
+Solved in 4 iterations and 0.00 seconds (0.00 work units)
+Optimal objective  1.365991635e+04
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 378[0m
+rk = 0.0378
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 383[0m
+W_q = 13659.9
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/RobustSatisficing.cpp, Line 193[0m
+reducedIdsMap = [{51 1110.45} {52 7.20641} {92 373.513} {93 385.015} {94 396.782} {95 408.6} {96 420.49} {97 432.512} {98 444.434} {99 456.194} {100 468.495} {101 480.799} {102 492.743} {103 505.34} {104 0.000865709} {363 1828.33} {364 0.373567} {408 22.0886} {409 22.7252} {410 23.3804} {411 24.0525} {412 24.7153} {413 25.3975} {414 26.101} {415 26.7925} {416 0.517757} {450 24.0254} {451 25.2044} {452 26.0345} {453 27.0417} {454 28.0636} {455 28.8732} {456 29.805} {457 30.8473} {458 32.0845} {459 33.1922} {460 34.1952} {461 35.2787} {462 36.4107} {463 37.1338} {464 38.0034} {465 39.0284} {466 39.7992} {467 40.8279} {468 0.744821} {512 41.5407} {513 42.6852} {514 43.9638} {515 45.3452} {516 46.5792} {517 48.0046} {518 49.413} {519 50.6552} {520 3.56868} {828 5.84573} {829 6.09536} {830 6.34608} {831 6.61241} {832 3.49569} {972 91.7231} {973 95.0366} {974 98.4599} {975 101.223} {976 104.352} {977 107.81} {978 111.866} {979 115.513} {980 118.949} {981 122.562} {982 126.217} {983 128.641} {984 131.548} {985 134.984} {986 137.461} {987 140.775} {988 55.1853}]
+reducedIdsMap.size() = 76
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Iteration: 0 Z = 1 0 10000
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/SummarySearch.hpp, Line 368[0m
+alpha = [0.500005]
+solve0
+Set parameter Presolve to value 0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 993 rows, 991 columns and 5776 nonzeros
+Model fingerprint: 0x65b6768f
+Coefficient statistics:
+  Matrix range     [8e-02, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0      handle free variables                          0s
+     312    2.0150331e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 312 iterations and 0.01 seconds (0.01 work units)
+Optimal objective  2.015033104e-01
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 378[0m
+rk = -0.1144
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 383[0m
+W_q = 0.201503
+Infeasible
+Iteration: 1 Z = 1 0 10000
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/SummarySearch.hpp, Line 368[0m
+alpha = [0.750003]
+solve0
+Set parameter Presolve to value 0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 993 rows, 991 columns and 5764 nonzeros
+Coefficient statistics:
+  Matrix range     [8e-02, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0   -7.7148828e+29   6.638815e+33   7.714883e-01      0s
+
+Solved in 291 iterations and 0.02 seconds (0.02 work units)
+Infeasible model
+Iteration: 2 Z = 1 0 10000
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/SummarySearch.hpp, Line 368[0m
+alpha = [0.625004]
+solve0
+Set parameter Presolve to value 0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 993 rows, 991 columns and 5775 nonzeros
+Coefficient statistics:
+  Matrix range     [8e-02, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0   -2.3716820e+25   4.418640e+30   2.371682e-05      0s
+      96    3.0020885e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 96 iterations and 0.01 seconds (0.01 work units)
+Optimal objective  3.002088527e-01
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 378[0m
+rk = -0.0811
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 383[0m
+W_q = 0.300209
+Infeasible
+Iteration: 3 Z = 1 0 10000
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/SummarySearch.hpp, Line 368[0m
+alpha = [0.687503]
+solve0
+Set parameter Presolve to value 0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 993 rows, 991 columns and 5774 nonzeros
+Coefficient statistics:
+  Matrix range     [8e-02, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0   -1.2371037e+29   1.775472e+33   1.237104e-01      0s
+      52    4.6834896e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 52 iterations and 0.00 seconds (0.01 work units)
+Optimal objective  4.683489595e-01
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 378[0m
+rk = -0.035
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 383[0m
+W_q = 0.468349
+Infeasible
+Iteration: 4 Z = 1 0 10000
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/SummarySearch.hpp, Line 368[0m
+alpha = [0.718753]
+solve0
+Set parameter Presolve to value 0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 993 rows, 991 columns and 5771 nonzeros
+Coefficient statistics:
+  Matrix range     [8e-02, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0   -1.2955749e+27   3.740908e+31   1.295575e-03      0s
+       4    5.2527463e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 4 iterations and 0.00 seconds (0.00 work units)
+Optimal objective  5.252746258e-01
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 378[0m
+rk = -0.0202
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 383[0m
+W_q = 0.525275
+Infeasible
+Iteration: 5 Z = 1 0 10000
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/SummarySearch.hpp, Line 368[0m
+alpha = [0.734378]
+solve0
+Set parameter Presolve to value 0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 993 rows, 991 columns and 5775 nonzeros
+Coefficient statistics:
+  Matrix range     [8e-02, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0   -3.4765415e+28   4.752122e+32   3.476541e-02      0s
+      14    5.7982778e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 14 iterations and 0.00 seconds (0.00 work units)
+Optimal objective  5.798277795e-01
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 378[0m
+rk = -0.0131
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 383[0m
+W_q = 0.579828
+Infeasible
+Iteration: 6 Z = 1 0 10000
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/SummarySearch.hpp, Line 368[0m
+alpha = [0.74219]
+solve0
+Set parameter Presolve to value 0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 993 rows, 991 columns and 5775 nonzeros
+Coefficient statistics:
+  Matrix range     [8e-02, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0   -3.8555343e+27   1.388090e+32   3.855534e-03      0s
+       3    5.8628203e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 3 iterations and 0.00 seconds (0.00 work units)
+Optimal objective  5.862820265e-01
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 378[0m
+rk = -0.0092
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 383[0m
+W_q = 0.586282
+Infeasible
+Iteration: 7 Z = 1 0 10000
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/SummarySearch.hpp, Line 368[0m
+alpha = [0.746096]
+solve0
+Set parameter Presolve to value 0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 993 rows, 991 columns and 5774 nonzeros
+Coefficient statistics:
+  Matrix range     [8e-02, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0   -6.7119859e+27   1.460763e+32   6.711986e-03      0s
+       6    6.0237742e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 6 iterations and 0.00 seconds (0.00 work units)
+Optimal objective  6.023774181e-01
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 378[0m
+rk = -0.0041
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 383[0m
+W_q = 0.602377
+Infeasible
+Iteration: 8 Z = 1 0 10000
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/SummarySearch.hpp, Line 368[0m
+alpha = [0.748049]
+solve0
+Set parameter Presolve to value 0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 993 rows, 991 columns and 5764 nonzeros
+Coefficient statistics:
+  Matrix range     [8e-02, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0   -2.0671031e+29   1.427640e+33   2.067103e-01      0s
+
+Solved in 227 iterations and 0.01 seconds (0.01 work units)
+Infeasible model
+Iteration: 9 Z = 1 0 10000
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/SummarySearch.hpp, Line 368[0m
+alpha = [0.747073]
+solve0
+Set parameter Presolve to value 0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 993 rows, 991 columns and 5774 nonzeros
+Coefficient statistics:
+  Matrix range     [8e-02, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0    6.1256037e-01   6.929429e-01   0.000000e+00      0s
+       2    6.1256980e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 2 iterations and 0.00 seconds (0.00 work units)
+Optimal objective  6.125697953e-01
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 378[0m
+rk = -0.0039
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 383[0m
+W_q = 0.61257
+Infeasible
+Iteration: 10 Z = 1 0 10000
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/SummarySearch.hpp, Line 368[0m
+alpha = [0.747561]
+solve0
+Set parameter Presolve to value 0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 993 rows, 991 columns and 5774 nonzeros
+Coefficient statistics:
+  Matrix range     [8e-02, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0    6.1376856e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 0 iterations and 0.00 seconds (0.00 work units)
+Optimal objective  6.137685640e-01
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 378[0m
+rk = -0.0035
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 383[0m
+W_q = 0.613769
+Infeasible
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/RobustSatisficing.cpp, Line 207[0m
+reducedIds = []
+reducedIdsMap.size() = 76
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Iteration: 0 Z = 500 0 10000
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/SummarySearch.hpp, Line 368[0m
+alpha = [0.500005]
+solve1
+Set parameter Presolve to value 0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 251038 nonzeros
+Model fingerprint: 0x7f83bdce
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+Concurrent LP optimizer: primal simplex, dual simplex, and barrier
+Showing barrier log only...
+
+Ordering time: 0.03s
+
+Barrier statistics:
+ Free vars  : 1
+ AA' NZ     : 5.005e+05
+ Factor NZ  : 5.050e+05 (roughly 5 MB of memory)
+ Factor Ops : 3.381e+08 (less than 1 second per iteration)
+ Threads    : 30
+
+                  Objective                Residual
+Iter       Primal          Dual         Primal    Dual     Compl     Time
+   0   3.56146032e+03 -7.61600000e+02  9.43e+05 0.00e+00  3.56e+02     0s
+   1   3.44086263e+03 -2.21142440e+02  3.72e+04 1.12e-01  2.09e+01     0s
+   2   2.07436768e+03 -5.97293281e+02  8.65e+03 6.18e-03  3.05e+00     0s
+   3   4.84831460e+02 -3.06382826e+02  1.67e+03 3.98e-04  5.96e-01     0s
+   4   1.59635883e+02 -1.77959657e+02  5.33e+02 1.87e-04  2.28e-01     0s
+   5   5.49135102e+01 -6.57154486e+01  1.81e+02 2.80e-05  7.32e-02     0s
+   6   1.05474048e+00 -4.64819772e+01  7.51e-01 1.75e-05  1.94e-02     0s
+   7   9.76053020e-01 -2.05352832e+00  0.00e+00 8.18e-07  1.22e-03     0s
+   8   7.44169831e-01 -1.91259963e+00  0.00e+00 7.15e-07  1.07e-03     0s
+   9   5.42386376e-01 -1.62823585e+00  0.00e+00 6.14e-07  8.77e-04     0s
+  10   4.64506262e-01 -9.50279832e-01  0.00e+00 3.76e-07  5.71e-04     0s
+  11   4.11893239e-01 -6.86960601e-01  0.00e+00 2.93e-07  4.43e-04     0s
+  12   3.73214460e-01 -3.26637358e-01  0.00e+00 1.17e-07  2.81e-04     0s
+  13   3.42825785e-01 -3.45244939e-01  0.00e+00 9.41e-08  2.76e-04     0s
+  14   3.26159997e-01 -1.19310373e-01  0.00e+00 4.71e-08  1.78e-04     0s
+  15   2.17574728e-01 -9.29454427e-02  0.00e+00 3.96e-08  1.24e-04     0s
+  16   2.02788106e-01 -2.54735916e-03  0.00e+00 1.58e-08  8.21e-05     0s
+
+Barrier performed 16 iterations in 0.35 seconds (0.24 work units)
+Barrier solve interrupted - model solved by another algorithm
+
+
+Solved with dual simplex
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+    1085    1.0298875e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 1085 iterations and 0.35 seconds (0.67 work units)
+Optimal objective  1.029887497e-01
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 378[0m
+rk = -0.2439
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 383[0m
+W_q = 0.102989
+Infeasible
+Iteration: 1 Z = 500 0 10000
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/SummarySearch.hpp, Line 368[0m
+alpha = [0.750003]
+solve1
+Set parameter Presolve to value 0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 251827 nonzeros
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0   -5.1527174e+27   4.852991e+32   5.152717e-03      0s
+     303    2.1635043e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 303 iterations and 0.19 seconds (0.42 work units)
+Optimal objective  2.163504348e-01
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 378[0m
+rk = -0.1053
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 383[0m
+W_q = 0.21635
+Infeasible
+Iteration: 2 Z = 500 0 10000
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/SummarySearch.hpp, Line 368[0m
+alpha = [0.875001]
+solve1
+Set parameter Presolve to value 0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 251843 nonzeros
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0   -4.9359070e+28   3.038380e+34   4.935907e-02      0s
+      95    4.4588263e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 95 iterations and 0.08 seconds (0.12 work units)
+Optimal objective  4.458826311e-01
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 378[0m
+rk = -0.0129
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 383[0m
+W_q = 0.445883
+Infeasible
+Iteration: 3 Z = 500 0 10000
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/SummarySearch.hpp, Line 368[0m
+alpha = [0.937501]
+solve1
+Set parameter Presolve to value 0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 251822 nonzeros
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0    5.1837881e-01   6.068765e+03   0.000000e+00      0s
+      53    5.6087800e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 53 iterations and 0.04 seconds (0.06 work units)
+Optimal objective  5.608780032e-01
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 378[0m
+rk = 0.0423
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 383[0m
+W_q = 0.560878
+Feasible
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/RobustSatisficing.cpp, Line 406[0m
+bestRk = 0
+sol.bestRk = 0.0423
+posActivenessRS.size() = 9878
+negActivenessRS.size() = 122
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Iteration: 0 Z = 500 0 10000
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/SummarySearch.hpp, Line 368[0m
+alpha = [0.500005]
+solve1
+Set parameter Presolve to value 0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 250903 nonzeros
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0   -1.4236928e+30   1.865223e+34   1.423693e+00      0s
+    1231    1.6902420e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 1231 iterations and 0.29 seconds (0.81 work units)
+Optimal objective  1.690242029e-01
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 378[0m
+rk = 0.05
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 383[0m
+W_q = 0.169024
+Feasible
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/RobustSatisficing.cpp, Line 406[0m
+bestRk = 0.0423
+sol.bestRk = 0.05
+posActivenessRS.size() = 9878
+negActivenessRS.size() = 122
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Iteration: 0 Z = 500 0 10000
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/SummarySearch.hpp, Line 368[0m
+alpha = [0.500005]
+solve1
+Set parameter Presolve to value 0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 250909 nonzeros
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0   -1.8199196e+30   1.641528e+34   1.819920e+00      0s
+    1103    3.7444883e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 1103 iterations and 0.27 seconds (0.79 work units)
+Optimal objective  3.744488318e-01
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 378[0m
+rk = 0.05
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 383[0m
+W_q = 0.374449
+Feasible
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/RobustSatisficing.cpp, Line 406[0m
+bestRk = 0.05
+sol.bestRk = 0.05
+posActivenessRS.size() = 9878
+negActivenessRS.size() = 122
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Iteration: 0 Z = 500 0 10000
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/SummarySearch.hpp, Line 368[0m
+alpha = [0.500005]
+solve1
+Set parameter Presolve to value 0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 250998 nonzeros
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0   -9.5806655e+29   8.922161e+33   9.580666e-01      0s
+     983    6.1807277e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 983 iterations and 0.21 seconds (0.60 work units)
+Optimal objective  6.180727739e-01
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 378[0m
+rk = 0.05
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 383[0m
+W_q = 0.618073
+Feasible
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/RobustSatisficing.cpp, Line 406[0m
+bestRk = 0.05
+sol.bestRk = 0.05
+posActivenessRS.size() = 9878
+negActivenessRS.size() = 122
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Iteration: 0 Z = 500 0 10000
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/SummarySearch.hpp, Line 368[0m
+alpha = [0.500005]
+solve1
+Set parameter Presolve to value 0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 251066 nonzeros
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0   -8.9684948e+29   3.284892e+34   8.968495e-01      0s
+     956    7.8746773e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 956 iterations and 0.21 seconds (0.60 work units)
+Optimal objective  7.874677265e-01
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 378[0m
+rk = 0.05
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 383[0m
+W_q = 0.787468
+Feasible
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/RobustSatisficing.cpp, Line 406[0m
+bestRk = 0.05
+sol.bestRk = 0.05
+posActivenessRS.size() = 9878
+negActivenessRS.size() = 122
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Iteration: 0 Z = 500 0 10000
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/SummarySearch.hpp, Line 368[0m
+alpha = [0.500005]
+solve1
+Set parameter Presolve to value 0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 250943 nonzeros
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0   -7.6878034e+29   2.519383e+34   7.687803e-01      0s
+    1031    8.8733905e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 1031 iterations and 0.25 seconds (0.71 work units)
+Optimal objective  8.873390548e-01
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 378[0m
+rk = 0.05
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 383[0m
+W_q = 0.887339
+Feasible
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/RobustSatisficing.cpp, Line 406[0m
+bestRk = 0.05
+sol.bestRk = 0.05
+posActivenessRS.size() = 9878
+negActivenessRS.size() = 122
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Iteration: 0 Z = 500 0 10000
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/SummarySearch.hpp, Line 368[0m
+alpha = [0.500005]
+solve1
+Set parameter Presolve to value 0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 251061 nonzeros
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0   -1.0308113e+30   9.507645e+34   1.030811e+00      0s
+     729    9.4260161e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 729 iterations and 0.19 seconds (0.55 work units)
+Optimal objective  9.426016148e-01
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 378[0m
+rk = 0.05
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/solversCore.hpp, Line 383[0m
+W_q = 0.942602
+Feasible
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/RobustSatisficing.cpp, Line 406[0m
+bestRk = 0.05
+sol.bestRk = 0.05
+posActivenessRS.size() = 9878
+negActivenessRS.size() = 122
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Iteration: 0 Z = 500 0 10000
+[31mFile /home/fm2288/StochasticPackageQuery/src/solver/SummarySearch.hpp, Line 368[0m
+alpha = [0.500005]

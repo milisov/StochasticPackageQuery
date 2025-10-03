@@ -12,9 +12,10 @@ BoundConstraint::BoundConstraint(const Bound& lb, const Bound& ub) : lb(lb), ub(
 }
 
 bool BoundConstraint::isViolate(const vector<double>& info) const{
+    deb(info);
     if (!info.size()) return false;
-    if (lb.which() == 1 && isLess(info.front(), boost::get<double>(lb))) return true;
-    if (ub.which() == 1 && isGreater(info.front(), boost::get<double>(ub))) return true;
+    if (isLess(info.front(), info[1])) return true;
+    if (isGreater(info.front(), info[2])) return true;
     return false;
 }
 
@@ -60,11 +61,10 @@ VarConstraint::VarConstraint(const string& attr, const Bound& v, const Bound& p,
 }
 
 bool VarConstraint::isViolate(const vector<double>& info) const{
+    deb(info);
     if (!info.size()) return false;
-    if (p.which() == 1){
-        if (psign == Inequality::gteq && isLess(info.front(), boost::get<double>(p))) return true;
-        if (psign == Inequality::lteq && isGreater(info.front(), boost::get<double>(p))) return true;
-    }
+    if (psign == Inequality::gteq && isLess(info.front(), info[1])) return true;
+    if (psign == Inequality::lteq && isGreater(info.front(), info[1])) return true;
     return false;
 }
 
@@ -80,10 +80,8 @@ CvarConstraint::CvarConstraint(const string& attr, const Bound& v, const Bound& 
 
 bool CvarConstraint::isViolate(const vector<double>& info) const{
     if (!info.size()) return false;
-    if (v.which() == 1){
-        if (vsign == Inequality::gteq && isLess(info.front(), boost::get<double>(v))) return true;
-        if (vsign == Inequality::lteq && isGreater(info.front(), boost::get<double>(v))) return true;
-    }
+    if (vsign == Inequality::gteq && isLess(info.front(),info[2])) return true;
+    if (vsign == Inequality::lteq && isGreater(info.front(), info[2])) return true;
     return false;
 }
 

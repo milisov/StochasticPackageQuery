@@ -49,7 +49,7 @@ if __name__ == '__main__':
     print('Number of partitions:', partitioner.get_no_of_partitions())
     '''
     id_lists = ValueGenerator(
-        relation='stocks_3_2',
+        relation='stocks_3_4',
         base_predicate='',
         attribute='profit'
     ).get_values()
@@ -59,7 +59,7 @@ if __name__ == '__main__':
     for tuple in id_lists:
         ids.append(tuple[0])
     iter = 0
-    workload_directory = '/home/fm2288/StochasticPackageQuery/test/Queries/stocks_4_2'
+    workload_directory = '/home/fm2288/StochasticPackageQuery/test/Queries/stocks_3_4'
     for file in os.listdir(workload_directory):
         queryNameHardness = re.search(r"(stocks_\d_\d)_(.*).spaql", file)
         queryName = queryNameHardness.group(1)
@@ -72,8 +72,8 @@ if __name__ == '__main__':
             rclSolve = RCLSolve(
                 query=query, linear_relaxation=False,
                 dbInfo=PortfolioInfo,
-                init_no_of_scenarios=100,
-                no_of_validation_scenarios=100,
+                init_no_of_scenarios=10000,
+                no_of_validation_scenarios=10000,
                 approximation_bound=0.02,
                 sampling_tolerance=0.2,
                 bisection_threshold=0.01,

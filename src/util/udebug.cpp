@@ -8,6 +8,8 @@ const char* RED = "\033[31m";
 const char* GREEN = "\033[32m";
 const char* RESET = "\033[0m";
 
+Profiler gpro;
+
 Profiler::Profiler(){
 }
 
@@ -36,7 +38,7 @@ void Profiler::print() const{
     for (const auto& cl : clocks){
         auto label = cl.first;
         if (!label.size()) label = "Ø";
-        fmt::println("{}[count={} avg={}ms]", label, cl.second.second, cl.second.first/cl.second.second);
+        fmt::println("{}[count={} avg={}ms, sum = {}ms]", label, cl.second.second, cl.second.first/cl.second.second, cl.second.first);
     }
 }
 

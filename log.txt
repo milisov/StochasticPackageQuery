@@ -1,0 +1,1088 @@
+-- Using Conan toolchain: /home/fm2288/StochasticPackageQuery/build/Debug/generators/conan_toolchain.cmake
+-- Conan toolchain: C++ Standard 14 with extensions ON
+-- The CXX compiler identification is GNU 13.3.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- The C compiler identification is GNU 13.3.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Conan: Component target declared 'fmt::fmt'
+-- Conan: Component target declared 'libpq::pgport'
+-- Conan: Component target declared 'libpq::pgcommon'
+-- Conan: Component target declared 'libpq::pq'
+-- Conan: Target declared 'PostgreSQL::PostgreSQL'
+-- Conan: Component target declared 'Boost::diagnostic_definitions'
+-- Conan: Component target declared 'Boost::disable_autolinking'
+-- Conan: Component target declared 'Boost::dynamic_linking'
+-- Conan: Component target declared 'Boost::headers'
+-- Conan: Component target declared 'Boost::boost'
+-- Conan: Component target declared 'boost::_libboost'
+-- Conan: Component target declared 'Boost::atomic'
+-- Conan: Component target declared 'Boost::container'
+-- Conan: Component target declared 'Boost::context'
+-- Conan: Component target declared 'Boost::date_time'
+-- Conan: Component target declared 'Boost::exception'
+-- Conan: Component target declared 'Boost::math'
+-- Conan: Component target declared 'Boost::math_c99'
+-- Conan: Component target declared 'Boost::math_c99f'
+-- Conan: Component target declared 'Boost::math_c99l'
+-- Conan: Component target declared 'Boost::math_tr1'
+-- Conan: Component target declared 'Boost::math_tr1f'
+-- Conan: Component target declared 'Boost::math_tr1l'
+-- Conan: Component target declared 'Boost::program_options'
+-- Conan: Component target declared 'Boost::regex'
+-- Conan: Component target declared 'Boost::serialization'
+-- Conan: Component target declared 'Boost::stacktrace'
+-- Conan: Component target declared 'Boost::stacktrace_addr2line'
+-- Conan: Component target declared 'Boost::stacktrace_backtrace'
+-- Conan: Component target declared 'Boost::stacktrace_basic'
+-- Conan: Component target declared 'Boost::stacktrace_noop'
+-- Conan: Component target declared 'Boost::system'
+-- Conan: Component target declared 'Boost::test'
+-- Conan: Component target declared 'Boost::test_exec_monitor'
+-- Conan: Component target declared 'Boost::timer'
+-- Conan: Component target declared 'Boost::url'
+-- Conan: Component target declared 'Boost::wserialization'
+-- Conan: Component target declared 'Boost::chrono'
+-- Conan: Component target declared 'Boost::coroutine'
+-- Conan: Component target declared 'Boost::filesystem'
+-- Conan: Component target declared 'Boost::json'
+-- Conan: Component target declared 'Boost::nowide'
+-- Conan: Component target declared 'Boost::prg_exec_monitor'
+-- Conan: Component target declared 'Boost::random'
+-- Conan: Component target declared 'Boost::thread'
+-- Conan: Component target declared 'Boost::type_erasure'
+-- Conan: Component target declared 'Boost::unit_test_framework'
+-- Conan: Component target declared 'Boost::wave'
+-- Conan: Component target declared 'Boost::contract'
+-- Conan: Component target declared 'Boost::fiber'
+-- Conan: Component target declared 'Boost::fiber_numa'
+-- Conan: Component target declared 'Boost::graph'
+-- Conan: Component target declared 'Boost::iostreams'
+-- Conan: Component target declared 'Boost::locale'
+-- Conan: Component target declared 'Boost::log'
+-- Conan: Component target declared 'Boost::log_setup'
+-- Conan: Target declared 'boost::boost'
+-- Conan: Target declared 'BZip2::BZip2'
+-- Conan: Including build module from '/home/fm2288/.conan2/p/b/bzip26203029aaa844/p/lib/cmake/conan-official-bzip2-variables.cmake'
+-- Conan: Target declared 'libbacktrace::libbacktrace'
+-- Conan: Target declared 'ZLIB::ZLIB'
+-- Conan: Target declared 'pcg-cpp::pcg-cpp'
+-- Conan: Component target declared 'gmp::libgmp'
+-- Conan: Component target declared 'gmp::gmpxx'
+-- Conan: Target declared 'gmp::gmp'
+-- Conan: Component target declared 'TBB::tbb'
+-- Conan: Component target declared 'TBB::tbbmalloc'
+-- Conan: Component target declared 'TBB::tbbmalloc_proxy'
+-- Conan: Target declared 'onetbb::onetbb'
+-- Conan: Target declared 'hwloc::hwloc'
+-- Conan: Target declared 'dlib::dlib'
+-- Conan: Target declared 'GIF::GIF'
+-- Conan: Target declared 'JPEG::JPEG'
+-- Conan: Target declared 'PNG::PNG'
+-- Conan: Component target declared 'WebP::webpdecoder'
+-- Conan: Component target declared 'WebP::sharpyuv'
+-- Conan: Component target declared 'WebP::webp'
+-- Conan: Component target declared 'WebP::webpdemux'
+-- Conan: Component target declared 'WebP::libwebpmux'
+-- Conan: Target declared 'libwebp::libwebp'
+-- Conan: Component target declared 'SQLite::SQLite3'
+-- Conan: Component target declared 'OpenBLAS::pthread'
+-- Conan: Target declared 'OpenBLAS::OpenBLAS'
+-- Conan: Target declared 'nlohmann_json::nlohmann_json'
+-- Found OpenMP_C: -fopenmp (found version "4.5")
+-- Found OpenMP_CXX: -fopenmp (found version "4.5")
+-- Found OpenMP: TRUE (found version "4.5")
+-- Configuring done (2.6s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/fm2288/StochasticPackageQuery/build/Debug/generators
+[100%] Built target main
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+solve0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 3 rows, 988 columns and 2964 nonzeros
+Model fingerprint: 0xc4e3e140
+Coefficient statistics:
+  Matrix range     [8e-02, 4e+03]
+  Objective range  [9e-04, 2e+03]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+Presolve removed 1 rows and 0 columns
+Presolve time: 0.00s
+Presolved: 2 rows, 989 columns, 1977 nonzeros
+
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0    1.0538115e+05   3.974720e+03   0.000000e+00      0s
+       4    1.3659916e+04   0.000000e+00   0.000000e+00      0s
+
+Solved in 4 iterations and 0.00 seconds (0.00 work units)
+Optimal objective  1.365991635e+04
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+solve0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 993 rows, 991 columns and 5776 nonzeros
+Model fingerprint: 0x65b6768f
+Coefficient statistics:
+  Matrix range     [8e-02, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+Presolve removed 2 rows and 2 columns
+Presolve time: 0.00s
+Presolved: 991 rows, 990 columns, 4785 nonzeros
+
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0    0.0000000e+00   7.453141e+01   0.000000e+00      0s
+     184    2.0150323e-01   0.000000e+00   0.000000e+00      0s
+
+Use crossover to convert LP symmetric solution to basic solution...
+Crossover log...
+
+       0 DPushes remaining with DInf 0.0000000e+00                 0s
+
+       0 PPushes remaining with PInf 0.0000000e+00                 0s
+
+  Push phase complete: Pinf 0.0000000e+00, Dinf 3.5282649e-16      0s
+
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+     282    2.0150323e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 282 iterations and 0.01 seconds (0.01 work units)
+Optimal objective  2.015032260e-01
+EPSILON = 0
+Infeasible
+1e+07 Good Bound
+solve0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 993 rows, 991 columns and 5771 nonzeros
+Coefficient statistics:
+  Matrix range     [8e-02, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0   -1.0759426e+26   1.416899e+30   1.075943e-04      0s
+     141    5.6780442e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 141 iterations and 0.01 seconds (0.01 work units)
+Optimal objective  5.678044193e-01
+EPSILON = -0.645119
+Infeasible
+1e+07 Good Bound
+solve0
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 993 rows, 991 columns and 5766 nonzeros
+Coefficient statistics:
+  Matrix range     [8e-02, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0   -8.4468374e+29   6.080311e+33   8.446837e-01      0s
+      66    8.5682311e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 66 iterations and 0.00 seconds (0.00 work units)
+Optimal objective  8.568231086e-01
+EPSILON = -0.764825
+Feasible
+1e+07 Good Bound
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+solve1
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 251904 nonzeros
+Model fingerprint: 0xc4d86db2
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+Presolve removed 1 rows and 0 columns
+Presolve time: 0.06s
+Presolved: 1004 rows, 1003 columns, 251405 nonzeros
+
+Concurrent LP optimizer: primal simplex, dual simplex, and barrier
+Showing barrier log only...
+
+Ordering time: 0.02s
+
+Barrier statistics:
+ Free vars  : 1
+ AA' NZ     : 5.004e+05
+ Factor NZ  : 5.040e+05 (roughly 5 MB of memory)
+ Factor Ops : 3.371e+08 (less than 1 second per iteration)
+ Threads    : 30
+
+                  Objective                Residual
+Iter       Primal          Dual         Primal    Dual     Compl     Time
+   0   1.66303544e+03 -7.62825000e+02  4.15e+05 0.00e+00  1.64e+02     0s
+   1   1.60185171e+03 -4.68086082e+02  1.61e+04 5.63e-02  7.70e+00     0s
+   2   8.59100677e+02 -5.02578865e+02  4.00e+03 1.15e-02  1.87e+00     0s
+   3   3.03076714e+02 -2.22686258e+02  9.30e+02 1.05e-03  4.03e-01     0s
+   4   8.60173261e+01 -8.65239809e+01  2.47e+02 1.74e-04  1.11e-01     0s
+   5   9.81789401e-01 -2.64521582e+01  3.10e-06 3.18e-06  1.10e-02     0s
+   6   1.51960059e+00 -2.69484652e+00  1.98e-08 3.60e-07  1.69e-03     0s
+   7   7.75029915e-01 -1.71690237e+00  5.45e-09 2.21e-07  1.00e-03     0s
+   8   6.28774649e-01 -1.06190382e+00  4.37e-09 1.35e-07  6.78e-04     0s
+   9   5.15567304e-01 -7.75303379e-01  3.35e-09 9.88e-08  5.17e-04     0s
+  10   4.06128774e-01 -4.82098121e-01  3.15e-09 6.35e-08  3.56e-04     0s
+  11   3.68444020e-01 -3.82518966e-01  2.54e-09 5.26e-08  3.01e-04     0s
+  12   3.40324219e-01 -2.26495699e-01  1.98e-09 3.13e-08  2.27e-04     0s
+  13   2.58075797e-01 -9.73210625e-02  1.23e-09 1.58e-08  1.42e-04     0s
+  14   2.36722653e-01 -4.34622170e-03  9.90e-10 8.89e-10  9.63e-05     0s
+  15   2.19058614e-01  1.44434681e-02  8.48e-10 8.23e-10  8.17e-05     0s
+  16   2.04865463e-01  2.64854172e-02  7.24e-10 8.58e-10  7.12e-05     0s
+  17   1.79786701e-01  3.89507006e-02  9.07e-10 1.73e-10  5.62e-05     0s
+  18   1.65889158e-01  5.30997850e-02  2.74e-10 2.21e-09  4.50e-05     0s
+
+Barrier performed 18 iterations in 0.38 seconds (0.39 work units)
+Barrier solve interrupted - model solved by another algorithm
+
+
+Solved with dual simplex
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+    1071    1.0284639e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 1071 iterations and 0.42 seconds (0.79 work units)
+Optimal objective  1.028463915e-01
+EPSILON = 0
+Infeasible
+1e+07 Good Bound
+solve1
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 252720 nonzeros
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0   -3.1710057e+27   9.105943e+33   3.171006e-03      0s
+     207    2.5091526e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 207 iterations and 0.15 seconds (0.29 work units)
+Optimal objective  2.509152557e-01
+EPSILON = -0.590115
+Infeasible
+1e+07 Good Bound
+solve1
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 252637 nonzeros
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0   -5.3365696e+29   1.414521e+34   5.336570e-01      0s
+     123    4.2836055e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 123 iterations and 0.10 seconds (0.16 work units)
+Optimal objective  4.283605458e-01
+EPSILON = -0.759907
+Infeasible
+1e+07 Good Bound
+solve1
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 252716 nonzeros
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+LP warm-start: use basis
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+       0   -8.5451242e+28   2.354035e+34   8.545124e-02      0s
+      90    5.3912572e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 90 iterations and 0.07 seconds (0.11 work units)
+Optimal objective  5.391257202e-01
+EPSILON = -0.809235
+Feasible
+1e+07 Good Bound
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+solve1
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 251826 nonzeros
+Model fingerprint: 0x1eb97dd5
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+Presolve removed 1 rows and 0 columns
+Presolve time: 0.07s
+Presolved: 1004 rows, 1003 columns, 251327 nonzeros
+
+Concurrent LP optimizer: primal simplex, dual simplex, and barrier
+Showing barrier log only...
+
+Ordering time: 0.02s
+
+Barrier statistics:
+ Free vars  : 1
+ AA' NZ     : 5.003e+05
+ Factor NZ  : 5.040e+05 (roughly 5 MB of memory)
+ Factor Ops : 3.371e+08 (less than 1 second per iteration)
+ Threads    : 30
+
+                  Objective                Residual
+Iter       Primal          Dual         Primal    Dual     Compl     Time
+   0   1.39937937e+03 -7.64025000e+02  3.48e+05 0.00e+00  1.37e+02     0s
+   1   1.34745188e+03 -5.06918173e+02  1.28e+04 4.70e-02  5.85e+00     0s
+   2   6.14018112e+02 -4.50153442e+02  3.36e+03 8.08e-03  1.35e+00     0s
+   3   1.80361646e+02 -1.88230280e+02  6.93e+02 8.03e-04  2.80e-01     0s
+   4   5.46451715e+01 -7.36027758e+01  1.98e+02 1.79e-04  8.20e-02     0s
+   5   9.69689776e-01 -1.92278988e+01  1.47e+00 3.50e-06  8.23e-03     0s
+   6   1.70830650e+00 -1.87305248e+00  2.06e-06 3.73e-07  1.44e-03     0s
+   7   7.36229328e-01 -1.31227949e+00  7.32e-07 2.39e-07  8.23e-04     0s
+   8   6.30485409e-01 -9.58770965e-01  6.12e-07 1.80e-07  6.38e-04     0s
+   9   5.44318614e-01 -7.16641934e-01  5.17e-07 1.38e-07  5.06e-04     0s
+  10   4.52355127e-01 -5.69101143e-01  3.98e-07 1.13e-07  4.10e-04     0s
+  11   3.94769099e-01 -3.63099525e-01  2.94e-07 8.17e-08  3.04e-04     0s
+  12   3.58486205e-01 -3.04273214e-01  2.34e-07 7.23e-08  2.66e-04     0s
+  13   3.18250276e-01 -5.31242352e-02  1.64e-07 2.16e-08  1.49e-04     0s
+  14   2.97618881e-01 -3.26033083e-02  1.31e-07 1.66e-08  1.32e-04     0s
+  15   2.63119002e-01  4.10314194e-03  7.57e-08 1.32e-08  1.04e-04     0s
+  16   2.51483777e-01  4.50875319e-03  6.87e-08 7.56e-09  9.87e-05     0s
+  17   2.42575077e-01  4.48959207e-02  5.89e-08 6.14e-09  7.90e-05     0s
+  18   2.24164049e-01  8.69476991e-02  3.10e-08 2.36e-09  5.48e-05     0s
+  19   2.22441200e-01  9.25002919e-02  2.88e-08 1.76e-09  5.19e-05     0s
+
+Barrier performed 19 iterations in 0.44 seconds (0.40 work units)
+Barrier solve interrupted - model solved by another algorithm
+
+
+Solved with dual simplex
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+    1057    1.6891106e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 1057 iterations and 0.46 seconds (0.80 work units)
+Optimal objective  1.689110592e-01
+EPSILON = 0
+Feasible
+1e+07 Good Bound
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+solve1
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 251791 nonzeros
+Model fingerprint: 0x6d9b9267
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+Presolve removed 1 rows and 0 columns
+Presolve time: 0.07s
+Presolved: 1004 rows, 1003 columns, 251292 nonzeros
+
+Concurrent LP optimizer: primal simplex, dual simplex, and barrier
+Showing barrier log only...
+
+Ordering time: 0.02s
+
+Barrier statistics:
+ Free vars  : 1
+ AA' NZ     : 5.003e+05
+ Factor NZ  : 5.040e+05 (roughly 5 MB of memory)
+ Factor Ops : 3.371e+08 (less than 1 second per iteration)
+ Threads    : 30
+
+                  Objective                Residual
+Iter       Primal          Dual         Primal    Dual     Compl     Time
+   0   1.40877916e+03 -7.69225000e+02  3.47e+05 0.00e+00  1.39e+02     0s
+   1   1.35780711e+03 -4.98891309e+02  1.79e+04 4.86e-02  6.70e+00     0s
+   2   7.66722953e+02 -5.12511212e+02  5.77e+03 2.26e-02  2.63e+00     0s
+   3   3.83578976e+02 -2.91386779e+02  1.63e+03 1.55e-03  5.91e-01     0s
+   4   1.14189936e+02 -1.13753838e+02  4.49e+02 3.03e-04  1.71e-01     0s
+   5   3.77827374e+01 -4.50391179e+01  1.43e+02 4.86e-05  5.13e-02     0s
+
+Barrier performed 5 iterations in 0.22 seconds (0.21 work units)
+Barrier solve interrupted - model solved by another algorithm
+
+
+Solved with dual simplex
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+     730    3.7302031e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 730 iterations and 0.24 seconds (0.40 work units)
+Optimal objective  3.730203061e-01
+EPSILON = 0
+Feasible
+1e+07 Good Bound
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+solve1
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 251898 nonzeros
+Model fingerprint: 0x3b94c633
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+Presolve removed 1 rows and 0 columns
+Presolve time: 0.06s
+Presolved: 1004 rows, 1003 columns, 251399 nonzeros
+
+Concurrent LP optimizer: primal simplex, dual simplex, and barrier
+Showing barrier log only...
+
+Ordering time: 0.02s
+
+Barrier statistics:
+ Free vars  : 1
+ AA' NZ     : 5.004e+05
+ Factor NZ  : 5.040e+05 (roughly 5 MB of memory)
+ Factor Ops : 3.371e+08 (less than 1 second per iteration)
+ Threads    : 30
+
+                  Objective                Residual
+Iter       Primal          Dual         Primal    Dual     Compl     Time
+   0   1.41032678e+03 -6.84825000e+02  3.79e+05 0.00e+00  1.40e+02     0s
+
+Barrier performed 0 iterations in 0.16 seconds (0.14 work units)
+Barrier solve interrupted - model solved by another algorithm
+
+
+Solved with dual simplex
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+     324    6.1131608e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 324 iterations and 0.18 seconds (0.21 work units)
+Optimal objective  6.113160806e-01
+EPSILON = 0
+Feasible
+1e+07 Good Bound
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+solve1
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 251929 nonzeros
+Model fingerprint: 0x9b2969b1
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+Presolve removed 1 rows and 0 columns
+Presolve time: 0.06s
+Presolved: 1004 rows, 1003 columns, 251430 nonzeros
+
+Concurrent LP optimizer: primal simplex, dual simplex, and barrier
+Showing barrier log only...
+
+Ordering time: 0.02s
+
+Barrier statistics:
+ Free vars  : 1
+ AA' NZ     : 5.004e+05
+ Factor NZ  : 5.040e+05 (roughly 5 MB of memory)
+ Factor Ops : 3.371e+08 (less than 1 second per iteration)
+ Threads    : 30
+
+Barrier performed 0 iterations in 0.14 seconds (0.12 work units)
+Barrier solve interrupted - model solved by another algorithm
+
+
+Solved with dual simplex
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+     283    7.8046607e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 283 iterations and 0.15 seconds (0.18 work units)
+Optimal objective  7.804660705e-01
+EPSILON = 0
+Feasible
+1e+07 Good Bound
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+solve1
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 251941 nonzeros
+Model fingerprint: 0x9724590d
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+Presolve removed 1 rows and 0 columns
+Presolve time: 0.06s
+Presolved: 1004 rows, 1003 columns, 251442 nonzeros
+
+Concurrent LP optimizer: primal simplex, dual simplex, and barrier
+Showing barrier log only...
+
+Ordering time: 0.02s
+
+Barrier statistics:
+ Free vars  : 1
+ AA' NZ     : 5.004e+05
+ Factor NZ  : 5.040e+05 (roughly 5 MB of memory)
+ Factor Ops : 3.371e+08 (less than 1 second per iteration)
+ Threads    : 30
+
+Barrier performed 0 iterations in 0.14 seconds (0.12 work units)
+Barrier solve interrupted - model solved by another algorithm
+
+
+Solved with dual simplex
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+     229    8.8565439e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 229 iterations and 0.15 seconds (0.17 work units)
+Optimal objective  8.856543883e-01
+EPSILON = 0
+Feasible
+1e+07 Good Bound
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+solve1
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 251885 nonzeros
+Model fingerprint: 0xd7060f23
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+Presolve removed 1 rows and 0 columns
+Presolve time: 0.06s
+Presolved: 1004 rows, 1003 columns, 251386 nonzeros
+
+Concurrent LP optimizer: primal simplex, dual simplex, and barrier
+Showing barrier log only...
+
+Ordering time: 0.02s
+
+Barrier statistics:
+ Free vars  : 1
+ AA' NZ     : 5.004e+05
+ Factor NZ  : 5.040e+05 (roughly 5 MB of memory)
+ Factor Ops : 3.371e+08 (less than 1 second per iteration)
+ Threads    : 30
+
+Barrier performed 0 iterations in 0.14 seconds (0.12 work units)
+Barrier solve interrupted - model solved by another algorithm
+
+
+Solved with dual simplex
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+     266    9.4193527e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 266 iterations and 0.15 seconds (0.17 work units)
+Optimal objective  9.419352719e-01
+EPSILON = 0
+Feasible
+1e+07 Good Bound
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+solve1
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 251882 nonzeros
+Model fingerprint: 0x4535c206
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+Presolve removed 1 rows and 0 columns
+Presolve time: 0.06s
+Presolved: 1004 rows, 1003 columns, 251383 nonzeros
+
+Concurrent LP optimizer: primal simplex, dual simplex, and barrier
+Showing barrier log only...
+
+Ordering time: 0.02s
+
+Barrier performed 0 iterations in 0.10 seconds (0.12 work units)
+Barrier solve interrupted - model solved by another algorithm
+
+
+Solved with dual simplex
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+     238    9.7087868e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 238 iterations and 0.12 seconds (0.16 work units)
+Optimal objective  9.708786819e-01
+EPSILON = 0
+Feasible
+1e+07 Good Bound
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+solve1
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 251896 nonzeros
+Model fingerprint: 0xfd2a053a
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+Presolve removed 1 rows and 0 columns
+Presolve time: 0.06s
+Presolved: 1004 rows, 1003 columns, 251397 nonzeros
+
+Concurrent LP optimizer: primal simplex, dual simplex, and barrier
+Showing barrier log only...
+
+Ordering time: 0.02s
+
+Barrier performed 0 iterations in 0.10 seconds (0.12 work units)
+Barrier solve interrupted - model solved by another algorithm
+
+
+Solved with dual simplex
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+     188    9.8538328e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 188 iterations and 0.11 seconds (0.16 work units)
+Optimal objective  9.853832829e-01
+EPSILON = 0
+Feasible
+1e+07 Good Bound
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+solve1
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 251912 nonzeros
+Model fingerprint: 0xdd17a72e
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+Presolve removed 1 rows and 0 columns
+Presolve time: 0.06s
+Presolved: 1004 rows, 1003 columns, 251413 nonzeros
+
+Concurrent LP optimizer: primal simplex, dual simplex, and barrier
+Showing barrier log only...
+
+Ordering time: 0.02s
+
+Barrier performed 0 iterations in 0.10 seconds (0.12 work units)
+Barrier solve interrupted - model solved by another algorithm
+
+
+Solved with dual simplex
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+     188    9.9268656e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 188 iterations and 0.11 seconds (0.16 work units)
+Optimal objective  9.926865642e-01
+EPSILON = 0
+Feasible
+1e+07 Good Bound
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+solve1
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 251920 nonzeros
+Model fingerprint: 0x7e97dc12
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+Presolve removed 1 rows and 0 columns
+Presolve time: 0.06s
+Presolved: 1004 rows, 1003 columns, 251421 nonzeros
+
+Concurrent LP optimizer: primal simplex, dual simplex, and barrier
+Showing barrier log only...
+
+Ordering time: 0.02s
+
+Barrier performed 0 iterations in 0.10 seconds (0.12 work units)
+Barrier solve interrupted - model solved by another algorithm
+
+
+Solved with dual simplex
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+     183    9.9633820e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 183 iterations and 0.11 seconds (0.16 work units)
+Optimal objective  9.963382049e-01
+EPSILON = 0
+Feasible
+1e+07 Good Bound
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+solve1
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 251832 nonzeros
+Model fingerprint: 0x225315d6
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+Presolve removed 1 rows and 0 columns
+Presolve time: 0.07s
+Presolved: 1004 rows, 1003 columns, 251333 nonzeros
+
+Concurrent LP optimizer: primal simplex, dual simplex, and barrier
+Showing barrier log only...
+
+Ordering time: 0.02s
+
+Barrier statistics:
+ Free vars  : 1
+ AA' NZ     : 5.003e+05
+ Factor NZ  : 5.040e+05 (roughly 5 MB of memory)
+ Factor Ops : 3.371e+08 (less than 1 second per iteration)
+ Threads    : 30
+
+Barrier performed 0 iterations in 0.14 seconds (0.12 work units)
+Barrier solve interrupted - model solved by another algorithm
+
+
+Solved with dual simplex
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+     186    9.9816403e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 186 iterations and 0.16 seconds (0.16 work units)
+Optimal objective  9.981640253e-01
+EPSILON = 0
+Feasible
+1e+07 Good Bound
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+solve1
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 251832 nonzeros
+Model fingerprint: 0xbd5591a6
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+Presolve removed 1 rows and 0 columns
+Presolve time: 0.07s
+Presolved: 1004 rows, 1003 columns, 251333 nonzeros
+
+Concurrent LP optimizer: primal simplex, dual simplex, and barrier
+Showing barrier log only...
+
+Ordering time: 0.02s
+
+Barrier performed 0 iterations in 0.11 seconds (0.12 work units)
+Barrier solve interrupted - model solved by another algorithm
+
+
+Solved with dual simplex
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+     185    9.9907965e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 185 iterations and 0.12 seconds (0.16 work units)
+Optimal objective  9.990796519e-01
+EPSILON = 0
+Feasible
+1e+07 Good Bound
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+solve1
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 251847 nonzeros
+Model fingerprint: 0x5bd0af15
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+Presolve removed 1 rows and 0 columns
+Presolve time: 0.07s
+Presolved: 1004 rows, 1003 columns, 251348 nonzeros
+
+Concurrent LP optimizer: primal simplex, dual simplex, and barrier
+Showing barrier log only...
+
+Ordering time: 0.02s
+
+Barrier performed 0 iterations in 0.10 seconds (0.12 work units)
+Barrier solve interrupted - model solved by another algorithm
+
+
+Solved with dual simplex
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+     173    9.9953983e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 173 iterations and 0.12 seconds (0.16 work units)
+Optimal objective  9.995398259e-01
+EPSILON = 0
+Feasible
+1e+07 Good Bound
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+solve1
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 251847 nonzeros
+Model fingerprint: 0x67db0fd3
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+Presolve removed 1 rows and 0 columns
+Presolve time: 0.07s
+Presolved: 1004 rows, 1003 columns, 251348 nonzeros
+
+Concurrent LP optimizer: primal simplex, dual simplex, and barrier
+Showing barrier log only...
+
+Ordering time: 0.02s
+
+Barrier performed 0 iterations in 0.11 seconds (0.12 work units)
+Barrier solve interrupted - model solved by another algorithm
+
+
+Solved with dual simplex
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+     173    9.9976991e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 173 iterations and 0.12 seconds (0.16 work units)
+Optimal objective  9.997699130e-01
+EPSILON = 0
+Feasible
+1e+07 Good Bound
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+solve1
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 251821 nonzeros
+Model fingerprint: 0x7f74261a
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+Presolve removed 1 rows and 0 columns
+Presolve time: 0.06s
+Presolved: 1004 rows, 1003 columns, 251322 nonzeros
+
+Concurrent LP optimizer: primal simplex, dual simplex, and barrier
+Showing barrier log only...
+
+Ordering time: 0.02s
+
+Barrier statistics:
+ Free vars  : 1
+ AA' NZ     : 5.003e+05
+ Factor NZ  : 5.040e+05 (roughly 5 MB of memory)
+ Factor Ops : 3.371e+08 (less than 1 second per iteration)
+ Threads    : 30
+
+Barrier performed 0 iterations in 0.14 seconds (0.12 work units)
+Barrier solve interrupted - model solved by another algorithm
+
+
+Solved with dual simplex
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+     206    9.9988496e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 206 iterations and 0.15 seconds (0.16 work units)
+Optimal objective  9.998849565e-01
+EPSILON = 0
+Feasible
+1e+07 Good Bound
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+solve1
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 1005 rows, 1002 columns and 251821 nonzeros
+Model fingerprint: 0xf7ca8a4f
+Coefficient statistics:
+  Matrix range     [2e-03, 4e+03]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+Presolve removed 1 rows and 0 columns
+Presolve time: 0.06s
+Presolved: 1004 rows, 1003 columns, 251322 nonzeros
+
+Concurrent LP optimizer: primal simplex, dual simplex, and barrier
+Showing barrier log only...
+
+Ordering time: 0.02s
+
+Barrier performed 0 iterations in 0.10 seconds (0.12 work units)
+Barrier solve interrupted - model solved by another algorithm
+
+
+Solved with dual simplex
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+     206    9.9994248e-01   0.000000e+00   0.000000e+00      0s
+
+Solved in 206 iterations and 0.11 seconds (0.16 work units)
+Optimal objective  9.999424782e-01
+EPSILON = 0
+Feasible
+1e+07 Good Bound
+Success Constructor (Naive)
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+solve1
+Gurobi Optimizer version 11.0.0 build v11.0.0rc2 (linux64 - "Ubuntu 24.04.3 LTS")
+
+CPU model: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz, instruction set [SSE2|AVX|AVX2|AVX512]
+Thread count: 80 physical cores, 160 logical processors, using up to 32 threads
+
+Optimize a model with 503 rows, 500 columns and 251500 nonzeros
+Model fingerprint: 0x0d0c41e4
+Variable types: 0 continuous, 500 integer (500 binary)
+Coefficient statistics:
+  Matrix range     [6e-05, 5e+03]
+  Objective range  [3e+00, 2e+03]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [2e+01, 2e+04]
+Found heuristic solution: objective 4224.1379190
+Presolve time: 0.22s
+Presolved: 503 rows, 500 columns, 251500 nonzeros
+Variable types: 0 continuous, 500 integer (500 binary)
+Found heuristic solution: objective 10193.801548
+
+Root relaxation: objective 1.365656e+04, 9 iterations, 0.01 seconds (0.00 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0 13656.5604    0    3 10193.8015 13656.5604  34.0%     -    0s
+H    0     0                    13020.416378 13656.5604  4.89%     -    0s
+H    0     0                    13623.395530 13656.5604  0.24%     -    0s
+     0     0 13651.6562    0    4 13623.3955 13651.6562  0.21%     -    0s
+H    0     0                    13629.076660 13651.6562  0.17%     -    0s
+     0     0 13651.6562    0    3 13629.0767 13651.6562  0.17%     -    0s
+     0     0 13644.0707    0    4 13629.0767 13644.0707  0.11%     -    0s
+H    0     0                    13633.238401 13644.0707  0.08%     -    0s
+     0     0 13643.7961    0    4 13633.2384 13643.7961  0.08%     -    0s
+     0     0 13643.7279    0    6 13633.2384 13643.7279  0.08%     -    0s
+     0     0 13643.7279    0    6 13633.2384 13643.7279  0.08%     -    0s
+H    0     0                    13642.745407 13643.7279  0.01%     -    1s
+
+Cutting planes:
+  Cover: 3
+  MIR: 2
+  RLT: 3
+
+Explored 1 nodes (38 simplex iterations) in 1.03 seconds (0.85 work units)
+Thread count was 32 (of 160 available processors)
+
+Solution count 8: 13642.7 13633.2 13629.1 ... 4224.14
+
+Optimal solution found (tolerance 1.00e-04)
+Best objective 1.364274540746e+04, best bound 1.364302684290e+04, gap 0.0021%

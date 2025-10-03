@@ -152,6 +152,8 @@ public:
 	}
 };
 
+extern Profiler gpro;
+
 #ifdef DEBUG
 #define INIT(pro) Profiler pro
 #define CLK(pro, label) pro.clock(label)
