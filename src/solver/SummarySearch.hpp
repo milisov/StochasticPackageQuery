@@ -3,6 +3,7 @@
 #include "CurveFit.hpp"
 #include "spq/ssformulator.hpp"
 #include "spq/rsformulator.hpp"
+#include <chrono>
 #pragma once
 using namespace std;
 
@@ -123,6 +124,9 @@ public:
     double wBest;
     double epsilonBest;
     bool foundFeasible = false;
+
+    // solution vector x, all alpha_k, indicator if it's feasible or not, objective value Wq
+    std::vector<std::tuple<std::vector<int>, std::vector<double>, bool, double>> bestSolMetadata;
     // alpha_k, r_k pairs for each probCons K
     std::vector<std::vector<pair<double, double>>> curveFitMetadata;
 
@@ -171,7 +175,9 @@ public:
     SolutionMetadata<T> CSASolveBinSearch(GRBModel &model,
                                           std::vector<T> &x,
                                           Formulator &formulator,
-                                          FormulateOptions &formOptions);
+                                          FormulateOptions &formOptions,
+                                          const std::chrono::steady_clock::time_point& start_time,
+                                          double timeout_seconds);
 
     template <typename T>
     SolutionMetadata<T> CSASolveBinSearchRS(Formulator &formulator,
@@ -184,7 +190,10 @@ public:
                   std::vector<int> dummyVect);
 
     template <typename T>
-    SolutionMetadata<T> summarySearch(shared_ptr<StochasticPackageQuery> spq, Formulator &formulator, FormulateOptions &formOptions, map<string, Option> &curveFitOptions, int z);
+    SolutionMetadata<T> summarySearch(shared_ptr<StochasticPackageQuery> spq, Formulator &formulator, 
+        FormulateOptions &formOptions, map<string, Option> &curveFitOptions, int z,
+        const std::chrono::steady_clock::time_point& start_time,
+        double timeout_seconds);
 
     template <typename T>
     SolutionMetadata<T> summarySearchRS(shared_ptr<StochasticPackageQuery> spq, Formulator &formulator,
@@ -195,162 +204,175 @@ public:
                                            std::map<std::string, Option> &curveFitOptions);
 };
 
-// template <typename T>
-// SolutionMetadata<T> SummarySearch::CSASolveBinSearch(GRBModel &model, std::vector<T> &x, Formulator &formulator, FormulateOptions &formOptions)
-// {
-//     SolveOptions options;
-//     BinarySearchMetadata alpha_KMetadata(1e-5, 1.0, 0.0);
-//     std::vector<BinarySearchMetadata> history;
-//     initializeVector(history, probConstCnt, alpha_KMetadata);
-//     std::vector<double> alpha;
-//     initializeVector(alpha, probConstCnt, -1.0);
-//     int q = 0;
-//     int qAfterZequalsM = 0;
+template <typename T>
+SolutionMetadata<T> SummarySearch::CSASolveBinSearch(GRBModel &model, std::vector<T> &x, Formulator &formulator, FormulateOptions &formOptions,
+                                                     const std::chrono::steady_clock::time_point& start_time,
+                                                     double timeout_seconds)
+{
+    deb("solve csa")
+    SolveOptions options;
+    BinarySearchMetadata alpha_KMetadata(1e-5, 1.0, 0.0);
+    std::vector<BinarySearchMetadata> history;
+    initializeVector(history, probConstCnt, alpha_KMetadata);
+    std::vector<double> alpha;
+    initializeVector(alpha, probConstCnt, -1.0);
+    int q = 0;
+    int qAfterZequalsM = 0;
 
-//     SolutionMetadata bestSol(x, 0, 0, false);
+    SolutionMetadata<T> bestSol(x, 0, 0, false);
+    int Z = formOptions.Z;
+    bool partitioned = false;
+    while (true)
+    {
+        cout << "Iteration: " << q << " Z = " << Z << endl;
+        //  validate() -> this will set the rk values, and calculate the Wq
+        if (x.size() > 0)
+        {
+            validate(model, x, this->spq, options);
+            bool isFeas = isFeasible(r);
+            if (q == 0)
+            {
+                W0 = W_q;
+            }
+            // loop through rk values and check if they are all >= 0 -> if true
+            // calculate the e^Q -> if <= epsilon
+            double epsilonQ = calculateEpsilonQ(this->spq, this->W_q, this->W0);
+            cout << "EPSILON = " << epsilonQ << endl;
+            cout << (isFeas ? "Feasible" : "Infeasible") << endl;
+            cout << epsilon << " " << (epsilonQ <= this->epsilon ? "Good Bound" : "Bad Bound") << endl;
 
-//     formulator.partitions.clear();
-//     formulator.reshuffleShuffler(formulator.shuffler);
-//     for(int i = 0; i < formulator.spq->cons.size(); i++)
-//     {
-//         int conOrder = 0;
-//         shared_ptr<ProbConstraint> probCon;
-//         shared_ptr<AttrConstraint> attrCon;
-    
-//         bool isstoch = isStochastic(formulator.spq->cons[i], probCon, attrCon);
-//         if (isstoch)
-//         {
-//             formulator.partition(formOptions.Z, formOptions.innerConstraints[conOrder], formulator.shuffler, formulator.partitions);
-//             conOrder++;
-//         }
-//     }
+            //-> return this solution -> this means update xBest to be equal to X, and set all metadata
+            if (isFeas && epsilonQ <= this->epsilon)
+            {
+                bestSol.setSolution(x, W_q, epsilonQ, true, true, Z);
+                return bestSol;
+            }else if(isFeas && bestSol.isFeasible)
+            {
+                cout<<"Best Solve Before:"<<"rk = "<<bestSol.bestRk<<" objective = "<<bestSol.w<<endl;
+                if(this->W_q > bestSol.w) //abusing maximization
+                {
+                    bestSol.x = x;
+                    bestSol.isFeasible = true;
+                    bestSol.bestRk = r[0];
+                    bestSol.w = this->W_q;
+                    bestSol.Z = Z;
+                    cout<<"Best Solve After:"<<"rk = "<<bestSol.bestRk<<" objective = "<<bestSol.w<<endl;
+                }
+            }else if(isFeas && !bestSol.isFeasible)
+            {
+                cout<<"Best Solve Before:"<<"rk = "<<bestSol.bestRk<<" objective = "<<bestSol.w<<endl;
+                bestSol.x = x;
+                bestSol.isFeasible = true;
+                bestSol.bestRk = r[0];
+                bestSol.w = this->W_q;
+                bestSol.Z = Z;
+                cout<<"Best Solve After:"<<"rk = "<<bestSol.bestRk<<" objective = "<<bestSol.w<<endl;
+            }else if(!isFeas && !bestSol.isFeasible)
+            {
+                cout<<"Best Solve Before:"<<"rk = "<<bestSol.bestRk<<" objective = "<<bestSol.w<<endl;
+                if(r[0] > bestSol.bestRk)
+                {
+                    bestSol.x = x;
+                    bestSol.isFeasible = false;
+                    bestSol.bestRk = r[0];
+                    bestSol.w = this->W_q;
+                    bestSol.Z = Z;
+                    cout<<"Best Solve After:"<<"rk = "<<bestSol.bestRk<<" objective = "<<bestSol.w<<endl;
+                }
+            }
+        }
 
-//     while (true)
-//     {
-//         int Z = formOptions.Z;
-//         // cout << "Iteration: " << q << " Z = " << Z << endl;
-//         //  validate() -> this will set the rk values, and calculate the Wq
-//         if (x.size() > 0)
-//         {
-//             validate(model, x, this->spq, options);
-//             bool isFeas = isFeasible(r);
-//             if (q == 0)
-//             {
-//                 W0 = W_q;
-//             }
-//             // loop through rk values and check if they are all >= 0 -> if true
-//             // calculate the e^Q -> if <= epsilon
-//             double epsilonQ = calculateEpsilonQ(this->spq, this->W_q, this->W0);
-//             // cout << "EPSILON = " << epsilonQ << endl;
-//             // cout << (isFeas ? "Feasible" : "Infeasible") << endl;
-//             // cout << epsilon << " " << (epsilonQ <= this->epsilon ? "Good Bound" : "Bad Bound") << endl;
+        auto current_time = std::chrono::steady_clock::now();
+        double elapsed_seconds = std::chrono::duration<double>(current_time - start_time).count();
+        if (elapsed_seconds > timeout_seconds)
+        {
+            cout<<"TIME OUT HAPPENED"<<endl;
+            return bestSol;
+        }
 
-//             //-> return this solution -> this means update xBest to be equal to X, and set all metadata
-//             if (isFeas && epsilonQ <= this->epsilon)
-//             {
-//                 bestSol.setSolution(x, W_q, epsilonQ, true, true, Z);
-//                 return bestSol;
-//             }
-//             else if (isFeas)
-//             {
-//                 bestSol.setSolution(x, W_q, epsilonQ, false, false, Z);
-//             }
-//         }
+        q = q + 1;
+        if (Z == cntScenarios)
+        {
+            qAfterZequalsM += 1;
+        }
 
-//         q = q + 1;
-//         if (Z == cntScenarios)
-//         {
-//             qAfterZequalsM += 1;
-//         }
-
-//         // call the binary search function with for each constraint
-//         for (int i = 0; i < probConstCnt; i++)
-//         {
-//             int ScenariosLeft = (int)ceil(history[i].low * (this->cntScenarios / Z));
-//             int ScenariosRight = (int)ceil(history[i].high * (this->cntScenarios / Z));
-//             double eps = 1e-3;
-//             if (history[i].high - history[i].low > eps && (Z <= cntScenarios && qAfterZequalsM <= 1))
-//             {
-//                 // cout << "Before call of Binary Search: " << history[i].low << " " << history[i].high << " " << alpha[i] << endl;
-//                 if (alpha[i] != -1.0)
-//                 {
-//                     if (x.size() == 0)
-//                     {
-//                         // the solution is feasible but suboptimal or the system is infeasible -> use less conservative summary
-//                         // cout << "USE LESS CONSERVATIVE" << endl;
-//                         history[i].high = alpha[i];
-//                     }
-//                     else
-//                     {
-//                         if (r[i] < 0)
-//                         {
-//                             // cout << "USE MORE CONSERVATIVE" << endl;
-//                             //  the solution is infeasible -> use more conservative summary
-//                             history[i].low = alpha[i];
-//                         }
-//                         else
-//                         {
-//                             // the solution is feasible but suboptimal or the system is infeasible -> use less conservative summary
-//                             // cout << "USE LESS CONSERVATIVE" << endl;
-//                             history[i].high = alpha[i];
-//                         }
-//                     }
-//                 }
-//                 alpha[i] = history[i].low + (history[i].high - history[i].low) / 2;
-//                 // cout << "After call of Binary Search: " << history[i].low << " " << history[i].high << " " << alpha[i] << endl;
-//             }
-//             else
-//             {
-//                 // cout << "BINARY SEARCH END CONDITION MET" << endl;
-//                 return bestSol;
-//             }
-//         }
-//         formOptions.alpha = alpha;
-//         formOptions.iteration = q;
-//         formOptions.innerConstraints = this->innerConstraints;
-//         GRBModel model = formulator.formulate(spq, formOptions);
-//         model.update();
-//         initializeVector(x, NTuples, T(0));
-//         options.reduced = formOptions.reduced;
-//         options.reducedIds = formOptions.reducedIds;
-//         options.computeActiveness = false;
-//         solve(model, x, options);
-//     }
-// }
+        // call the binary search function with for each constraint
+        for (int i = 0; i < probConstCnt; i++)
+        {
+            int ScenariosLeft = (int)ceil(history[i].low * (this->cntScenarios / Z));
+            int ScenariosRight = (int)ceil(history[i].high * (this->cntScenarios / Z));
+            double eps = 1e-3;
+            if (history[i].high - history[i].low > eps && (Z <= cntScenarios && qAfterZequalsM <= 1))
+            {
+                // cout << "Before call of Binary Search: " << history[i].low << " " << history[i].high << " " << alpha[i] << endl;
+                if (alpha[i] != -1.0)
+                {
+                    if (x.size() == 0)
+                    {
+                        // the solution is feasible but suboptimal or the system is infeasible -> use less conservative summary
+                        // cout << "USE LESS CONSERVATIVE" << endl;
+                        history[i].high = alpha[i];
+                    }
+                    else
+                    {
+                        if (r[i] < 0)
+                        {
+                            // cout << "USE MORE CONSERVATIVE" << endl;
+                            //  the solution is infeasible -> use more conservative summary
+                            history[i].low = alpha[i];
+                        }
+                        else
+                        {
+                            // the solution is feasible but suboptimal or the system is infeasible -> use less conservative summary
+                            // cout << "USE LESS CONSERVATIVE" << endl;
+                            history[i].high = alpha[i];
+                        }
+                    }
+                }
+                alpha[i] = history[i].low + (history[i].high - history[i].low) / 2;
+                // cout << "After call of Binary Search: " << history[i].low << " " << history[i].high << " " << alpha[i] << endl;
+            }
+            else
+            {
+                // cout << "BINARY SEARCH END CONDITION MET" << endl;
+                return bestSol;
+            }
+        }
+        formOptions.alpha = alpha;
+        formOptions.iteration = q;
+        formOptions.innerConstraints = this->innerConstraints;
+        if(partitioned == false)
+        {
+            partitioned = true;
+            formulator.createPartitions(formOptions);
+        }
+        GRBModel model = formulator.formulate(spq, formOptions);
+        model.update();
+        initializeVector(x, NTuples, T(0));
+        options.reduced = formOptions.reduced;
+        options.reducedIds = formOptions.reducedIds;
+        options.computeActiveness = false;
+        solve(model, x, options);
+    }
+}
 
 template <typename T>
 SolutionMetadata<T> SummarySearch::CSASolveBinSearchRS(Formulator &formulator, FormulateOptions &formOptions)
 {
+    double totalTimeSolving = 0.0;
     std::vector<T> x;
     BinarySearchMetadata alpha_KMetadata(1e-5, 1.0, 0.0);
     std::vector<BinarySearchMetadata> history;
     initializeVector(history, probConstCnt, alpha_KMetadata);
     std::vector<double> alpha;
     initializeVector(alpha, probConstCnt, -1.0);
-
     int q = 0;
     int qAfterZequalsM = 0;
-    std::vector<int> vbasis = formOptions.vbasis;
-    std::vector<int> cbasis = formOptions.cbasis;
-    SolutionMetadata bestSol(x, 0, 0);
+    std::vector<int> vbasis;
+    std::vector<int> cbasis;
+    SolutionMetadata bestSol(x, 0, 0, false);
     int Z = formOptions.Z;
-
-
-    formulator.partitions.clear();
-    formulator.reshuffleShuffler(formulator.shuffler);
-    for(int i = 0; i < formulator.spq->cons.size(); i++)
-    {
-        int conOrder = 0;
-        shared_ptr<ProbConstraint> probCon;
-        shared_ptr<AttrConstraint> attrCon;
-    
-        bool isstoch = isStochastic(formulator.spq->cons[i], probCon, attrCon);
-        if (isstoch)
-        {
-            formulator.partition(Z, formOptions.innerConstraints[conOrder], formulator.shuffler, formulator.partitions);
-            conOrder++;
-        }
-    }
+    formulator.createPartitions(formOptions);
     while (true)
     {
         cout << "Iteration: " << q << " Z = " << Z << " "<<qAfterZequalsM << " "<<cntScenarios<<endl;
@@ -365,50 +387,51 @@ SolutionMetadata<T> SummarySearch::CSASolveBinSearchRS(Formulator &formulator, F
             alpha[i] = history[i].low + (history[i].high - history[i].low) / 2;
         }
         formOptions.alpha = alpha;
-        deb(alpha);
         // deb(formOptions.alpha);
         formOptions.iteration = q;
         // formulate the I/LP
         GRBModel model = formulator.formulate(spq, formOptions);
         // optimize and store solution in x
         model.update();
-        //model.write("/home/fm2288/StochasticPackageQuery/src/solver/try+to_str(q).lp");
+        //model.write("/home/fm2288/StochasticPackageQuery/src/solver/try" + to_string(q) +".lp");
         initializeVector(x, NTuples, T(0));
+        // model.write("mod"+to_string(Z)+"_"+to_string(formOptions.iteration)+".lp");
         SolveOptions options;
         options.reduced = formOptions.reduced;
         options.reducedIds = formOptions.reducedIds;
         options.computeActiveness = formOptions.computeActiveness;
+
+        cout<<vbasis.size()<<" "<<cbasis.size()<<endl;
         if (!vbasis.empty() && !cbasis.empty())
         {
             GRBVar *xx = model.getVars();
+            cout<<model.get(GRB_IntAttr_NumVars)<<endl;
             for (size_t i = 0; i < vbasis.size(); ++i)
             {
                 xx[i].set(GRB_IntAttr_VBasis, vbasis[i]);
             }
-            
+            cout<<model.get(GRB_IntAttr_NumConstrs)<<endl;
             GRBConstr *constrs = model.getConstrs();
             for (size_t i = 0; i < cbasis.size(); ++i)
             {
                 constrs[i].set(GRB_IntAttr_CBasis, cbasis[i]);
             }
         }
+        cout<<"solving"<<endl;
         solve(model, x, options);
+
         if (x.size() > 0)
         {
             validate(model, x, this->spq, options);
             formOptions.innerConstraints = this->innerConstraints;
             bool isFeas = isFeasible(r);
-            if (q == 0)
-            {
-                W0 = W_q;
-            }
-            // loop through rk values and check if they are all >= 0 -> if true
             cout << (isFeas ? "Feasible" : "Infeasible") << endl;
 
             //-> return this solution -> this means update xBest to be equal to X, and set all metadata
             if (isFeas)
             {
-                bestSol.setSolution(x, W_q, true, true, Z);
+                bestSol.x = x;
+                bestSol.isFeasible = true;
                 bestSol.bestRk = r[0];
                 bestSol.bestPosActivenessRS = posActivenessRS;
                 bestSol.bestNegActivenessRS = negActivenessRS;
@@ -416,8 +439,8 @@ SolutionMetadata<T> SummarySearch::CSASolveBinSearchRS(Formulator &formulator, F
             }
             else if(r[0] > bestSol.bestRk)
             {
-                //We abuse the fact that we know it's only 1 VaR constr;
-                bestSol.setSolution(x,W_q, false, true, Z);
+                bestSol.x = x;
+                bestSol.isFeasible = false;
                 bestSol.bestRk = r[0];
                 bestSol.bestPosActivenessRS = posActivenessRS;
                 bestSol.bestNegActivenessRS = negActivenessRS;
@@ -441,8 +464,8 @@ SolutionMetadata<T> SummarySearch::CSASolveBinSearchRS(Formulator &formulator, F
             {
                 cbasis[i] = constrs[i].get(GRB_IntAttr_CBasis);
             }
-            formOptions.vbasis = vbasis;
-            formOptions.cbasis = cbasis;
+            // formOptions.vbasis = vbasis;
+            // formOptions.cbasis = cbasis;
         }
 
         for (int i = 0; i < probConstCnt; i++)
@@ -489,63 +512,102 @@ SolutionMetadata<T> SummarySearch::summarySearchRS(shared_ptr<StochasticPackageQ
 {
     std::vector<std::vector<std::vector<double>>> summaries;
     formOptions.M = this->M;
-    bool binSearch = boost::get<bool>(curveFitOptions.at("binarySearch"));
-    bool curveFit = boost::get<bool>(curveFitOptions.at("arctan"));
     std::vector<std::vector<std::pair<int, double>>> innerConstraintsDet = formOptions.innerConstraints;
     SolutionMetadata<T> sol;
     formOptions.innerConstraints = innerConstraintsDet;
     sol = CSASolveBinSearchRS<T>(formulator, formOptions);
-    deb(sol.x);
     return sol;
 }
 
-// template <typename T>
-// SolutionMetadata<T> SummarySearch::summarySearch(shared_ptr<StochasticPackageQuery> spq, Formulator &formulator, FormulateOptions &formOptions, map<string, Option> &curveFitOptions, int z)
-// {
-//     std::vector<std::vector<std::vector<double>>> summaries;
-//     formOptions.M = this->M;
-//     // formulate Deterministic ILP
-//     GRBModel model = formulator.formulate(spq, formOptions); // need to add the right values of formOptions from wherever you are calling summary search
-//     int numConstraints = model.get(GRB_IntAttr_NumConstrs);
-//     // printVariableNames(model);
-//     std::vector<T> x0;
-//     initializeVector(x0, NTuples, T(0));
-//     SolveOptions options;
-//     options.reduced = formOptions.reduced;
-//     options.reducedIds = formOptions.reducedIds;
-//     solve(model, x0, options);
+template <typename T>
+SolutionMetadata<T> SummarySearch::summarySearch(shared_ptr<StochasticPackageQuery> spq, Formulator &formulator, 
+        FormulateOptions &formOptions, map<string, Option> &curveFitOptions, int z,
+        const std::chrono::steady_clock::time_point& start_time,
+        double timeout_seconds)
+{
+    std::vector<std::vector<std::vector<double>>> summaries;
+    formOptions.M = this->M;
+    // formulate Deterministic ILP
+    GRBModel model = formulator.formulate(spq, formOptions); // need to add the right values of formOptions from wherever you are calling summary search
+    int numConstraints = model.get(GRB_IntAttr_NumConstrs);
+    // printVariableNames(model);
+    std::vector<T> x0;
+    initializeVector(x0, NTuples, T(0));
+    SolveOptions options;
+    options.reduced = formOptions.reduced;
+    options.reducedIds = formOptions.reducedIds;
+    solve(model, x0, options);
+    
+    SolutionMetadata bestSol(x0, 0, 0, false);
+    bool binSearch = boost::get<bool>(curveFitOptions.at("binarySearch"));
+    bool curveFit = boost::get<bool>(curveFitOptions.at("arctan"));
 
-//     bool binSearch = boost::get<bool>(curveFitOptions.at("binarySearch"));
-//     bool curveFit = boost::get<bool>(curveFitOptions.at("arctan"));
-
-//     formOptions.Z = 1;
-//     while (true)
-//     {
-//         std::vector<T> x = x0; // copy solution to deterministic
-//         SolutionMetadata<T> sol;
-//         if (binSearch)
-//         {
-//             sol = CSASolveBinSearch(model, x, formulator, formOptions);
-//         }
-//         else
-//         {
-//             // sol = CSASolve(x, M, Z, reducedIds, reduced, cntoptions);
-//         }
-//         if (sol.isFeasible && sol.epsilon <= this->epsilon)
-//         {
-//             return sol;
-//         }
-//         else
-//         {
-//             if (cntScenarios == formOptions.Z)
-//             {
-//                 std::vector<T> xxx;
-//                 SolutionMetadata<T> sol(xxx, 0, 0, false);
-//                 sol.Z = cntScenarios;
-//                 return sol;
-//             }
-//             formOptions.Z = formOptions.Z + min(z, cntScenarios - formOptions.Z);
-//             z = z * 2;
-//         }
-//     }
-// }
+    formOptions.Z = 1;
+    while (true)
+    {
+        std::vector<T> x = x0; // copy solution to deterministic
+        SolutionMetadata<T> sol;
+        if (binSearch)
+        {
+            sol = CSASolveBinSearch(model, x, formulator, formOptions, start_time, timeout_seconds);
+        }
+        else
+        {
+            // sol = CSASolve(x, M, Z, reducedIds, reduced, cntoptions);
+        }
+        if (sol.isFeasible && sol.epsilon <= this->epsilon)
+        {
+            return sol;
+        }
+        else
+        {
+            if(sol.isFeasible && bestSol.isFeasible)
+            {
+                cout<<"SUMMARY SEARCH Best Solve Before:"<<"rk = "<<bestSol.bestRk<<" objective = "<<bestSol.w<<endl;
+                if(this->W_q > bestSol.w) //abusing maximization
+                {
+                    bestSol.x = sol.x;
+                    bestSol.isFeasible = true;
+                    bestSol.bestRk = sol.isFeasible;
+                    bestSol.w = sol.w;
+                    bestSol.Z = sol.Z;
+                    cout<<"SUMMARY SEARCH Best Solve After:"<<"rk = "<<bestSol.bestRk<<" objective = "<<bestSol.w<<endl;
+                }
+            }else if(sol.isFeasible && !bestSol.isFeasible)
+            {
+                cout<<"SUMMARY SEARCH Best Solve Before:"<<"rk = "<<bestSol.bestRk<<" objective = "<<bestSol.w<<endl;
+                bestSol.x = sol.x;
+                bestSol.isFeasible = true;
+                bestSol.bestRk = sol.bestRk;
+                bestSol.w = sol.w;
+                bestSol.Z = sol.Z;
+                cout<<"SUMMARY SEEARCH Best Solve After:"<<"rk = "<<bestSol.bestRk<<" objective = "<<bestSol.w<<endl;
+            }else if(!sol.isFeasible && !bestSol.isFeasible)
+            {
+                cout<<"SUMMARY SEARCH Best Solve Before:"<<"rk = "<<bestSol.bestRk<<" objective = "<<bestSol.w<<endl;
+                if(r[0] > bestSol.bestRk)
+                {
+                    bestSol.x = sol.x;
+                    bestSol.isFeasible = false;
+                    bestSol.bestRk = sol.bestRk;
+                    bestSol.w = sol.w;
+                    bestSol.Z = sol.Z;
+                    cout<<"SUMMARY SEARCH Best Solve After:"<<"rk = "<<bestSol.bestRk<<" objective = "<<bestSol.w<<endl;
+                }
+            }
+            auto current_time = std::chrono::steady_clock::now();
+            double elapsed_seconds = std::chrono::duration<double>(current_time - start_time).count();
+            cout<<"ELAPSED TIME= "<<elapsed_seconds<<" "<<"LIMIT = "<<timeout_seconds<<endl;
+            if (elapsed_seconds > timeout_seconds)
+            {
+                cout<<"TIMEOUT HAPPENED"<<endl;
+                return bestSol;
+            }else if(cntScenarios == formOptions.Z)
+            {
+                return bestSol;
+            }
+            formOptions.Z = formOptions.Z + min(z, cntScenarios - formOptions.Z);
+            z = z * 2;
+        }
+    }
+}

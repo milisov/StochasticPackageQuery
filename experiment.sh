@@ -6,14 +6,18 @@
 N=0
 M=0
 ALGORITHM=""
+H="" # <-- 1. Initialize H with a default (empty string)
 
 # Parse arguments
-while getopts "N:M:a:" opt; do
+# 2. Add 'H:' to the getopts string to recognize the -H flag with a value.
+while getopts "N:M:a:H:" opt; do
   case $opt in
     N) N=$OPTARG ;;
     M) M=$OPTARG ;;
     a) ALGORITHM=$OPTARG ;;
-    *) echo "Usage: $0 -N <number> -M <number> -a <algorithm>"; exit 1 ;;
+    H) H=$OPTARG ;; # <-- 3. Add a case to handle the -H flag
+    # 4. Update the usage message to include the optional [-H] flag.
+    *) echo "Usage: $0 -N <number> -M <number> -a <algorithm> [-H <value>]"; exit 1 ;;
   esac
 done
 
@@ -33,5 +37,7 @@ else
 fi
 cmake --build . --config $BUILD_TYPE
 
-# Run the main executable with the provided arguments  //make a statement if !RCL --> c++, else python script with respective flag
-./main "$N" "$M" "$ALGORITHM"
+# Run the main executable with the provided arguments
+# 5. Pass the new "$H" variable as an argument to your main executable.
+# If -H was not provided, this will pass an empty string "".
+./main "$N" "$M" "$ALGORITHM" "$H"

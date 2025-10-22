@@ -384,6 +384,7 @@ void RSFormulator::formProbCons(GRBModel &model,
     double v = spq->getValue(probCon->v);
     double p = spq->getValue(probCon->p);
     double pZ = ceil(p * Z);
+    deb(p,Z,v);
     GRBVar y[Z];
 
     GRBVar beta = model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, GRB_CONTINUOUS, "beta");
@@ -545,5 +546,6 @@ GRBModel RSFormulator::formulate(shared_ptr<StochasticPackageQuery> spq, Formula
     {
         formulateRS(modelRS, spq, formOptions);
     }
+    deb("formulated");
     return modelRS;
 }

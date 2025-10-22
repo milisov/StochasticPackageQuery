@@ -47,21 +47,19 @@ public:
     bool isOptimal;
     int binarySearchSteps = -1;
     double bestEps;
-    double bestRk = -1e7;
-    std::vector<pair<int, double>> bestPosActivenessRS;
-    std::vector<pair<int, double>> bestNegActivenessRS;
-
     int Z = 0;
     int qSz = 0;
     double timeStage1 = 0.0;
     double timeStage2 = 0.0;
-
+    double bestRk = -1e7;
+    std::vector<pair<int, double>> bestPosActivenessRS;
+    std::vector<pair<int, double>> bestNegActivenessRS;
     // Constructors
     SolutionMetadata() : w(0), epsilon(0), isFeasible(false), isOptimal(false) {}
-    SolutionMetadata(const std::vector<T> &xInit, double wInit, bool isFeasibleInit)
-        : x(xInit), w(wInit), isFeasible(isFeasibleInit), isOptimal(false) {}
+    SolutionMetadata(const std::vector<T> &xInit, double wInit, double epsilonInit, bool isFeasibleInit)
+        : x(xInit), w(wInit), epsilon(epsilonInit), isFeasible(isFeasibleInit), isOptimal(false) {}
 
-    void setSolution(const std::vector<T> &xInit, double w, bool isFeasible, bool isOptimal, int Z)
+    void setSolution(const std::vector<T> &xInit, double w, double epsilon, bool isFeasible, bool isOptimal, int Z)
     {
         x = xInit;
         this->w = w;
@@ -398,23 +396,22 @@ inline void Solver::solve(GRBModel &model, std::vector<T> &x, SolveOptions &opti
 
     if (model.get(GRB_IntAttr_Status) == GRB_INFEASIBLE || model.get(GRB_IntAttr_Status) == GRB_INF_OR_UNBD)
     {
-        // cout << "Initial model is infeasible or unbounded" << std::endl;
+        cout << "Initial model is infeasible or unbounded" << std::endl;
         x.clear();
         return;
     }
     else if (status == GRB_TIME_LIMIT)
     {
-        // std::cout << "Time Limit Expried" << std::endl;
+        std::cout << "Time Limit Expried" << std::endl;
         x.clear();
         return;
     }
     else
     {
-        // std::cout << "Model optimization ended with status: "
-        //  << model.get(GRB_IntAttr_Status) << std::endl;
+         std::cout << "Model optimization ended with status: "<< model.get(GRB_IntAttr_Status) << std::endl;
     }
 
-    // cout << "Solution Found" << endl;
+    cout << "Solution Found" << endl;
 
     GRBVar *xx = model.getVars();
     if (options.reduced)

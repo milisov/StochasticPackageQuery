@@ -80,8 +80,8 @@ struct FormulateOptions{
     bool objCons = false; // if true, we formulate the objective constraint
     bool reduced = false;
     bool reducedScenarios = false;
-    vector< pair<int, double>> posActiveness;
-    vector< pair<int, double>> negActiveness;
+    std::vector<pair<int, double>> posActiveness;
+    std::vector<pair<int, double>> negActiveness;
     bool computeActiveness = false;
     std::vector<int> reducedIds;
     std::vector<std::vector< pair<int, double>>> innerConstraints;
@@ -98,6 +98,7 @@ struct FormulateOptions{
     DecisionVarOptions decisionVarOptions;
     std::vector<int> vbasis; //warmstart 
     std::vector<int> cbasis; //warmstart
+    double p;
 };
 
 void setDecisionVarOptions(DecisionVarOptions &options, double lb, double ub, double obj, GrbVarType GrbVarType);
@@ -107,25 +108,25 @@ void setDecisionVarOptions(DecisionVarOptions &options, double lb, double ub, do
  */
 class Formulator{
 protected:
-GRBEnv env = GRBEnv();
-PgManager pg;
-string DB_optim;
-string DB_valid;
-int NTuples;
-int cntScenarios;
-//needed for partition/summarize
-
-GRBVar addDecisionVar(GRBModel &model, DecisionVarOptions &options);
-
-public:
-    shared_ptr<StochasticPackageQuery> spq;
-    std::vector<int> shuffler;
-    std::vector<std::vector<pair<int, double>>> partitions;
+    GRBEnv env = GRBEnv();
+    PgManager pg;
+    string DB_optim;
+    string DB_valid;
+    int NTuples;
+    int cntScenarios;
+    
+    GRBVar addDecisionVar(GRBModel &model, DecisionVarOptions &options);
+    
+    public:
     double fetchRuntime = 0.0;
+    shared_ptr<StochasticPackageQuery> spq;
+    //needed for partition/summarize
+    std::vector<int> shuffler;
+    std::vector<vector<pair<int, double>>>partitions;
     Data& data; 
     Formulator();
     Formulator(shared_ptr<StochasticPackageQuery> spq);
-
+    
     //Build and return a Gurobi model ready for optimization
     virtual GRBModel formulate(shared_ptr<StochasticPackageQuery> spq, FormulateOptions& FormOptions) = 0;
     
@@ -137,9 +138,10 @@ public:
     void formSumObj(GRBModel &model,shared_ptr<Objective> obj, GRBVar *xx, FormulateOptions& options);
     void formExpSumObj(GRBModel &model,shared_ptr<Objective> obj, GRBVar *xx, FormulateOptions& options);
     void formCntObj(GRBModel &model,shared_ptr<Objective> obj, GRBVar *xx, FormulateOptions& options);    
+    void partition(int Z, std::vector<pair<int, double>> &innerConstraints, std::vector<int> &shuffler);
+    void createPartitions(FormulateOptions& options);
     void reshuffleShuffler(std::vector<int> &shuffler);
     void populateShuffler(std::vector<int> &v);
-    void partition(int Z, std::vector<pair<int, double>> &innerConstraints, std::vector<int> &shuffler, std::vector<std::vector<pair<int, double>>> &partitions);
     std::vector<std::vector<double>> summarize(FormulateOptions &formOptions,
                                                          std::shared_ptr<ProbConstraint> probCon,
                                                          std::shared_ptr<AttrConstraint> attrCon,

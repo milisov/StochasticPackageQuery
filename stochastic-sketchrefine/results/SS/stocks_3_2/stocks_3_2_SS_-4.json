@@ -1,0 +1,15 @@
+[
+    {
+        "Algorithm": "SummarySearch",
+        "Query": "stocks_3_2",
+        "Hardness": -4,
+        "p": null,
+        "Linear Relaxation": false,
+        "Runtime": 204.41818237304688,
+        "Package": [],
+        "Objective Value": 27150.744951121793,
+        "Number of Optimization Calls": 1,
+        "Total Optimizer Runtime": 0.035536766052246094,
+        "Number of Scenarios Needed": 0
+    }
+]

@@ -43,7 +43,7 @@ void printActiveConstraints(GRBModel& model) {
         }
     }
     deb(numConstrs, cnt);
-    delete[] constrs;
+    delete[] constrs;  // cleanup
 }
 
 void saveVector(const vector<int> &vec, const string &filename)
@@ -168,10 +168,11 @@ double loadObjective(const string &filename)
 // }
 
 SolutionMetadata<int> RobustSatisficing::stochasticDualReducer(std::shared_ptr<StochasticPackageQuery> spq,
-                                                               std::map<std::string, Option> &curveFitOptions, double nudge)
+                                                               std::map<std::string, Option> &curveFitOptions)
 {
     RSFormulator formulator(spq);
     DecisionVarOptions decVarOptions;
+    //setDecisionVarOptions(decVarOptions, 0.0, GRB_INFINITY, 0.0, GrbVarType::Continuous);
     setDecisionVarOptions(decVarOptions, 0.0, 1.0, 0.0, GrbVarType::Continuous);
     FormulateOptions formOptions;
     formOptions.decisionVarOptions = decVarOptions;
@@ -210,15 +211,14 @@ SolutionMetadata<int> RobustSatisficing::stochasticDualReducer(std::shared_ptr<S
     finalReduce(reducedIdsMap, finalReducedIds, 500);
     gpro.stop(labelStage1);
 
-    for(auto &it : reducedIdsMap2)
-    {
-        if(reducedIdsMap.find(it.first) == reducedIdsMap.end())
-        {
-            deb("FOUND ID NOT IN REDUCED IDS: " + to_string(it.first));
-        }
-    }
-    formOptions.cbasis.clear();
-    formOptions.vbasis.clear();
+    // for(auto &it : reducedIdsMap2)
+    // {
+    //     if(reducedIdsMap.find(it.first) == reducedIdsMap.end())
+    //     {
+    //         deb("FOUND ID NOT IN REDUCED IDS: " + to_string(it.first));
+    //     }
+    // }
+
     formOptions.qSz = finalReducedIds.size();
     //--------------------- STAGE 2 -----------------------------//
     formOptions.Z = min(cntScenarios, formOptions.qSz);
@@ -232,6 +232,7 @@ SolutionMetadata<int> RobustSatisficing::stochasticDualReducer(std::shared_ptr<S
     formOptions.objCons = true;
     formOptions.reducedIds = finalReducedIds;
     formOptions.reduced = true;
+    //setDecisionVarOptions(decVarOptions, 0.0, GRB_INFINITY, 0.0, GrbVarType::Continuous);
     setDecisionVarOptions(decVarOptions, 0.0, 1.0, 0.0, GrbVarType::Continuous);
     formOptions.decisionVarOptions = decVarOptions;
     formOptions.iteration = 0;
@@ -247,11 +248,18 @@ SolutionMetadata<int> RobustSatisficing::stochasticDualReducer(std::shared_ptr<S
     gpro.stop(labelStage2);
     // ------------------- FINAL ----------------------------//
     formOptions.reduced = true;
-    formOptions.reducedScenarios = true;
+    if(min(cntScenarios, formOptions.qSz) == cntScenarios)
+    {
+        formOptions.reducedScenarios = false;
+    }else
+    {
+        formOptions.reducedScenarios = true;
+    }
     formOptions.posActiveness = this->bestPosActivenessRS;
     formOptions.negActiveness = this->bestNegActivenessRS;
     formOptions.computeActiveness = true;
     formOptions.reducedIds = finalReducedIds;
+    //setDecisionVarOptions(decVarOptions, 0.0, GRB_INFINITY, 0.0, GrbVarType::Integer);
     setDecisionVarOptions(decVarOptions, 0.0, 1.0, 0.0, GrbVarType::Binary);
     formOptions.decisionVarOptions = decVarOptions;
     Naive naiveSolver(spq);
@@ -389,11 +397,12 @@ double RobustSatisficing::findBestObjectiveStage(std::shared_ptr<StochasticPacka
     double low = formOptions.low;
     double high = formOptions.high;
     double eps = 1e-5;
+    double bestRk = -1;
     double best = -1; // a dummy for epsilon,
-    double bestRk = 0;
     while (high - low > eps)
     {
         double mid = low + (high - low) / 2; // <- this is our new epsilon
+        deb(low, mid, high);
         double Z = (1 - mid) * Z0;           // <- this is the new Objective value
         double epsilonStage1 = 1e7;
         formOptions.RS = true;
@@ -403,31 +412,35 @@ double RobustSatisficing::findBestObjectiveStage(std::shared_ptr<StochasticPacka
         RSFormulator formulator(spq);
         SummarySearch SS(M, spq, epsilonStage1);
         SolutionMetadata<double> sol = SS.summarySearchRS<double>(SS.spq, formulator, formOptions, curveFitOptions, 1);
-        deb(bestRk, sol.bestRk, posActivenessRS.size(), negActivenessRS.size());
-        if(sol.isFeasible)
+        totalSystems += (formOptions.iteration + 1);
+        totalSolveTime += SS.timeSolve;
+
+        if (sol.isFeasible)
         {
             best = mid;
             high = mid;
             this->bestPosActivenessRS = sol.bestPosActivenessRS;
             this->bestNegActivenessRS = sol.bestNegActivenessRS;
             bestRk = sol.bestRk;
-        }else
-        if (sol.bestRk > bestRk)
-        {
-            this->bestPosActivenessRS = sol.bestPosActivenessRS;
-            this->bestNegActivenessRS = sol.bestNegActivenessRS;
-            bestRk = sol.bestRk;
         }
         else
         {
+            if(sol.bestRk > bestRk)
+            {
+                this->bestPosActivenessRS = sol.bestPosActivenessRS;
+                this->bestNegActivenessRS = sol.bestNegActivenessRS;
+                bestRk = sol.bestRk;
+                best = mid;
+            }
             low = mid;
         }
     }
-    deb(bestRk, bestPosActivenessRS.size(), bestNegActivenessRS.size());
     if (best == -1)
     {
         best = low + (high - low) / 2;
     }
+    double interval = high - low;
+    deb(totalSystems, totalSolveTime);
     return best;
 }
 

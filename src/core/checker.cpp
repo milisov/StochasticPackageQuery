@@ -52,7 +52,7 @@ double SPQChecker::getConIndicator(const SolType& sol, shared_ptr<Constraint> co
             stat->getSamples(validateTableName, attrCon->attr, p.first, samples);
             for (size_t i = 0; i < N; ++i) X[i] += samples[i]*p.second;
         }
-        KDE kde (X, true);
+        //KDE kde (X, true);
         int cnt = 0;
         double v = spq->getValue(probCon->v);
         for(int i = 0; i < X.size(); i++)
@@ -63,10 +63,12 @@ double SPQChecker::getConIndicator(const SolType& sol, shared_ptr<Constraint> co
             }
         }
         deb(cnt, N);
-        if (getVar(con)){
-            res = kde.getQuickCdf(v);
-            if (probCon->vsign == Inequality::gteq) res = 1-res;
-        }
+        res = (double)cnt / (double)N;
+        deb(res);
+        // if (getVar(con)){
+        //     res = kde.getQuickCdf(v);
+        //     if (probCon->vsign == Inequality::gteq) res = 1-res;
+        // }
     }
     deb(res);
     if (isDeterministic(con, boundCon, attrCon)){
@@ -84,7 +86,7 @@ double SPQChecker::getConIndicator(const SolType& sol, shared_ptr<Constraint> co
     return res;
 }
 
-bool SPQChecker::feasible(const SolType& sol, double &distance) const{
+bool SPQChecker::feasible(const SolType& sol, double &feasScore) const{
     for (const auto& p : sol) if (isLess(p.second, 0)) return false;
     if (spq->repeat != StochasticPackageQuery::NO_REPEAT){
         for (const auto& p : sol) if (isGreater(p.second, spq->repeat+1)) return false;
@@ -97,13 +99,8 @@ bool SPQChecker::feasible(const SolType& sol, double &distance) const{
         shared_ptr<BoundConstraint>boundCon;
         if(isStochastic(con, probCon, attrCon))
         {
-            if(probCon->psign == Inequality::gteq)
-            {
-                distance = getConIndicator(sol, con) - boost::get<double>(spq->getBound(probCon->p));
-            }else 
-            {
-                distance = boost::get<double>(spq->getBound(probCon->p)) - getConIndicator(sol,con);
-            }
+            feasScore = getConIndicator(sol, con);
+            deb(feasScore);
             if(con->isViolate({getConIndicator(sol, con), boost::get<double>(spq->getBound(probCon->p)),boost::get<double>(spq->getBound(probCon->v))})) return false;
         }else
         if(isDeterministic(con,boundCon))

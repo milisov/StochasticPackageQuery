@@ -1,0 +1,6 @@
+SELECT PACKAGE(day, id, price, profit, stock) FROM stocks_5_2 SUCH THAT
+	COUNT(*) BETWEEN 25 AND 75 AND
+	SUM(price) <= 15465.3 AND
+	SUM(profit) >= 105.51 WITH PROBABILITY >= 0.95
+MAXIMIZE EXPECTED SUM(profit)
+

@@ -48,29 +48,38 @@ public:
     template <typename T>
     SolutionMetadata<T> solveNaive(shared_ptr<StochasticPackageQuery> spq, FormulateOptions& formOptions)
     {
-        deb("solveNaive");
-        NaiveFormulator formulator(spq);
-        GRBModel model = formulator.formulate(spq, formOptions);
-        deb("here");
-        vector<int>x;
-        initializeVector(x,NTuples,0);
-        SolveOptions options;
-        options.reduced = formOptions.reduced;
-        options.reducedIds = formOptions.reducedIds;
-        options.computeActiveness = formOptions.computeActiveness;
-        solve(model,x, options);
-        validate(model, x, spq, options);
-        SolutionMetadata<T> sol;
-        if(isFeasible(r))
+        // double low = 0.01;
+        // double high = 0.95;
+        // double mid = high;
+        // double eps = 1e-3;
+
+        double p = 0.95;
+
+        SolutionMetadata<T> bestSol;
+        double bestRk;
+        while(p >= 0.05)
         {
-            sol.x = x;
-            sol.isFeasible = true; 
-        }else
-        {
-            sol.x = x;
-            sol.isFeasible = false;
+            NaiveFormulator formulator(spq);
+            formOptions.p = p;
+            GRBModel model = formulator.formulate(spq, formOptions);        
+            vector<int>x;
+            initializeVector(x,NTuples,0);
+            SolveOptions options;
+            options.reduced = formOptions.reduced;
+            options.reducedIds = formOptions.reducedIds;
+            options.computeActiveness = formOptions.computeActiveness;
+            solve(model,x, options);
+            if(!x.empty())
+            {
+                validate(model, x, spq, options);
+                bestSol.x = x;
+                return bestSol;
+            }else
+            {
+                p -= 0.80;
+            }
         }
-        return sol;
+        return bestSol;
     }
 };
 

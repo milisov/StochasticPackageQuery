@@ -14,8 +14,9 @@ public:
 
     SSFormulator(std::shared_ptr<StochasticPackageQuery> spqPtr): Formulator(spqPtr), model(env), modelDet(env), modelCVaR(env)   // <-- this ensures Formulator's constructor is executed
     {
-        model.set(GRB_IntParam_OutputFlag, 0);
+        //model.set(GRB_IntParam_OutputFlag, 0);
         populateShuffler(shuffler);
+        model.set(GRB_DoubleParam_TimeLimit, 600);
     };
 
     void updateBound(GRBModel& model, double ub);

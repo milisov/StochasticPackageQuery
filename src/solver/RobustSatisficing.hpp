@@ -24,7 +24,7 @@ public:
         this->probConstCnt = countProbConst(spq);
         this->epsilon = epsilon;
     }
-    SolutionMetadata<int> stochasticDualReducer(std::shared_ptr<StochasticPackageQuery> spq, std::map<std::string, Option> &curveFitOptions, double nudge);
+    SolutionMetadata<int> stochasticDualReducer(std::shared_ptr<StochasticPackageQuery> spq, std::map<std::string, Option> &curveFitOptions);
 
     template <typename T>
     SolutionMetadata<T> solveSAA(GRBModel &model, FormulateOptions &formOptions)

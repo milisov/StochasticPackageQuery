@@ -1,0 +1,4 @@
+SELECT PACKAGE(day, id, price, profit, stock) FROM stocks_3_4 SUCH THAT
+	SUM(price) <= 18142.9 AND
+	SUM(profit) >= 5559 WITH PROBABILITY >= 0.88
+MAXIMIZE EXPECTED SUM(profit)

@@ -23,9 +23,16 @@ class OptimizationMetrics:
         self.__package = []
         self.__query = None
         self.__hardness = None
+        self.__p = None
+    
+    def get_optimizer_runtime(self):
+        return self.__optimizer_runtime
 
     def start_execution(self):
        self.__starting_time = time.time()
+
+    def get_package(self):
+        return self.__package
 
     def end_execution(
         self, objective_value, no_of_scenarios
@@ -35,6 +42,7 @@ class OptimizationMetrics:
             time.time() - self.__starting_time
         self.__objective_value = \
             objective_value
+        print("Metrics Objective Value = ", objective_value)
         self.__number_of_scenarios_needed = \
             no_of_scenarios
 
@@ -49,9 +57,11 @@ class OptimizationMetrics:
             is not None
         self.__optimizer_runtime += time.time()\
             - self.__optimizer_starting_time
+        print("Current Optimizer Runtime:",self.__optimizer_runtime)
         self.__number_of_optimization_calls += 1
 
     def set_package(self, res_package):
+        print("Metrics Res Package = ", res_package)
         self.__package = res_package
 
     def set_query(self, q):
@@ -59,6 +69,9 @@ class OptimizationMetrics:
 
     def set_hardness(self, h):
         self.__hardness = h
+    
+    def set_p(self, p):
+        self.__p = p
 
     def log(self):
         print('Algorithm:',
@@ -82,6 +95,7 @@ class OptimizationMetrics:
             "Algorithm": self.__algorithm_name,
             "Query": self.__query,
             "Hardness": self.__hardness,
+            "p": self.__p,
             "Linear Relaxation": self.__linear_relaxation,
             "Runtime": self.__runtime,
             "Package": self.__package,

@@ -29,7 +29,7 @@ private:
 public:
     SPQChecker(shared_ptr<StochasticPackageQuery> spq);
     double getObjective(const SolType& sol) const override;
-    bool feasible(const SolType& sol, double &distance) const override;
+    bool feasible(const SolType& sol, double &feasScore) const override;
     void display(const SolType& sol) const override;
 };
 

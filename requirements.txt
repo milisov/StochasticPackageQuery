@@ -1,6 +1,0 @@
-conan
-numpy
-QuantLib
-configparser
-psycopg2
-matplotlib

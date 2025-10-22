@@ -492,12 +492,32 @@ void Formulator::populateShuffler(std::vector<int> &v)
     }
 }
 
+void Formulator::createPartitions(FormulateOptions &formOptions)
+{
+    int cntProbConst = countProbConst(spq);
+
+    for(int order = 0; order < cntProbConst; order ++)
+    {
+        partition(formOptions.Z, formOptions.innerConstraints[order], shuffler);  
+        for(int i = 0; i < partitions.size(); i++)
+        {
+            for(int j = 0; j < partitions[i].size(); j++)
+            {
+                int id = partitions[i][j].first;
+                //abuse that in innerConstraints id = 0 is always first
+                partitions[i][j].second = formOptions.innerConstraints[order][id].second;
+            }
+        }
+    } 
+}
+
 // get the vector pairs with realizations and scores
 // shuffle them and then find what is partitionSize
 // start from beginning, count partitionSize numbers and add them into a partition
 // once >= partitionSize reset cnt and start new partition add the prev into partitions
-void Formulator::partition(int Z, std::vector<pair<int, double>> &innerConstraints, std::vector<int> &shuffler, std::vector<std::vector<pair<int, double>>> &partitions)
+void Formulator::partition(int Z, std::vector<pair<int, double>> &innerConstraints, std::vector<int> &shuffler)
 {
+    this->partitions.clear();
     int totalLength = innerConstraints.size();
     int baseSize = totalLength / Z;  // minimum size per partition
     int remainder = totalLength % Z; // number of partitions that get +1 element
@@ -527,7 +547,21 @@ std::vector<std::vector<double>> Formulator::summarize(FormulateOptions &formOpt
     std::vector<double> summary;
     initializeVectorForm(summary, NTuples, 0.0);
     initializeVectorForm(summaries, formOptions.Z, summary);
-    //std::vector<std::vector<pair<int, double>>> partitions;
+
+    int cntProbConst = countProbConst(spq);
+    for(int order = 0; order < cntProbConst; order ++)
+    {
+        for(int i = 0; i < partitions.size(); i++)
+        {
+            for(int j = 0; j < partitions[i].size(); j++)
+            {
+                int id = partitions[i][j].first;
+                //abuse that in innerConstraints id = 0 is always first
+                partitions[i][j].second = formOptions.innerConstraints[order][id].second;
+            }
+        }
+    } 
+
     for (int i = 0; i < formOptions.Z; i++)
     {
         if (probCon->vsign == Inequality::gteq) //>= min summary
@@ -540,8 +574,6 @@ std::vector<std::vector<double>> Formulator::summarize(FormulateOptions &formOpt
         }
     }
     gpro.stop("sort");
-    bool init;
-    double timeNotFetching = 0.0;
     auto &scenarios = data.stochAttrs[attrCon->attr];
     gpro.clock("calculate");
     
@@ -551,12 +583,12 @@ std::vector<std::vector<double>> Formulator::summarize(FormulateOptions &formOpt
         gpro.clock("f1");
         for (int j = 0; j < reducedSize; j++)
         {
-            int id = formOptions.reducedIds[j] - 1;
             gpro.clock("g1");
             //int id = formOptions.reducedIds[i] - 1;
             for (int i = 0; i < partitions.size(); i++)
             {
                 gpro.clock("s1");
+                int id = formOptions.reducedIds[j] - 1;
                 double summary;
                 // decide when ASC when DESC
                 if (probCon->vsign == Inequality::gteq) //>= min summary
@@ -599,6 +631,5 @@ std::vector<std::vector<double>> Formulator::summarize(FormulateOptions &formOpt
         gpro.stop("f2");
     }
     gpro.stop("calculate");
-    // deb(summaries);
     return summaries;
 }
