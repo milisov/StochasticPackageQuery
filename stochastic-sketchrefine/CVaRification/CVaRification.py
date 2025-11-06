@@ -525,7 +525,6 @@ class CVaRification:
         try:
             for var in self.__vars:
                 if var.x > 0:
-                    print(self.__ids[idx], idx)
                     package_dict[self.__ids[idx]] = var.x
                 idx += 1
         except AttributeError:

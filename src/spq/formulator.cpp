@@ -387,6 +387,66 @@ int getQuantileIdx(double p, int n)
     return idx;
 }
 
+
+// void Formulator::formLCVaR(GRBModel &model, shared_ptr<Constraint> cons, GRBVar *xx, FormulateOptions &options)
+// {
+//     shared_ptr<ProbConstraint> probCon;
+//     shared_ptr<AttrConstraint> attrCon;
+
+//     bool isstoch = isStochastic(cons, probCon, attrCon);
+//     if (!isstoch)
+//     {
+//         return;
+//     }
+//     // cout << "Formulating CVAR" << endl;
+//     double v = spq->getValue(probCon->v);
+//     double p = spq->getValue(probCon->p);
+
+//     string selectcols = fmt::format("{},{}_{}", "id", attrCon->attr, "quantiles");
+//     string table = fmt::format("{}_{}", DB_optim, "summary");
+//     int qtileNumber = pg.getColumnLength(table, fmt::format("{}_{}", attrCon->attr, "quantiles"));
+//     // cout << "qtileNumber" << qtileNumber << endl;
+//     int qtileIdx = getQuantileIdx(1 - p, qtileNumber);
+
+//     string sql = fmt::format(
+//         "SELECT id, "
+//         "AVG(unnested_value) AS avg_quantiles "
+//         "FROM ( "
+//         "  SELECT id, unnest(profit_quantiles[1:{}]) AS unnested_value "
+//         "  FROM \"{}\" "
+//         ") AS unnested_table "
+//         "GROUP BY id",
+//         qtileIdx, table);
+
+//     SingleRow sr = SingleRow(sql);
+//     GRBLinExpr CVarExpr;
+
+//     if (probCon->psign == Inequality::gteq && probCon->vsign == Inequality::gteq)
+//     {
+//         Profiler timer;
+//         timer.clock("fetching");
+//         double coeff[NTuples];
+//         while (sr.fetchRow())
+//         {
+//             int id = sr.getBigInt(0) - 1;
+//             double coeffVal = sr.getNumeric(1);
+//             coeff[id] = coeffVal;
+//         }
+//         timer.stop("fetching");
+//         fetchRuntime += timer.getTime("fetching");
+
+//         GRBLinExpr CVar_m;
+//         CVar_m.addTerms(coeff, xx, NTuples);
+//         model.addConstr(CVar_m, GRB_GREATER_EQUAL, v);
+//     }
+//     else
+//     {
+//         cout << "Currently There's no Implementation for this combination psign and vsign" << endl;
+//     }
+//     // cout << "formulated CVaR" << endl;
+// }
+
+
 // figure out which cvar corresponds to each var
 void Formulator::formLCVaR(GRBModel &model, shared_ptr<Constraint> cons, GRBVar *xx, FormulateOptions &options)
 {
@@ -398,52 +458,36 @@ void Formulator::formLCVaR(GRBModel &model, shared_ptr<Constraint> cons, GRBVar 
     {
         return;
     }
+    GRBLinExpr lcvarExpr;
     // cout << "Formulating CVAR" << endl;
     double v = spq->getValue(probCon->v);
     double p = spq->getValue(probCon->p);
 
-    string selectcols = fmt::format("{},{}_{}", "id", attrCon->attr, "quantiles");
-    string table = fmt::format("{}_{}", DB_optim, "summary");
-    int qtileNumber = pg.getColumnLength(table, fmt::format("{}_{}", attrCon->attr, "quantiles"));
-    // cout << "qtileNumber" << qtileNumber << endl;
-    int qtileIdx = getQuantileIdx(1 - p, qtileNumber);
-
-    string sql = fmt::format(
-        "SELECT id, "
-        "AVG(unnested_value) AS avg_quantiles "
-        "FROM ( "
-        "  SELECT id, unnest(profit_quantiles[1:{}]) AS unnested_value "
-        "  FROM \"{}\" "
-        ") AS unnested_table "
-        "GROUP BY id",
-        qtileIdx, table);
-
-    SingleRow sr = SingleRow(sql);
-    GRBLinExpr CVarExpr;
-
-    if (probCon->psign == Inequality::gteq && probCon->vsign == Inequality::gteq)
+    int quantile = (1-p) * cntScenarios;
+    auto &scenarios = data.stochAttrs[attrCon->attr];
+    for(int i = 0; i < NTuples; i++)
     {
-        Profiler timer;
-        timer.clock("fetching");
-        double coeff[NTuples];
-        while (sr.fetchRow())
+        std::nth_element(scenarios[i].begin(), scenarios[i].begin() + quantile, scenarios[i].end());
+        double quantileValue = scenarios[i][quantile];
+        int j = 0;
+        double coeff = 0.0; 
+        while(true)
         {
-            int id = sr.getBigInt(0) - 1;
-            double coeffVal = sr.getNumeric(1);
-            coeff[id] = coeffVal;
+            if(scenarios[i][j] <=  quantileValue)
+            {
+                coeff += scenarios[i][j];
+                j++;
+            }
+            else
+            {
+                coeff /= j;
+                lcvarExpr += coeff * xx[i];
+                break;
+            }
         }
-        timer.stop("fetching");
-        fetchRuntime += timer.getTime("fetching");
-
-        GRBLinExpr CVar_m;
-        CVar_m.addTerms(coeff, xx, NTuples);
-        model.addConstr(CVar_m, GRB_GREATER_EQUAL, v);
+        
     }
-    else
-    {
-        cout << "Currently There's no Implementation for this combination psign and vsign" << endl;
-    }
-    // cout << "formulated CVaR" << endl;
+    model.addConstr(lcvarExpr, GRB_GREATER_EQUAL, v);
 }
 
 // sort helper functions for sorting by descending or ascending depending on sign

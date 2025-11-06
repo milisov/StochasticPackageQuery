@@ -24,6 +24,9 @@ public:
         this->probConstCnt = countProbConst(spq);
         this->epsilon = epsilon;
     }
+
+    SolutionMetadata<int> solveDeterministic(std::shared_ptr<StochasticPackageQuery> spq);
+
     SolutionMetadata<int> stochasticDualReducer(std::shared_ptr<StochasticPackageQuery> spq, std::map<std::string, Option> &curveFitOptions);
 
     template <typename T>

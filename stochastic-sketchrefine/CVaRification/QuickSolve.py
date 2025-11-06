@@ -66,23 +66,11 @@ class QuickSolve:
         self.__current_number_of_scenarios = 0
         self.__scenarios = dict()
 
-        # for attr in self.__get_stochastic_attributes(): this is old code
-        #     self.__scenarios[attr] = []
-        #     for _ in range(self.__no_of_vars):
-        #         self.__scenarios[attr].append([])
-
-
         for attr in self.__get_stochastic_attributes():
             self.__scenarios[attr] = []
-            values = ValueGenerator(
-                relation = self.__query.get_relation(),
-                base_predicate = self_query.get_base_predicate(),
-                attribute = attr
-            ).get_values()
-            for value in values:
-                self.__scenarios[attr].append(value[0])
-
-
+            for _ in range(self.__no_of_vars):
+                self.__scenarios[attr].append([])
+        
         self.__values = dict()
         for attr in self.__get_deterministic_attributes():
             values = \

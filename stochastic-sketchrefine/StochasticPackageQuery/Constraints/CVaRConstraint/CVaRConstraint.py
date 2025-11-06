@@ -55,7 +55,6 @@ class CVaRConstraint(ExpectedSumConstraint):
         self.__cached_percentage_string += char
         try:
             self.__percentage_of_scenarios = float(self.__cached_percentage_string)
-            print("Percentage of Scenarios", self.__percentage_of_scenarios)
             if self.__percentage_of_scenarios <= 0.0 or self.__percentage_of_scenarios > 100.0:
                 raise Exception
             self.__is_percentage_of_scenarios_set = True

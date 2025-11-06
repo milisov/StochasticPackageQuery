@@ -86,90 +86,50 @@ double loadObjective(const string &filename)
     return obj;
 }
 
-// SolutionMetadata<int> RobustSatisficing::stochasticDualReducer(std::shared_ptr<StochasticPackageQuery> spq,
-//                                                                std::map<std::string, Option> &curveFitOptions, double nudge)
-// {
-//     RSFormulator formulator(spq);
-//     DecisionVarOptions decVarOptions;
-//     setDecisionVarOptions(decVarOptions, 0.0, 1.0, 0.0, GrbVarType::Continuous);
-//     FormulateOptions formOptions;
-//     formOptions.decisionVarOptions = decVarOptions;
-//     formOptions.iteration = 0;
-//     formulator.formulateBestObjProblem(formulator.modelBestObj, spq, formOptions);
-//     std::vector<double> solDet;
-//     initializeVector(solDet, NTuples, 0.0);
-//     solve(formulator.modelBestObj, solDet);
-//     double Z0 = formulator.modelBestObj.get(GRB_DoubleAttr_ObjVal);
-//     validate(formulator.modelBestObj, solDet, spq);
+ SolutionMetadata<int> RobustSatisficing::solveDeterministic(std::shared_ptr<StochasticPackageQuery> spq)
+ {
+    cout<<"HERE"<<endl;
+    SSFormulator formulator(spq);
+    DecisionVarOptions decVarOptions;
+    setDecisionVarOptions(decVarOptions, 0.0, 1.0, 0.0, GrbVarType::Binary);
+    FormulateOptions formOptions;
+    formOptions.decisionVarOptions = decVarOptions;
+    formOptions.iteration = 0;
 
-//     // //--------------------- STAGE 1 -----------------------------//
-//     formOptions.innerConstraints = this->innerConstraints;
-//     formOptions.Z = 1;
-//     formOptions.Zinit = formOptions.Z;
-
-//     Profiler gpro;
-//     string labelStage1 = "Stage1";
-//     gpro.clock(labelStage1);
-
-//     vector<int> reducedIds = reduceTuplesStage(spq, formOptions, curveFitOptions, Z0);
-//     //saveVector(reducedIds,"/home/fm2288/StochasticPackageQuery/reducedId4.txt");
-
-//     gpro.stop(labelStage1);
-//     double totalTimeStage1 = gpro.getTime(labelStage1);
-
-//     formOptions.qSz = reducedIds.size();
-
-//     // //--------------------- STAGE 2 -----------------------------//
-//     formOptions.reducedIds = reducedIds;
-//     setDecisionVarOptions(decVarOptions, 0.0, 1.0, 0.0, GrbVarType::Continuous);
-//     formOptions.decisionVarOptions = decVarOptions;
-//     formOptions.iteration = 0;
-//     formOptions.innerConstraints = this->innerConstraints;
-//     formOptions.Z = 10000;
-//     formOptions.Zinit = formOptions.Z;
-
-//     Profiler stopwatchStage2;
-//     string labelStage2 = "Stage2";
-//     stopwatchStage2.clock(labelStage2);
-
-//     double bestEps = findBestObjectiveStage(spq, formOptions, curveFitOptions, Z0);
-//     bestEps *= nudge;
-
-//     stopwatchStage2.stop(labelStage2);
-//     double totalTimeStage2 = stopwatchStage2.getTime(labelStage2);
-//     //------------------- FINAL ----------------------------//
-//     //vector<int>reducedIds = loadVector("/home/fm2288/StochasticPackageQuery/reducedIds.txt");
-//     // double bestEps = loadObjective("/home/fm2288/StochasticPackageQuery/bestObj.txt");
-//     formOptions.reducedIds = reducedIds;
-//     setDecisionVarOptions(decVarOptions, 0.0, 1.0, 0.0, GrbVarType::Binary);
-//     formOptions.decisionVarOptions = decVarOptions;
-//     formOptions.iteration = 0;
-//     formOptions.innerConstraints = this->innerConstraints;
-//     formOptions.Z = 10000;
-//     formOptions.Zinit = formOptions.Z;
-//     formOptions.objValue = (1 - bestEps) * Z0;
-//     formOptions.reduced = true;
-//     formOptions.RS = false;
-//     SummarySearch SS(M, spq, 1);
-//     SolutionMetadata<int> sol = SS.summarySearchRS<int>(SS.spq, formulator, formOptions, curveFitOptions, 1);
-//     shared_ptr<AttrObjective> attrObj;
-//     bool isDet = isDeterministic(spq->obj, attrObj);
-//     double obj;
-//     if (sol.x.size() > 0)
-//     {
-//         obj = calculateExpSumObj(sol.x, attrObj);
-//     }
-//     sol.qSz = formOptions.qSz;
-//     sol.objConsValue = obj;
-//     sol.timeStage1 = totalTimeStage1;
-//     sol.timeStage2 = totalTimeStage2;
-//     sol.bestEps = bestEps;
-//     return sol;
-// }
+    GRBModel model = formulator.formulate(spq, formOptions);
+    vector<int>x(NTuples, 0);
+    SolveOptions options;
+    options.reduced = false;
+    solve(model,x,options);
+    validate(model, x, spq, options);
+    if(isFeasible(r))
+    {
+        SolutionMetadata<int> sol;
+        sol.x = x;
+        sol.isFeasible = true;
+        return sol;
+    }else
+    {
+        SolutionMetadata<int> sol;
+        sol.x = x;
+        sol.isFeasible = false;
+        return sol;
+    }
+ }
 
 SolutionMetadata<int> RobustSatisficing::stochasticDualReducer(std::shared_ptr<StochasticPackageQuery> spq,
                                                                std::map<std::string, Option> &curveFitOptions)
 {
+    //STAGE 0
+
+    SolutionMetadata<int> solDeterministic = solveDeterministic(spq);
+    if(solDeterministic.isFeasible)
+    {
+        cout<<"Deterministic Solution is Feasible"<<endl;
+        return solDeterministic;
+    }
+
+
     RSFormulator formulator(spq);
     DecisionVarOptions decVarOptions;
     //setDecisionVarOptions(decVarOptions, 0.0, GRB_INFINITY, 0.0, GrbVarType::Continuous);

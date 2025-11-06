@@ -131,6 +131,8 @@ void Bounder::generate(const vector<double>& hards){
         varTables.try_emplace(hards[i]);
         probs[i] = sigmoid(-hards[i]);
     }
+    deb(hards);
+    deb(probs);
     int stoIndex = 0;
     int detIndex = 0;
     for (auto con : spq->cons){

@@ -8,6 +8,7 @@
 #include "core/checker.hpp"
 #include "solver/starter.hpp"
 #include "solver/SummarySearch.hpp"
+#include "solver/StochDualReducer.hpp"
 #include "solver/Naive.hpp"
 #include "gurobi_c++.h"
 #include <gurobi_c.h>
@@ -33,6 +34,88 @@
 using std::map;
 using std::vector;
 using json = nlohmann::json;
+
+
+
+void testSDR(string path, int M_input, string outPath)
+{
+	int M = M_input;
+	int M_hat = 1e6;
+	double epsilon = 0.46;
+
+	map<string, Option> curveFitOptions = {
+		{"arctan", false},
+		{"binarySearch", true}};
+
+	string filePath = path;
+	auto spq = parseSpaqlFromFile(filePath);
+	
+	if (spq)
+	{
+		Data::init(spq);  
+    	Data::getInstance().fetchData();
+		spq->validate();
+		unique_ptr<Stat> stat = std::make_unique<Stat>();
+		stat->analyze(spq->tableName);
+		size_t N = 10000;
+		double E = 50;
+		// N is number of scenarios in order to approx, E - expected package size in sol
+		// set values that are variables in the query
+		Bounder bounder(spq, N, E);
+		deb(spq->executable(), spq);
+		std::vector<std::string> headers = {"Hardness", "SDR-objective", "SDR-Feas", "Z", "Q", "RuntimeSDR"};
+		string output = "/home/fm2288/StochasticPackageQuery/test/Experiments2/SDR/SDR" + outPath + ".csv";
+		DataWriter writer(output, headers);
+
+		Profiler stopwatchSS;
+      
+		for (int h = 0; h <= 0; h = h + 1)
+		{
+			double SDRObjective;
+			bool SDRFeas;
+			int Z;
+			bounder.set(h);
+			deb(spq);
+			StochDualReducer SDR(M, spq, epsilon);
+
+			string labelSDR = "SDR with Hardness" + std::to_string(h);
+
+			auto start_time = std::chrono::steady_clock::now();
+			double timeout_seconds = 600;
+			FormulateOptions formOptions;
+			formOptions.reduced = false;
+			formOptions.qSz = 500;
+			formOptions.Z = 1;
+			stopwatchSS.clock(labelSDR);
+			SolutionMetadata<int> sol = SDR.stochDualReducer(SDR.spq, formOptions, curveFitOptions, start_time, timeout_seconds);
+			stopwatchSS.stop(labelSDR);
+			double totalTimeSDR = stopwatchSS.getTime(labelSDR);
+
+			SPQChecker Check(SDR.spq);
+			double distance;
+			if (sol.x.size() > 0)
+			{
+				deb(sol.x, sol.x.size());
+				SolType res;
+				for (int i = 0; i < SDR.NTuples; i++)
+				{
+					res[i + 1] = sol.x[i];
+				}
+				deb(SDR.NTuples);
+				SDRFeas = Check.feasible(res, distance);
+				SDRObjective = Check.getObjective(res); // we need to change this to validation objective
+				Z = sol.Z;
+			}
+			else
+			{
+				SDRObjective = -1;
+				SDRFeas = 0;
+				Z = sol.Z;
+			}
+			writer.addRow(h, SDRObjective, distance, Z, sol.qSz, totalTimeSDR);
+		}
+	}
+}
 
 void testSummarySearch(string path, int M_input, string outPath)
 {
@@ -169,7 +252,7 @@ void testRS(string path, int M_input, string outPath)
 		bool RSFeas;
 		int Z;
 		int q;
-		for (int h = -1; h <= -1; h = h + 1)
+		for (int h = 0; h <= 8; h = h + 1)
 		{
 			double RSObjective;
 			bool RSFeas;
@@ -810,7 +893,7 @@ int main(int argc, char *argv[])
 	}
 	else if (algorithm == "SDR")
 	{
-		// testStochDualRed(dbPath, M, outPath);
+		testSDR(dbPath, M, outPath);
 	}
 	else if (algorithm == "RS")
 	{

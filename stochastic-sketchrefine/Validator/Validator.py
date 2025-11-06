@@ -52,6 +52,7 @@ class Validator:
                     ).get_values()
             for s in sc:
                 scenarios.append(s[0])
+                
         else:
             scenarios = []
         return scenarios, ids_with_multiplicities

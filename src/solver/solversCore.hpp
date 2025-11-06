@@ -370,7 +370,6 @@ inline void Solver::validate(GRBModel &model, std::vector<T> &x, shared_ptr<Stoc
             }
             // push innerConst to innerConstraints
             this->innerConstraints.push_back(innerConst);
-            // deb(this->innerConstraints)
             int satisfied = countSatisfied(cntScenarios, innerConst, probCon, spq);
             double rk = calculateRk(probCon, satisfied, cntScenarios, spq);
             deb(rk);
@@ -385,7 +384,6 @@ inline void Solver::validate(GRBModel &model, std::vector<T> &x, shared_ptr<Stoc
 template <typename T>
 inline void Solver::solve(GRBModel &model, std::vector<T> &x, SolveOptions &options)
 {
-    cout<<"solve"+to_string(options.reduced)<<endl;
     int numConstraints = model.get(GRB_IntAttr_NumConstrs);
     int numVars = model.get(GRB_IntAttr_NumVars);
     gpro.clock("time1");
@@ -485,6 +483,5 @@ inline double Solver::calculateEpsilonQ(shared_ptr<StochasticPackageQuery> spq, 
     {
         epsilonQ = (W_q / W0) - 1;
     }
-
     return epsilonQ;
 }

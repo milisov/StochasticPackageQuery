@@ -3,18 +3,11 @@ class CVaRificationSearchResults:
     def __init__(self):
         self.__needs_more_scenarios = False
         self.__found_appropriate_package = False
-        self.__var = None
         self.__package = None
         self.__objective_upper_bound = 0
         self.__cvar_thresholds = []
         self.__scenarios_to_consider = []
         self.__validation_objective_value = 0.0
-
-    def get_var(self):
-        return self.__var
-    
-    def set_var(self, var):
-        self.__var = var
 
     def get_needs_more_scenarios(self):
         return self.__needs_more_scenarios

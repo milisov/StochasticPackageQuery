@@ -23,7 +23,8 @@ class Naive:
                  no_of_validation_scenarios: int,
                  approximation_bound: float):
         self.__query = query
-        self.__gurobi_env = gp.Env()
+        self.__gurobi_env = gp.Env(
+            params=GurobiLicense.OPTIONS)
         self.__model = gp.Model(
             env=self.__gurobi_env)
         self.__is_linear_relaxation = \
@@ -42,7 +43,10 @@ class Naive:
 
         self.__no_of_vars = \
             self.__get_number_of_tuples()
-        self.__feasible_no_of_scenarios_to_store = init_no_of_scenarios
+        self.__feasible_no_of_scenarios_to_store = \
+            int(np.floor(
+                (0.50*psutil.virtual_memory().available)/\
+                (64*self.__no_of_vars)))
         
         self.__vars = []
 
@@ -50,22 +54,16 @@ class Naive:
         self.__scenarios = dict()
         for attr in self.__get_stochastic_attributes():
             self.__scenarios[attr] = []
-            sc = ValueGenerator(
-                    relation=self.__query.get_relation(),
-                    base_predicate=self.__query.get_base_predicate(),
-                    attribute=attr
-                ).get_values()
-            for s in sc:
-                self.__scenarios[attr].append(s[0])
-
+            for _ in range(self.__no_of_vars):
+                self.__scenarios[attr].append([])
+        
         self.__values = dict()
         for attr in self.__get_deterministic_attributes():
             values = \
                 ValueGenerator(
                     relation=self.__query.get_relation(),
                     base_predicate=self.__query.get_base_predicate(),
-                    attribute=attr
-                ).get_values()
+                    attribute=attr).get_values()
             self.__values[attr] = []
             for value in values:
                 self.__values[attr].append(value[0])
@@ -241,10 +239,12 @@ class Naive:
         indicators = []
 
         for _ in range(no_of_scenarios):
-            # if (_ % self.__feasible_no_of_scenarios_to_store) == 0:
-            #     # self.__add_feasible_no_of_scenarios(
-            #     #     var_constraint.get_attribute_name()
-            #     # )
+            if (_ % \
+                self.__feasible_no_of_scenarios_to_store
+            ) == 0:
+                self.__add_feasible_no_of_scenarios(
+                    var_constraint.get_attribute_name()
+                )
             
             scenario_index = _ % \
                 self.__feasible_no_of_scenarios_to_store
@@ -310,8 +310,8 @@ class Naive:
 
     def __add_constraints_to_model(
         self, no_of_scenarios, probabilistically_constrained):
-        # if probabilistically_constrained:
-        #     self.__add_scenarios_if_necessary(no_of_scenarios)
+        if probabilistically_constrained:
+            self.__add_scenarios_if_necessary(no_of_scenarios)
 
         for constraint in self.__query.get_constraints():
             if constraint.is_package_size_constraint():
@@ -344,8 +344,8 @@ class Naive:
         else:
             if no_of_scenarios <= \
                 self.__feasible_no_of_scenarios_to_store:
-                # self.__add_scenarios_if_necessary(
-                #     no_of_scenarios)
+                self.__add_scenarios_if_necessary(
+                    no_of_scenarios)
                 for idx in range(self.__no_of_vars):
                     coefficients.append(
                         np.average(

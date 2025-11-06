@@ -37,6 +37,9 @@ class RCLSolve:
                  approximation_bound: float,
                  sampling_tolerance: float,
                  bisection_threshold: float):
+        self.__bestPackage = None
+        self.__bestFeasibility = 0.0
+        self.__bestObjective = float('-inf')
         self.__query = query
         self.__gurobi_env = gp.Env()
         self.__gurobi_env.setParam(
@@ -64,8 +67,10 @@ class RCLSolve:
         
         self.__no_of_vars = \
             self.__get_number_of_tuples()
-        #set to 10000
-        self.__feasible_no_of_scenarios_to_store = init_no_of_scenarios
+        self.__feasible_no_of_scenarios_to_store = \
+            int(np.floor(
+                (0.40*psutil.virtual_memory().available)/\
+                (64*self.__no_of_vars)))
 
         self.__vars = []
         
@@ -74,17 +79,23 @@ class RCLSolve:
 
 
         self.__current_number_of_scenarios = 0
-        
-        self.__scenarios = dict()
+
+        self.__all_scenarios = dict()
         for attr in self.__get_stochastic_attributes():
-            self.__scenarios[attr] = []
+            self.__all_scenarios[attr] = []
             sc = ValueGenerator(
                     relation=self.__query.get_relation(),
                     base_predicate=self.__query.get_base_predicate(),
                     attribute=attr
                 ).get_values()
             for s in sc:
-                self.__scenarios[attr].append(s[0])
+                self.__all_scenarios[attr].append(s[0])
+        
+        self.__scenarios = dict()
+        for attr in self.__get_stochastic_attributes():
+            self.__scenarios[attr] = []
+            for _ in range(self.__no_of_vars):
+                self.__scenarios[attr].append([])
 
         self.__values = dict()
         for attr in self.__get_deterministic_attributes():
@@ -210,7 +221,7 @@ class RCLSolve:
             self.__get_gurobi_inequality(
                 package_size_constraint.get_inequality_sign())
 
-        self.__model.addLConstr(
+        self.__model.addConstr(
             gp.LinExpr([1]*self.__no_of_vars, self.__vars),
             gurobi_inequality, size_limit
         )
@@ -224,8 +235,8 @@ class RCLSolve:
             self.__get_gurobi_inequality(
                 deterministic_constraint.get_inequality_sign())
         sum_limit = deterministic_constraint.get_sum_limit()
-
-        self.__model.addLConstr(
+        
+        self.__model.addConstr(
             gp.LinExpr(self.__values[attribute], self.__vars),
             gurobi_inequality, sum_limit
         )
@@ -248,88 +259,51 @@ class RCLSolve:
         if no_of_scenarios > self.__feasible_no_of_scenarios_to_store:
             return
         
-        if self.__current_number_of_scenarios < \
-            no_of_scenarios:
-            
-            for attr in self.__scenarios:
-                
-                new_scenarios = \
-                    self.__dbInfo.get_variable_generator_function(
-                        attr)(
-                            self.__query.get_relation(),
-                            self.__query.get_base_predicate()
-                        ).generate_scenarios(
-                            seed = Hyperparameters.VALIDATION_SEED,
-                            no_of_scenarios = no_of_scenarios - \
-                                self.__current_number_of_scenarios
-                        )
-                
-                for ind in range(len(new_scenarios)):
-                    for value in new_scenarios[ind]:
-                        self.__scenarios[attr][ind].append(value)
-            
+        if self.__current_number_of_scenarios < no_of_scenarios:
+            no_of_scenarios = min(no_of_scenarios, self.__no_of_validation_scenarios)
+            for attr in self.__all_scenarios:
+                for ind in range(len(self.__all_scenarios[attr])):
+                    self.__scenarios[attr][ind] = self.__all_scenarios[attr][ind][:no_of_scenarios]
             self.__current_number_of_scenarios = no_of_scenarios
 
 
-    # def __add_expected_sum_constraint_to_model(
-    #     self, expected_sum_constraint: ExpectedSumConstraint,
-    #     no_of_scenarios: int
-    # ):
-    #     attr = expected_sum_constraint.get_attribute_name()
-    #     coefficients = []
-
-    #     if no_of_scenarios <= \
-    #         self.__feasible_no_of_scenarios_to_store:
-    #         for idx in range(self.__no_of_vars):
-    #             coefficients.append(
-    #                 np.average(
-    #                     self.__scenarios[attr][idx]
-    #                 )
-    #             )
-        
-    #     else:
-            
-    #         total_scenarios = 0
-    #         coefficient_set = [[] for _ in range(
-    #             self.__no_of_vars)]
-            
-    #         while total_scenarios < no_of_scenarios:
-    #             self.__add_feasible_no_of_scenarios(attr)
-    #             total_scenarios += \
-    #                 self.__feasible_no_of_scenarios_to_store
-    #             for idx in range(self.__no_of_vars):
-    #                 coefficient_set[idx].append(
-    #                     np.average(
-    #                         self.__scenarios[attr][idx]
-    #                     )
-    #                 )
-
-    #         for idx in range(self.__no_of_vars):
-    #             coefficients.append(
-    #                 np.average(coefficient_set[idx])
-    #             )
-            
-    #     gurobi_inequality = self.__get_gurobi_inequality(
-    #         expected_sum_constraint.get_inequality_sign()
-    #     )
-
-    #     expected_sum_limit = \
-    #         expected_sum_constraint.get_sum_limit()
-
-    #     self.__model.addConstr(
-    #         gp.LinExpr(coefficients, self.__vars),
-    #         gurobi_inequality, expected_sum_limit
-    #     )
-
     def __add_expected_sum_constraint_to_model(
         self, expected_sum_constraint: ExpectedSumConstraint,
-        no_of_scenarios: int):
+        no_of_scenarios: int
+    ):
         attr = expected_sum_constraint.get_attribute_name()
         coefficients = []
 
-        for idx in range(self.__no_of_vars):
-            coefficients.append(np.average(
-                        self.__scenarios[attr][idx]))
+        if no_of_scenarios <= \
+            self.__feasible_no_of_scenarios_to_store:
+            for idx in range(self.__no_of_vars):
+                coefficients.append(
+                    np.average(
+                        self.__scenarios[attr][idx]
+                    )
+                )
+        
+        else:
+            
+            total_scenarios = 0
+            coefficient_set = [[] for _ in range(
+                self.__no_of_vars)]
+            
+            while total_scenarios < no_of_scenarios:
+                self.__add_feasible_no_of_scenarios(attr)
+                total_scenarios += \
+                    self.__feasible_no_of_scenarios_to_store
+                for idx in range(self.__no_of_vars):
+                    coefficient_set[idx].append(
+                        np.average(
+                            self.__scenarios[attr][idx]
+                        )
+                    )
+
+            for idx in range(self.__no_of_vars):
+                coefficients.append(
+                    np.average(coefficient_set[idx])
+                )
             
         gurobi_inequality = self.__get_gurobi_inequality(
             expected_sum_constraint.get_inequality_sign()
@@ -379,7 +353,8 @@ class RCLSolve:
                 self.__add_feasible_no_of_scenarios(attr)
             
             for var in range(self.__no_of_vars):
-                scenario_value = self.__scenarios[attr][var][scenario_index]
+                scenario_value = self.__scenarios[attr][var][
+                    scenario_index]
                 tuple_wise_heaps[var].push(scenario_value)
                 if tuple_wise_heaps[var].size() > \
                     no_of_scenarios_to_consider:
@@ -387,6 +362,7 @@ class RCLSolve:
         
         return [tuple_wise_heaps[var].sum()/no_of_scenarios_to_consider\
                 for var in range(self.__no_of_vars)]
+
     
     def __add_lcvar_constraint_to_model(
         self,
@@ -409,7 +385,7 @@ class RCLSolve:
         self.__risk_constraints.append(risk_constraint)
         self.__risk_to_lcvar_constraint_mapping[
             risk_constraint] = \
-                self.__model.addLConstr(
+                self.__model.addConstr(
                     gp.LinExpr(
                         coefficients, self.__vars),
                     gurobi_inequality,
@@ -455,9 +431,9 @@ class RCLSolve:
         cvar_thresholds: list[float],
         trivial_constraints: list[int]
     ):
-        # self.__add_all_scenarios_if_possible( #maybe comment this out
-        #     no_of_scenarios
-        # )
+        self.__add_all_scenarios_if_possible(
+            no_of_scenarios
+        )
         risk_constraint_index = 0
         for constraint in self.__query.get_constraints():
             if constraint.is_package_size_constraint():
@@ -500,55 +476,6 @@ class RCLSolve:
                         risk_constraint_index += 1
 
     
-    # def __add_objective_to_model(
-    #     self, objective: Objective,
-    #     no_of_scenarios: int):
-
-    #     attr = objective.get_attribute_name()
-    #     coefficients = []
-
-    #     if objective.get_stochasticity() == \
-    #         Stochasticity.DETERMINISTIC:
-    #         coefficients = self.__values[attr]
-    #     else:
-    #         if no_of_scenarios <= \
-    #             self.__feasible_no_of_scenarios_to_store:
-    #             for idx in range(self.__no_of_vars):
-    #                 coefficients.append(
-    #                     np.average(
-    #                         self.__scenarios[attr][idx]
-    #                     )
-    #                 )
-    #         else:
-    #             total_scenarios = 0
-    #             coefficient_set = [[] for _ in \
-    #                                 range(self.__no_of_vars)]
-    #             while total_scenarios < no_of_scenarios:
-    #                 self.__add_feasible_no_of_scenarios(attr)
-    #                 total_scenarios += \
-    #                     self.__feasible_no_of_scenarios_to_store
-    #                 for idx in range(self.__no_of_vars):
-    #                     coefficient_set[idx].append(
-    #                         np.average(
-    #                             self.__scenarios[attr][idx]
-    #                         )
-    #                     )
-                
-    #             for idx in range(self.__no_of_vars):
-    #                 coefficients.append(
-    #                     np.average(coefficient_set[idx])
-    #                 )
-        
-    #     objective_type = objective.get_objective_type()
-
-    #     gurobi_objective = GRB.MAXIMIZE
-    #     if objective_type == ObjectiveType.MINIMIZATION:
-    #         gurobi_objective = GRB.MINIMIZE
-
-    #     self.__model.setObjective(
-    #         gp.LinExpr(coefficients, self.__vars),
-    #         gurobi_objective)
-
     def __add_objective_to_model(
         self, objective: Objective,
         no_of_scenarios: int):
@@ -560,9 +487,33 @@ class RCLSolve:
             Stochasticity.DETERMINISTIC:
             coefficients = self.__values[attr]
         else:
-            for idx in range(self.__no_of_vars):
-                coefficients.append(np.average(
-                self.__scenarios[attr][idx]))
+            if no_of_scenarios <= \
+                self.__feasible_no_of_scenarios_to_store:
+                for idx in range(self.__no_of_vars):
+                    coefficients.append(
+                        np.average(
+                            self.__scenarios[attr][idx]
+                        )
+                    )
+            else:
+                total_scenarios = 0
+                coefficient_set = [[] for _ in \
+                                    range(self.__no_of_vars)]
+                while total_scenarios < no_of_scenarios:
+                    self.__add_feasible_no_of_scenarios(attr)
+                    total_scenarios += \
+                        self.__feasible_no_of_scenarios_to_store
+                    for idx in range(self.__no_of_vars):
+                        coefficient_set[idx].append(
+                            np.average(
+                                self.__scenarios[attr][idx]
+                            )
+                        )
+                
+                for idx in range(self.__no_of_vars):
+                    coefficients.append(
+                        np.average(coefficient_set[idx])
+                    )
         
         objective_type = objective.get_objective_type()
 
@@ -594,10 +545,33 @@ class RCLSolve:
         self.__add_objective_to_model(
             self.__query.get_objective(),
             no_of_scenarios)
+
+    def __compare_best_packege(self, package):
+        for constraint in self.__query.get_constraints():
+            if constraint.is_var_constraint():
+                feasibility = self.__validator.get_var_constraint_satisfaction(package,constraint)
+                objective = self.__validator.get_validation_objective_value(package)
+                p = constraint.get_probability_threshold()
+                print("feasibility =",feasibility, "objective =", objective, "p =", p)
+                print("best feasibility =", self.__bestFeasibility, "best objective =", self.__bestObjective)
+                if feasibility >= p and self.__bestFeasibility >= p:
+                    #abuse Maximization
+                    if objective > self.__bestObjective:
+                        self.__bestPackage = package
+                        self.__bestFeasibility = feasibility
+                        self.__bestObjective = objective
+                elif feasibility < p and self.__bestFeasibility < p:
+                    if feasibility > self.__bestFeasibility:
+                        self.__bestPackage = package
+                        self.__bestFeasibility = feasibility
+                        self.__bestObjective = objective
+                elif feasibility >= p and self.__bestFeasibility < p:
+                    self.__bestPackage = package
+                    self.__bestFeasibility = feasibility
+                    self.__bestObjective = objective    
         
 
     def __get_package(self):
-        print("Optimizing")
         self.__metrics.start_optimizer()
         self.__model.optimize()
         self.__metrics.end_optimizer()
@@ -610,7 +584,7 @@ class RCLSolve:
                         self.__ids[idx]] = \
                             var.x
                 idx += 1
-            print(package_dict)
+            self.__compare_best_packege(package_dict)
         except AttributeError:
             return None
         return package_dict
@@ -636,27 +610,27 @@ class RCLSolve:
         if package_with_indices is None:
             return 0
         attr = self.__query.get_objective().get_attribute_name()
-        # if no_of_scenarios < \
-        #     self.__feasible_no_of_scenarios_to_store:
-        sum = 0
-        for idx in package_with_indices:
-            sum += np.average(self.__scenarios[attr][idx]) * \
-                package_with_indices[idx]
-            #print('Index in package:', idx)
-            #print('Avg. Value:', np.average(self.__scenarios[attr][idx]))
-        return sum
+        if no_of_scenarios <= \
+            self.__feasible_no_of_scenarios_to_store:
+            sum = 0
+            for idx in package_with_indices:
+                sum += np.average(self.__scenarios[attr][idx]) * \
+                    package_with_indices[idx]
+                #print('Index in package:', idx)
+                #print('Avg. Value:', np.average(self.__scenarios[attr][idx]))
+            return sum
         
-        # sum = 0
-        # total_scenarios = 0
-        # while total_scenarios < no_of_scenarios:
-        #     self.__add_feasible_no_of_scenarios(attr)
-        #     total_scenarios += no_of_scenarios
-        #     for idx in package_with_indices:
-        #         for value in self.__scenarios[attr][idx]:
-        #             sum += value * self.__vars[idx].x
-        # return sum / total_scenarios
+        sum = 0
+        total_scenarios = 0
+        while total_scenarios < no_of_scenarios:
+            self.__add_feasible_no_of_scenarios(attr)
+            total_scenarios += no_of_scenarios
+            for idx in package_with_indices:
+                for value in self.__scenarios[attr][idx]:
+                    sum += value * self.__vars[idx].x
+        return sum / total_scenarios
     
-    #validator needs to be changed...
+
     def __is_objective_value_relative_diff_high(
         self, package, package_with_indices,
         no_of_scenarios
@@ -667,14 +641,14 @@ class RCLSolve:
             self.__get_objective_value_among_optimization_scenarios(
                 package_with_indices, no_of_scenarios
             )
-        # print('Obj value optimization:',
-        #       objective_value_optimization_scenarios)
+        print('Obj value optimization:',
+              objective_value_optimization_scenarios)
         objective_value_validation_scenarios =\
             self.__validator.get_validation_objective_value(
                 package
             )
-        # # print('Obj value validation:',
-        #       objective_value_validation_scenarios)
+        print('Obj value validation:',
+              objective_value_validation_scenarios)
         diff = objective_value_optimization_scenarios - \
                     objective_value_validation_scenarios
         
@@ -685,7 +659,7 @@ class RCLSolve:
         rel_diff = diff / (objective_value_validation_scenarios
             + 0.00001)
         
-        # print('Relative difference:', rel_diff)
+        print('Relative difference:', rel_diff)
         if rel_diff > self.__sampling_tolerance:
             return True, objective_value_validation_scenarios
         return False, objective_value_validation_scenarios
@@ -699,21 +673,25 @@ class RCLSolve:
 
         if objective.get_objective_type() == \
             ObjectiveType.MAXIMIZATION:
-            print('Objective Value is', objective_value)
-            print('Upper bound is', objective_upper_bound)
-            print('Epsilon is', self.__approximation_bound)
-            print('Objective Value needs to be at least',
-                  (1 - self.__approximation_bound) *
-                    objective_upper_bound)
-            return objective_value >= \
+            if objective_upper_bound >= 0:
+                return objective_value >= \
+                    (1 - self.__approximation_bound) *\
+                        objective_upper_bound
+            else:
+                return objective_value >= \
+                    (1 + self.__approximation_bound) *\
+                        objective_upper_bound
+        
+        if objective_upper_bound >= 0:
+            return objective_value <= \
+                (1 + self.__approximation_bound) *\
+                    objective_upper_bound
+
+        return objective_value <= \
                 (1 - self.__approximation_bound) *\
                     objective_upper_bound
-        
-        return objective_value <= \
-            (1 + self.__approximation_bound) *\
-                objective_upper_bound
     
-    
+
     def __get_scenario_scores_ascending(
         self, package_with_indices,
         no_of_scenarios: int,
@@ -834,7 +812,6 @@ class RCLSolve:
         self, var_constraint: VaRConstraint,
         var_validation: float
     ) -> bool:
-        print("var validation = ", var_validation, "var_constraint sum = ", var_constraint.get_sum_limit(), "sign =", var_constraint.get_inequality_sign())
         if var_constraint.get_inequality_sign() ==\
             RelationalOperators.GREATER_THAN_OR_EQUAL_TO:
             return var_validation >=\
@@ -915,15 +892,12 @@ class RCLSolve:
         can_add_scenarios: bool,
         start_time,
         timeout
-    ) -> CVaRificationSearchResults:  
-        bestInfeasibleResult = CVaRificationSearchResults()
+    ) -> CVaRificationSearchResults:
         while self.__l_inf(
             cvar_upper_bounds, cvar_lower_bounds) >= \
             self.__bisection_threshold:
-            
-            print("TIME USED =",time.time() - start_time)
             if time.time() - start_time > timeout:
-                print("TIMEOUT - CVAR THRESH SEARCH")
+                print("TIMEOUT")
                 break
 
             cvar_mid_thresholds = []
@@ -961,15 +935,14 @@ class RCLSolve:
                         risk_constraint_index += 1
             
             package = self.__get_package()
-            # print('Package:', package)
+            print('Package:', package)
             if package is None:
-                print("Package is None")
                 cvar_lower_bounds = cvar_mid_thresholds
                 continue
             
             package_with_indices = \
                 self.__get_package_with_indices()
-            # print('Packages with indices:', package_with_indices)
+            print('Packages with indices:', package_with_indices)
             
             unacceptable_diff, validation_objective_value = \
                 self.__is_objective_value_relative_diff_high(
@@ -978,7 +951,7 @@ class RCLSolve:
                 )
             
             if unacceptable_diff and can_add_scenarios:
-                # print('Unacceptable diff for objective')
+                print('Unacceptable diff for objective')
                 result = CVaRificationSearchResults()
                 result.set_needs_more_scenarios(True)
                 return result
@@ -987,7 +960,6 @@ class RCLSolve:
             all_constraints_violated = True
             risk_constraint_index = 0
             
-            VaRConstr = None
             for constraint in self.__query.get_constraints():
                 if constraint.is_risk_constraint():
                     if risk_constraint_index not in trivial_constraints:
@@ -998,49 +970,48 @@ class RCLSolve:
                                     no_of_scenarios, constraint
                                 )
                             if unacceptable_diff and can_add_scenarios:
-                                # print('Unacceptable diff for cvar')
+                                print('Unacceptable diff for cvar')
                                 result = CVaRificationSearchResults()
                                 result.set_needs_more_scenarios(True)
                                 return result
                             if self.__is_cvar_constraint_satisfied(
                                 constraint, cvar_validation
                             ):
-                                # print('CVaR constraint satisfied')
+                                print('CVaR constraint satisfied')
                                 all_constraints_violated = False
                                 cvar_lower_bounds[risk_constraint_index] = \
                                     cvar_mid_thresholds[risk_constraint_index]
                             else:
-                                # print('CVaR constraint not satisfied')
+                                print('CVaR constraint not satisfied')
                                 all_constraints_satisfied = False
                                 cvar_upper_bounds[risk_constraint_index] = \
                                     cvar_mid_thresholds[risk_constraint_index]
                     
                         if constraint.is_var_constraint():
-                            VaRConstr = constraint
                             unacceptable_diff, var_validation = \
                                 self.__is_var_relative_difference_high(
                                     package_with_indices, package,
                                     no_of_scenarios, constraint
                                 )
                             if unacceptable_diff and can_add_scenarios:
-                                # print('Unacceptable diff for var')
+                                print('Unacceptable diff for var')
                                 result = CVaRificationSearchResults()
                                 result.set_needs_more_scenarios(True)
                                 return result
                             if self.__is_var_constraint_satisfied(
                                 constraint, var_validation
                             ):
-                                # print('VaR constraint satisfied')
+                                print('VaR constraint satisfied')
                                 all_constraints_violated = False
                                 cvar_lower_bounds[risk_constraint_index] = \
                                     cvar_mid_thresholds[risk_constraint_index]
                             else:
-                                # print('VaR constraint not satisfied')
+                                print('VaR constraint not satisfied')
                                 all_constraints_satisfied = False
                                 cvar_upper_bounds[risk_constraint_index] = \
                                     cvar_mid_thresholds[risk_constraint_index]
                     risk_constraint_index += 1
-            
+
             if all_constraints_satisfied:
                 if self.__is_objective_value_enough(
                     validation_objective_value, objective_upper_bound
@@ -1051,79 +1022,30 @@ class RCLSolve:
                     result.set_objective_value(
                         validation_objective_value)
                     return result
-                else:
-                    varSatisfaction = self.__validator.get_var_constraint_satisfaction(package, VaRConstr)
-                    p = VaRConstr.get_probability_threshold()
-                    #if best so far is feasible
-                    if bestInfeasibleResult.get_var() >= p:
-                        #if new solution is feasible and better objective
-                        if bestInfeasibleResult.get_objective_value() < validation_objective_value and varSatisfaction >= p:
-                            print("In Tresh Search Compare Var:",varSatisfaction)
-                            print("In Tresh Search Old Var:", bestInfeasibleResult.get_var())
-                            bestInfeasibleResult.set_package(package)
-                            bestInfeasibleResult.set_var(varSatisfaction)
-                            bestInfeasibleResult.set_objective_value(validation_objective_value)
-                            print("IN THRESH SEARCH CHANGE IN THE BEST SOLUTION")
-                            print(bestInfeasibleResult.get_package())
-                    else: 
-                        #if best is not feasible, but the new one is feasible update
-                        print("In Tresh Search Compare Var:",varSatisfaction)
-                        print("In Tresh Search Old Var:", bestInfeasibleResult.get_var())
-                        bestInfeasibleResult.set_package(package)
-                        bestInfeasibleResult.set_var(varSatisfaction)
-                        bestInfeasibleResult.set_objective_value(validation_objective_value)
-                        print("IN THRESH SEARCH CHANGE IN THE BEST SOLUTION")
-                        print(bestInfeasibleResult.get_package())
-            else:
-                varSatisfaction = self.__validator.get_var_constraint_satisfaction(package, VaRConstr)
-                if bestInfeasibleResult.get_var() is None: 
-                    #if there is no var so far set it
-                    print("In Tresh Search Compare Var:",varSatisfaction)
-                    print("In Tresh Search Old Var:", bestInfeasibleResult.get_var())
-                    bestInfeasibleResult.set_package(package)
-                    bestInfeasibleResult.set_var(varSatisfaction)
-                    bestInfeasibleResult.set_objective_value(validation_objective_value)
-                    print("IN THRESH SEARCH CHANGE IN THE BEST SOLUTION")
-                    print(bestInfeasibleResult.get_package())
-                else:
-                    #if there is but the new one is infeasible only change if it has better objective
-                    print("In Tresh Search Compare Var:",varSatisfaction)
-                    print("In Tresh Search Old Var:", bestInfeasibleResult.get_var()) 
-                    if bestInfeasibleResult.get_var() < varSatisfaction:
-                        bestInfeasibleResult.set_package(package)
-                        bestInfeasibleResult.set_var(varSatisfaction)
-                        bestInfeasibleResult.set_objective_value(validation_objective_value)
-                        print("IN THRESH SEARCH CHANGE IN THE BEST SOLUTION")
-                        print(bestInfeasibleResult.get_package())
-            
+                
             if all_constraints_violated:
-                # print('All constraints were violated')
+                print('All constraints were violated')
                 if self.__query.get_objective().get_objective_type() ==\
                     ObjectiveType.MAXIMIZATION:
 
                     if validation_objective_value < objective_upper_bound:
                         print('Updating objective upper bound to',
-                                validation_objective_value)
-                        objective_upper_bound = validation_objective_value
-                
-                
+                            validation_objective_value)
+                        #objective_upper_bound = validation_objective_value
+                    
+                    
                 else:
                     if validation_objective_value > objective_upper_bound:
                         print('Updating objective upper bound to',
-                                validation_objective_value)
-                        objective_upper_bound = validation_objective_value
+                            validation_objective_value)
+                    #objective_upper_bound = validation_objective_value
             
-        varValue = bestInfeasibleResult.get_var()
-        objValue = bestInfeasibleResult.get_objective_value()
-        package = bestInfeasibleResult.get_package()
         result = CVaRificationSearchResults()
-        result.set_objective_upper_bound(objective_upper_bound)
-        result.set_cvar_thresholds(cvar_lower_bounds)
-        result.set_package(package)
-        result.set_var(varValue)
-        result.set_objective_value(objValue)
+        result.set_objective_upper_bound(
+            objective_upper_bound)
+        result.set_cvar_thresholds(
+            cvar_lower_bounds)
         return result
-            
 
     def __cvar_coefficient_search(
         self, no_of_scenarios: int,
@@ -1134,27 +1056,23 @@ class RCLSolve:
         max_no_of_scenarios_to_consider: list[int],
         is_model_setup: bool,
         can_add_scenarios: bool,
-        start_time,
+        start_time, 
         timeout
     ) -> CVaRificationSearchResults:
-        bestInfeasibleResult = CVaRificationSearchResults()
         while self.__l_inf(
             min_no_of_scenarios_to_consider,
             max_no_of_scenarios_to_consider
         ) > 1:
-            print("TIME USED =",time.time() - start_time)
             if time.time() - start_time > timeout:
-                print("TIMEOUT - CVAR COEF SEARCH")
+                print("TIMEOUT")
                 break
-
-            print("min_no_of_scenarios_to_consider=",min_no_of_scenarios_to_consider,"max_no_of_scenarios_to_consider", max_no_of_scenarios_to_consider)
             mid_no_of_scenarios_to_consider = []
             for ind in range(len(min_no_of_scenarios_to_consider)):
                 mid_no_of_scenarios_to_consider.append(
                     (min_no_of_scenarios_to_consider[ind] +\
                      max_no_of_scenarios_to_consider[ind]) // 2
                 )
-            print("min_no_of_scenarios_to_consider=",min_no_of_scenarios_to_consider,"max_no_of_scenarios_to_consider", max_no_of_scenarios_to_consider, "mid_no_of_scenarios_to_consider", mid_no_of_scenarios_to_consider)
+            
             if not is_model_setup:
                 self.__model_setup(
                     no_of_scenarios=no_of_scenarios,
@@ -1210,10 +1128,7 @@ class RCLSolve:
             all_constraints_satisfied = True
             all_constraints_violated = True
             risk_constraint_index = 0
-            
 
-            #Filip: I abuse the fact that there's only 1 VaR
-            VaRConstr = None
             for constraint in self.__query.get_constraints():
                 if constraint.is_risk_constraint():
                     if risk_constraint_index not in trivial_constraints:
@@ -1245,7 +1160,6 @@ class RCLSolve:
                                         -= 1
 
                         if constraint.is_var_constraint():
-                            VaRConstr = constraint
                             unacceptable_diff, var_validation = \
                                 self.__is_var_relative_difference_high(
                                     package_with_indices, package,
@@ -1273,7 +1187,6 @@ class RCLSolve:
                                         -= 1
                     risk_constraint_index += 1
 
-            print("HEREEEE")
             if all_constraints_satisfied:
                 if self.__is_objective_value_enough(
                     validation_objective_value, objective_upper_bound
@@ -1284,73 +1197,10 @@ class RCLSolve:
                     result.set_objective_value(
                         validation_objective_value)
                     return result
-                else:
-                    varSatisfaction = self.__validator.get_var_constraint_satisfaction(package, VaRConstr)
-                    p = VaRConstr.get_probability_threshold()
-                    #if best so far is feasible
-                    if bestInfeasibleResult.get_var() >= p:
-                        #if new solution is feasible and better objective
-                        if bestInfeasibleResult.get_objective_value() < validation_objective_value and varSatisfaction >= p:
-                            print("In Coef Search Compare Var:",varSatisfaction)
-                            print("In Coef Search Old Var:", bestInfeasibleResult.get_var())
-                            bestInfeasibleResult.set_package(package)
-                            bestInfeasibleResult.set_var(varSatisfaction)
-                            bestInfeasibleResult.set_objective_value(validation_objective_value)
-                            print("IN COEFF SEARCH CHANGE IN THE BEST SOLUTION")
-                            print(bestInfeasibleResult.get_package())
-                    else: 
-                        #if best is not feasible, but the new one is feasible update
-                        print("In Coef Search Compare Var:",varSatisfaction)
-                        print("In Coef Search Old Var:", bestInfeasibleResult.get_var())
-                        bestInfeasibleResult.set_package(package)
-                        bestInfeasibleResult.set_var(varSatisfaction)
-                        bestInfeasibleResult.set_objective_value(validation_objective_value)
-                        print("IN COEFF SEARCH CHANGE IN THE BEST SOLUTION")
-                        print(bestInfeasibleResult.get_package())
-            else:
-                varSatisfaction = self.__validator.get_var_constraint_satisfaction(package, VaRConstr)
-                if bestInfeasibleResult.get_var() is None: 
-                    #if there is no var so far set it
-                    print("In Coef Search Compare Var:",varSatisfaction)
-                    print("In Coef Search Old Var:", bestInfeasibleResult.get_var())
-                    bestInfeasibleResult.set_package(package)
-                    bestInfeasibleResult.set_var(varSatisfaction)
-                    bestInfeasibleResult.set_objective_value(validation_objective_value)
-                    print("IN COEFF SEARCH CHANGE IN THE BEST SOLUTION")
-                    print(bestInfeasibleResult.get_package())
-                else:
-                    #if there is but the new one is infeasible only change if it has better objective
-                    print("In Coef Search Compare Var:",varSatisfaction)
-                    print("In Coef Search Old Var:", bestInfeasibleResult.get_var()) 
-                    if bestInfeasibleResult.get_var() < varSatisfaction:
-                        bestInfeasibleResult.set_package(package)
-                        bestInfeasibleResult.set_var(varSatisfaction)
-                        bestInfeasibleResult.set_objective_value(validation_objective_value)
-                        print("IN COEFF SEARCH CHANGE IN THE BEST SOLUTION")
-                        print(bestInfeasibleResult.get_package())
-            
-            if all_constraints_violated:
-                if self.__query.get_objective().get_objective_type() == \
-                    ObjectiveType.MAXIMIZATION:
-                    
-                    if validation_objective_value < objective_upper_bound:
-                        ...
-                        objective_upper_bound = validation_objective_value
-                    
-                else:
-                    if validation_objective_value > objective_upper_bound:
-                        ...
-                        objective_upper_bound = validation_objective_value
-        
-        varValue = bestInfeasibleResult.get_var()
-        objValue = bestInfeasibleResult.get_objective_value()
-        package = bestInfeasibleResult.get_package()
+
         result = CVaRificationSearchResults()
         result.set_objective_upper_bound(objective_upper_bound)
         result.set_scenarios_to_consider(min_no_of_scenarios_to_consider)
-        result.set_package(package)
-        result.set_var(varValue)
-        result.set_objective_value(objValue)
         return result
             
     
@@ -1383,8 +1233,8 @@ class RCLSolve:
         self, no_of_scenarios,
         probabilistically_unconstrained_package
     ):
-        # self.__add_all_scenarios_if_possible( #comment this out
-        #     no_of_scenarios)
+        self.__add_all_scenarios_if_possible(
+            no_of_scenarios)
         risk_constraint_index = 0
         cvar_lower_bounds = []
         cvar_upper_bounds = []
@@ -1408,9 +1258,15 @@ class RCLSolve:
                     trivial_constraints.append(risk_constraint_index)
                     cvar_lower_bounds.append(constraint.get_sum_limit())
                     cvar_upper_bounds.append(constraint.get_sum_limit())
-                    no_of_scenarios_to_consider =\
-                        np.floor(constraint.get_percentage_of_scenarios()\
-                                 *no_of_scenarios/100.0)
+                    if constraint.is_cvar_constraint():
+                        no_of_scenarios_to_consider =\
+                            int(np.floor(constraint.get_percentage_of_scenarios()\
+                                    *no_of_scenarios/100.0))
+                    elif constraint.is_var_constraint():
+                        no_of_scenarios_to_consider =\
+                            int(np.ceil(
+                                (1-constraint.get_probability_threshold()
+                            )*no_of_scenarios))
                     min_no_of_scenarios_to_consider.append(
                         no_of_scenarios_to_consider
                     )
@@ -1467,24 +1323,17 @@ class RCLSolve:
             trivial_constraints
     
 
-    def solve(self, can_add_scenarios = True,         
-        start_time = None,
-        timeout = None):
-
-        bestInfeasibleResult = CVaRificationSearchResults()
+    def solve(self, can_add_scenarios = True, start_time = None, timeout = float('inf')):
         self.__metrics.start_execution()
         no_of_scenarios = self.__init_no_of_scenarios
         unacceptable_diff = True
 
         while unacceptable_diff:
-            # --- TIMEOUT CHECK 1 ---
-            print("TIME USED =",time.time() - start_time)
+            print("DETERMINISTIC")
             if time.time() - start_time > timeout:
-                print("TIMEOUT SOLVE 1", bestInfeasibleResult.get_package())
-                package = bestInfeasibleResult.get_package()
-                self.__metrics.end_execution(bestInfeasibleResult.get_objective_value(), no_of_scenarios)
-                self.__metrics.set_package(package)
-                return (bestInfeasibleResult.get_package(), bestInfeasibleResult.get_objective_value())
+                print("TIMEOUT")
+                self.__metrics.set_package(self.__bestPackage)
+                return (self.__bestPackage, self.__bestObjective)
             self.__model_setup(
                 no_of_scenarios=no_of_scenarios,
                 no_of_scenarios_to_consider=[],
@@ -1493,11 +1342,11 @@ class RCLSolve:
 
             probabilistically_unconstrained_package = \
                 self.__get_package()
-            # # print('Probabilistically unconstrained package:',
-            #     probabilistically_unconstrained_package)
+            print('Probabilistically unconstrained package:',
+                probabilistically_unconstrained_package)
             if probabilistically_unconstrained_package is None:
                 self.__metrics.end_execution(0, 0)
-                return
+                return None
         
             probabilistically_unconstrained_package_with_indices = \
                 self.__get_package_with_indices()
@@ -1509,256 +1358,163 @@ class RCLSolve:
                     no_of_scenarios
                 )
             
+            print("Unnaceptable diff:", unacceptable_diff, "Can add scenarios:",
+                  can_add_scenarios)
             if not can_add_scenarios or not unacceptable_diff:
                 objective_upper_bound = validation_objective_value
                 break
 
             no_of_scenarios *= 2
-        
-        # print('Objective value upper bound:',
-        #       objective_upper_bound)
+            no_of_scenarios = min(no_of_scenarios, self.__no_of_validation_scenarios)
 
-        #Filip: I abuse the fact that there's only 1 VaR
-        VaRConstr = None
-        for constraint in self.__query.get_constraints():
-            if constraint.is_var_constraint():
-                VaRConstr = constraint
+        
+        print('Objective value upper bound:',
+              objective_upper_bound)
+
         if self.__validator.is_package_validation_feasible(
             probabilistically_unconstrained_package):
-            # print('Probabilistically unconstrained package'
-            #       'is validation feasible')
+            print('Probabilistically unconstrained package'
+                  'is validation feasible')
             self.__metrics.end_execution(
                 objective_upper_bound, 0)
-            #add the package to the metrics
-            self.__metrics.set_package(probabilistically_unconstrained_package)
+            self.__metrics.set_package(self.__bestPackage)
             return (probabilistically_unconstrained_package,
                     objective_upper_bound)
-        else:
-            package = probabilistically_unconstrained_package
-            varSatisfaction = self.__validator.get_var_constraint_satisfaction(package, VaRConstr)
-            if bestInfeasibleResult.get_var() is None: 
-                print("In Solve Compare Var:",varSatisfaction)
-                print("In Solve Old Var:", bestInfeasibleResult.get_var())
-                bestInfeasibleResult.set_package(package)
-                bestInfeasibleResult.set_var(varSatisfaction)
-                bestInfeasibleResult.set_objective_value(validation_objective_value)
-                print("IN SOLVE CHANGE IN THE BEST SOLUTION")
-                print(bestInfeasibleResult.get_package())
-            else:
-                print("In Compare Var:",varSatisfaction)
-                print("In Old Var:", bestInfeasibleResult.get_var())     
-                if bestInfeasibleResult.get_var() < varSatisfaction:
-                    print("IN SOLVE CHANGE IN THE BEST SOLUTION")
-                    bestInfeasibleResult.set_package(package)
-                    bestInfeasibleResult.set_var(varSatisfaction)
-                    bestInfeasibleResult.set_objective_value(validation_objective_value)
-                    print(bestInfeasibleResult.get_package())
 
-        cvar_upper_bounds, cvar_lower_bounds,\
-        max_no_of_scenarios_to_consider,\
-        min_no_of_scenarios_to_consider,\
-        trivial_constraints = \
-        self.__get_bounds_for_risk_constraints(
-            no_of_scenarios,
-            probabilistically_unconstrained_package,
-        )
-
-        is_model_setup = False
-            
-        #print('CVaR upper bounds:', cvar_upper_bounds)
-        #print('CVaR lower bounds:', cvar_lower_bounds)
-        # print('Min No of Scenarios to consider:',
-        #         min_no_of_scenarios_to_consider)
-        # print('Max no of scenarios to consider:',
-        #         max_no_of_scenarios_to_consider)
-        # print('Trivial constraints:', trivial_constraints)
-
-        init_diff = self.__l_inf(
-            cvar_upper_bounds, cvar_lower_bounds)
-
-        while self.__l_inf(cvar_upper_bounds, cvar_lower_bounds)\
-            >= self.__bisection_threshold*init_diff and\
-                self.__l_inf(min_no_of_scenarios_to_consider,
-                                max_no_of_scenarios_to_consider) >= 1:
-            
-            # --- TIMEOUT CHECK 2 ---
-            print("TIME USED =",time.time() - start_time)
+        while no_of_scenarios <= self.__no_of_validation_scenarios:
             if time.time() - start_time > timeout:
-                package = bestInfeasibleResult.get_package()
-                self.__metrics.end_execution(bestInfeasibleResult.get_objective_value(), no_of_scenarios)
-                self.__metrics.set_package(package)
-                print("TIMEOUT SOLVE 2", bestInfeasibleResult.get_package())
-                return (bestInfeasibleResult.get_package(), bestInfeasibleResult.get_objective_value())
+                print("TIMEOUT")
+                self.__metrics.set_package(self.__bestPackage)
+                return (self.__bestPackage, self.__bestObjective)
+            cvar_upper_bounds, cvar_lower_bounds,\
+            max_no_of_scenarios_to_consider,\
+            min_no_of_scenarios_to_consider,\
+            trivial_constraints = \
+                self.__get_bounds_for_risk_constraints(
+                    no_of_scenarios,
+                    probabilistically_unconstrained_package,
+                )
+
+            is_model_setup = False
             
             print('CVaR upper bounds:', cvar_upper_bounds)
             print('CVaR lower bounds:', cvar_lower_bounds)
             print('Min No of Scenarios to consider:',
-                min_no_of_scenarios_to_consider)
+                  min_no_of_scenarios_to_consider)
             print('Max no of scenarios to consider:',
-                max_no_of_scenarios_to_consider)
+                  max_no_of_scenarios_to_consider)
             print('Trivial constraints:', trivial_constraints)
 
-            coefficient_search_result = \
-                self.__cvar_coefficient_search(
-                    no_of_scenarios,
-                    cvar_upper_bounds,
-                    trivial_constraints,
-                    objective_upper_bound,
-                    min_no_of_scenarios_to_consider,
-                    max_no_of_scenarios_to_consider,
-                    is_model_setup,
-                    can_add_scenarios,
-                    start_time,
-                    timeout
-                )
-            
-            is_model_setup = True
+            init_diff = self.__l_inf(
+                cvar_upper_bounds, cvar_lower_bounds)
 
-            if coefficient_search_result.\
-                get_needs_more_scenarios():
-                break
-            if coefficient_search_result.\
-                get_found_appropriate_package():
-                self.__metrics.end_execution(
-                    coefficient_search_result.\
-                        get_objective_value(),
-                    no_of_scenarios
-                )
-                package = coefficient_search_result.get_package()
-                self.__metrics.set_package(package)
-                return (
-                    package,
-                    coefficient_search_result.get_objective_value()
-                )
-            else: 
-                package = coefficient_search_result.get_package()
-                objVal = coefficient_search_result.get_objective_value()
-                varSatisfaction = self.__validator.get_var_constraint_satisfaction(package, VaRConstr)
-                p = VaRConstr.get_probability_threshold()
-                if package is None:
-                    continue
-                if bestInfeasibleResult.get_var() is None: 
-                    print("In Solve Compare Var:",varSatisfaction)
-                    print("In Solve Old Var:", bestInfeasibleResult.get_var())
-                    bestInfeasibleResult.set_package(package)
-                    bestInfeasibleResult.set_var(varSatisfaction)
-                    bestInfeasibleResult.set_objective_value(objVal)
-                    print("IN SOLVE CHANGE IN THE BEST SOLUTION")
-                    print(bestInfeasibleResult.get_package())
-                else: 
-                    if bestInfeasibleResult.get_var() >= p:
-                        if bestInfeasibleResult.get_objective_value() < objVal and varSatisfaction >= p:
-                            bestInfeasibleResult.set_package(package)
-                            bestInfeasibleResult.set_var(varSatisfaction)
-                            bestInfeasibleResult.set_objective_value(objVal) 
-                            print(bestInfeasibleResult.get_package()) 
+            while self.__l_inf(cvar_upper_bounds, cvar_lower_bounds)\
+                >= self.__bisection_threshold*init_diff and\
+                    self.__l_inf(min_no_of_scenarios_to_consider,
+                                 max_no_of_scenarios_to_consider) >= 1:
+                if time.time() - start_time > timeout:
+                    print("TIMEOUT")
+                    self.__metrics.set_package(self.__bestPackage)
+                    return (self.__bestPackage, self.__bestObjective)
+                
+                print('CVaR upper bounds:', cvar_upper_bounds)
+                print('CVaR lower bounds:', cvar_lower_bounds)
+                print('Min No of Scenarios to consider:',
+                  min_no_of_scenarios_to_consider)
+                print('Max no of scenarios to consider:',
+                  max_no_of_scenarios_to_consider)
+                print('Trivial constraints:', trivial_constraints)
+
+                coefficient_search_result = \
+                    self.__cvar_coefficient_search(
+                        no_of_scenarios,
+                        cvar_upper_bounds,
+                        trivial_constraints,
+                        objective_upper_bound,
+                        min_no_of_scenarios_to_consider,
+                        max_no_of_scenarios_to_consider,
+                        is_model_setup,
+                        can_add_scenarios,
+                        start_time,
+                        timeout
+                    )
+                
+                is_model_setup = True
+
+                if coefficient_search_result.\
+                    get_needs_more_scenarios():
+                    break
+                if coefficient_search_result.\
+                    get_found_appropriate_package():
+                    self.__metrics.end_execution(
+                        coefficient_search_result.\
+                            get_objective_value(),
+                        no_of_scenarios
+                    )
+                    self.__metrics.set_package(self.__bestPackage)
+                    return (
+                        coefficient_search_result.get_package(),
+                        coefficient_search_result.get_objective_value()
+                    )
+                
+                min_no_of_scenarios_to_consider = \
+                    coefficient_search_result.get_scenarios_to_consider()
+                objective_upper_bound = \
+                    coefficient_search_result.get_objective_upper_bound()
+                
+                threshold_search_result = \
+                    self.__cvar_threshold_search(
+                        no_of_scenarios,
+                        cvar_upper_bounds,
+                        cvar_lower_bounds,
+                        trivial_constraints,
+                        objective_upper_bound,
+                        min_no_of_scenarios_to_consider,
+                        is_model_setup,
+                        can_add_scenarios,
+                        start_time, 
+                        timeout
+                    )
+
+                if can_add_scenarios and threshold_search_result.\
+                    get_needs_more_scenarios():
+                    break
+                if threshold_search_result.\
+                    get_found_appropriate_package():
+                    self.__metrics.end_execution(
+                        threshold_search_result.\
+                            get_objective_value(),
+                        no_of_scenarios
+                    )
+                    self.__metrics.set_package(self.__bestPackage)
+                    return (
+                        threshold_search_result.get_package(),
+                        threshold_search_result.get_objective_value()
+                    )
+                cvar_upper_bounds = \
+                    threshold_search_result.get_cvar_thresholds()
+                objective_upper_bound = \
+                    threshold_search_result.get_objective_upper_bound()
+                
+                for ind in range(len(cvar_upper_bounds)):
+                    if cvar_upper_bounds[ind] <\
+                        cvar_lower_bounds[ind]:
+                        cvar_upper_bounds[ind] -= self.__bisection_threshold
                     else:
-                        print("In Solve Compare Var:",varSatisfaction)
-                        print("In Solve Old Var:", bestInfeasibleResult.get_var())
-                        if bestInfeasibleResult.get_var() < varSatisfaction:
-                            bestInfeasibleResult.set_package(package)
-                            bestInfeasibleResult.set_var(varSatisfaction)
-                            bestInfeasibleResult.set_objective_value(objVal)
-                            print("IN SOLVE CHANGE IN THE BEST SOLUTION")
-                            print(bestInfeasibleResult.get_package())
+                        cvar_upper_bounds[ind] += self.__bisection_threshold
 
-
-
-            min_no_of_scenarios_to_consider = \
-                coefficient_search_result.get_scenarios_to_consider()
-            objective_upper_bound = \
-                coefficient_search_result.get_objective_upper_bound()
-
-            print("BEFORE THRESH SEARCH")
-            print("min_no_of_scenarios_to_consider",min_no_of_scenarios_to_consider)
-            print("objective upper bound", objective_upper_bound)
+                for ind in range(len(min_no_of_scenarios_to_consider)):
+                    if min_no_of_scenarios_to_consider[ind] <\
+                        max_no_of_scenarios_to_consider[ind]:
+                        max_no_of_scenarios_to_consider[ind] -= 1
             
-            threshold_search_result = \
-                self.__cvar_threshold_search(
-                    no_of_scenarios,
-                    cvar_upper_bounds,
-                    cvar_lower_bounds,
-                    trivial_constraints,
-                    objective_upper_bound,
-                    min_no_of_scenarios_to_consider,
-                    is_model_setup,
-                    can_add_scenarios,
-                    start_time,
-                    timeout
-                )
+            no_of_scenarios *= 2
+            if no_of_scenarios >= self.__no_of_validation_scenarios:
+                no_of_scenarios = self.__no_of_validation_scenarios
+        self.__metrics.end_execution(0, no_of_scenarios)
+        return (None, 0.0)
+    
 
-            if threshold_search_result.\
-                get_needs_more_scenarios():
-                break
-            if threshold_search_result.\
-                get_found_appropriate_package():
-                self.__metrics.end_execution(
-                    threshold_search_result.\
-                        get_objective_value(),
-                    no_of_scenarios
-                )
-                package = threshold_search_result.get_package()
-                self.__metrics.set_package(package)
-                return (
-                    package,
-                    threshold_search_result.get_objective_value()
-                )
-            else: 
-                package = threshold_search_result.get_package()
-                objVal = threshold_search_result.get_objective_value()
-                varSatisfaction = self.__validator.get_var_constraint_satisfaction(package, VaRConstr)
-                p = VaRConstr.get_probability_threshold()
-                if package is None:
-                    continue
-                if bestInfeasibleResult.get_var() is None: 
-                    print("In Solve Compare Var:",varSatisfaction)
-                    print("In Solve Old Var:", bestInfeasibleResult.get_var())
-                    bestInfeasibleResult.set_package(package)
-                    bestInfeasibleResult.set_var(varSatisfaction)
-                    bestInfeasibleResult.set_objective_value(objVal)
-                    print("IN SOLVE CHANGE IN THE BEST SOLUTION")
-                    print(bestInfeasibleResult.get_package())
-                else: 
-                    if bestInfeasibleResult.get_var() >= p and varSatisfaction >= p:
-                        print("In Solve Compare Var:",varSatisfaction)
-                        print("In Solve Old Var:", bestInfeasibleResult.get_var())
-                        if bestInfeasibleResult.get_objective_value() < objVal:
-                            bestInfeasibleResult.set_package(package)
-                            bestInfeasibleResult.set_var(varSatisfaction)
-                            bestInfeasibleResult.set_objective_value(objVal)  
-                            print("IN SOLVE CHANGE IN THE BEST SOLUTION")
-                            print(bestInfeasibleResult.get_package())
-                    else:
-                        print("In Solve Compare Var:",varSatisfaction)
-                        print("In Solve Old Var:", bestInfeasibleResult.get_var())
-                        if bestInfeasibleResult.get_var() < varSatisfaction:
-                            bestInfeasibleResult.set_package(package)
-                            bestInfeasibleResult.set_var(varSatisfaction)
-                            bestInfeasibleResult.set_objective_value(objVal)
-                            print("IN SOLVE CHANGE IN THE BEST SOLUTION")
-                            print(bestInfeasibleResult.get_package())
-            cvar_upper_bounds = \
-                threshold_search_result.get_cvar_thresholds()
-            objective_upper_bound = \
-                threshold_search_result.get_objective_upper_bound()
-            
-            for ind in range(len(cvar_upper_bounds)):
-                if cvar_upper_bounds[ind] <\
-                    cvar_lower_bounds[ind]:
-                    cvar_upper_bounds[ind] -= self.__bisection_threshold
-                else:
-                    cvar_upper_bounds[ind] += self.__bisection_threshold
-
-            for ind in range(len(min_no_of_scenarios_to_consider)):
-                if min_no_of_scenarios_to_consider[ind] <\
-                    max_no_of_scenarios_to_consider[ind]:
-                    max_no_of_scenarios_to_consider[ind] -= 1
-            
-        self.__metrics.end_execution(bestInfeasibleResult.get_objective_value(), no_of_scenarios)
-        self.__metrics.set_package(package)
-        #return (None, 0.0)
-        return (bestInfeasibleResult.get_package(), bestInfeasibleResult.get_objective_value())
-     
     def __get_attributes(self, id):
         sql_query = "SELECT " + \
             self.__query.get_projected_attributes() + \

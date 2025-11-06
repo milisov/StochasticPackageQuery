@@ -348,7 +348,10 @@ SolutionMetadata<T> SummarySearch::CSASolveBinSearch(GRBModel &model, std::vecto
         }
         GRBModel model = formulator.formulate(spq, formOptions);
         model.update();
-        initializeVector(x, NTuples, T(0));
+        if(x.size() == 0)
+        {
+            initializeVector(x, NTuples, T(0));
+        }
         options.reduced = formOptions.reduced;
         options.reducedIds = formOptions.reducedIds;
         options.computeActiveness = false;
@@ -394,7 +397,11 @@ SolutionMetadata<T> SummarySearch::CSASolveBinSearchRS(Formulator &formulator, F
         // optimize and store solution in x
         model.update();
         //model.write("/home/fm2288/StochasticPackageQuery/src/solver/try" + to_string(q) +".lp");
-        initializeVector(x, NTuples, T(0));
+        if(x.size() == 0)
+        {
+            initializeVector(x, NTuples, T(0));
+        }
+        //initializeVector(x, NTuples, T(0));
         // model.write("mod"+to_string(Z)+"_"+to_string(formOptions.iteration)+".lp");
         SolveOptions options;
         options.reduced = formOptions.reduced;

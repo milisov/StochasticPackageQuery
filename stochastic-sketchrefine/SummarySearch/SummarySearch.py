@@ -3,6 +3,7 @@ from gurobipy import GRB
 import numpy as np
 import psutil
 from scipy import optimize
+import time
 
 from DbInfo.DbInfo import DbInfo
 from OptimizationMetrics.OptimizationMetrics import OptimizationMetrics
@@ -33,6 +34,9 @@ class SummarySearch:
         self.__gurobi_env.setParam(
             'OutputFlag', 0
         )
+        self.__bestPackage = None
+        self.__bestFeasibility = 0.0
+        self.__bestObjective = float('-inf')
         self.__model = gp.Model(
             env=self.__gurobi_env)
         self.__is_linear_relaxation = \
@@ -53,34 +57,42 @@ class SummarySearch:
 
         self.__no_of_vars = \
             self.__get_number_of_tuples()
-        self.__feasible_no_of_scenarios_to_store = init_no_of_scenarios
+        self.__feasible_no_of_scenarios_to_store = \
+            int(np.floor(
+                (0.40*psutil.virtual_memory().available)/\
+                (64*self.__no_of_vars)))
         
         self.__vars = []
 
         self.__current_number_of_scenarios = 0
-        self.__scenarios = dict()
+        self.__all_scenarios = dict()
         for attr in self.__get_stochastic_attributes():
-            self.__scenarios[attr] = []
+            self.__all_scenarios[attr] = []
             sc = ValueGenerator(
                     relation=self.__query.get_relation(),
                     base_predicate=self.__query.get_base_predicate(),
                     attribute=attr
                 ).get_values()
             for s in sc:
-                self.__scenarios[attr].append(s[0])
-
+                self.__all_scenarios[attr].append(s[0])
+        
+        self.__scenarios = dict()
+        for attr in self.__get_stochastic_attributes():
+            self.__scenarios[attr] = []
+            for _ in range(self.__no_of_vars):
+                self.__scenarios[attr].append([])
+        
         self.__values = dict()
         for attr in self.__get_deterministic_attributes():
             values = \
                 ValueGenerator(
                     relation=self.__query.get_relation(),
                     base_predicate=self.__query.get_base_predicate(),
-                    attribute=attr
-                ).get_values()
+                    attribute=attr).get_values()
             self.__values[attr] = []
             for value in values:
                 self.__values[attr].append(value[0])
-
+        
         self.__dbInfo = dbInfo
         self.__ids = []
         ids = ValueGenerator(
@@ -252,13 +264,13 @@ class SummarySearch:
         np.random.shuffle(scenarios)
         scenario_index = 0
         
-        for summary_index in range(no_of_summaries):
+        for summary_index in range(int(no_of_summaries)):
             scenarios_per_summary = \
                 self.__get_scenarios_for_this_summary(
                     alpha, no_of_scenarios,
                     no_of_summaries, summary_index
                 )
-            print('scenarios for this summary:', scenarios_per_summary)
+            # print('scenarios for this summary:', scenarios_per_summary)
             indicators.append(
                 self.__create_summary(
                     scenarios[
@@ -357,8 +369,7 @@ class SummarySearch:
         
         scenarios_to_consider = int(np.ceil(
             alpha * len(scenarios)))
-        # scenarios_to_consider = len(scenarios)
-        print('Scenarios to consider from sorted', scenarios_to_consider, "total scenarios in partition", len(scenarios))
+        # print('Scenarios to consider', scenarios_to_consider)
         
         no_of_scenarios_considered = 0
         coefficients = []
@@ -428,31 +439,35 @@ class SummarySearch:
         if no_of_scenarios > self.__feasible_no_of_scenarios_to_store:
             return
 
-        print(self.__current_number_of_scenarios)
+        print(self.__current_number_of_scenarios, no_of_scenarios)
         if self.__current_number_of_scenarios < \
             no_of_scenarios:
-            for attr in self.__scenarios:
-                new_scenarios = \
-                    self.__dbInfo.get_variable_generator_function(
-                        attr)(
-                            self.__query.get_relation(),
-                            self.__query.get_base_predicate()
-                        ).generate_scenarios(
-                            seed = SeedManager.get_next_seed(),
-                            no_of_scenarios = no_of_scenarios - \
-                                self.__current_number_of_scenarios
-                        )
-                for ind in range(len(new_scenarios)):
-                    for value in new_scenarios[ind]:
-                        self.__scenarios[attr][ind].append(value)
+            # for attr in self.__scenarios:
+            #     new_scenarios = \
+            #         self.__dbInfo.get_variable_generator_function(
+            #             attr)(
+            #                 self.__query.get_relation(),
+            #                 self.__query.get_base_predicate()
+            #             ).generate_scenarios(
+            #                 seed = SeedManager.get_next_seed(),
+            #                 no_of_scenarios = no_of_scenarios - \
+            #                     self.__current_number_of_scenarios
+            #             )
+            #     for ind in range(len(new_scenarios)):
+            #         for value in new_scenarios[ind]:
+            #             self.__scenarios[attr][ind].append(value)
+            no_of_scenarios = min(no_of_scenarios, self.__no_of_validation_scenarios)
+            for attr in self.__all_scenarios:
+                for ind in range(len(self.__all_scenarios[attr])):
+                    self.__scenarios[attr][ind] = self.__all_scenarios[attr][ind][:no_of_scenarios]
             self.__current_number_of_scenarios = no_of_scenarios
 
 
     def __add_constraints_to_model(
         self, no_of_scenarios, probabilistically_constrained,
         no_of_summaries, alpha, previous_package):
-        # if probabilistically_constrained:
-        #     self.__add_scenarios_if_necessary(no_of_scenarios)
+        if probabilistically_constrained:
+            self.__add_scenarios_if_necessary(no_of_scenarios)
 
         var_constraint_index = 0
         for constraint in self.__query.get_constraints():
@@ -490,11 +505,10 @@ class SummarySearch:
             Stochasticity.DETERMINISTIC:
             coefficients = self.__values[attr]
         else:
-            print(no_of_scenarios, self.__feasible_no_of_scenarios_to_store)
             if no_of_scenarios <= \
                 self.__feasible_no_of_scenarios_to_store:
-                # self.__add_scenarios_if_necessary(
-                #     no_of_scenarios)
+                self.__add_scenarios_if_necessary(
+                    no_of_scenarios)
                 for idx in range(self.__no_of_vars):
                     coefficients.append(
                         np.average(
@@ -573,6 +587,31 @@ class SummarySearch:
         self.__add_objective_to_model(
             self.__query.get_objective(), no_of_scenarios)
     
+
+    def __compare_best_packege(self, package):
+        for constraint in self.__query.get_constraints():
+            if constraint.is_var_constraint():
+                feasibility = self.__validator.get_var_constraint_satisfaction(package,constraint)
+                objective = self.__validator.get_validation_objective_value(package)
+                p = constraint.get_probability_threshold()
+                print("feasibility =",feasibility, "objective =", objective, "p =", p)
+                print("best feasibility =", self.__bestFeasibility, "best objective =", self.__bestObjective)
+                if feasibility >= p and self.__bestFeasibility >= p:
+                    #abuse Maximization
+                    if objective > self.__bestObjective:
+                        self.__bestPackage = package
+                        self.__bestFeasibility = feasibility
+                        self.__bestObjective = objective
+                elif feasibility < p and self.__bestFeasibility < p:
+                    if feasibility > self.__bestFeasibility:
+                        self.__bestPackage = package
+                        self.__bestFeasibility = feasibility
+                        self.__bestObjective = objective
+                elif feasibility >= p and self.__bestFeasibility < p:
+                    self.__bestPackage = package
+                    self.__bestFeasibility = feasibility
+                    self.__bestObjective = objective
+    
     
     def __get_package(self):
         self.__metrics.start_optimizer()
@@ -585,6 +624,8 @@ class SummarySearch:
                 if var.x > 0:
                     package_dict[self.__ids[idx]] = var.x
                 idx += 1
+            
+            self.__compare_best_packege(package_dict)
         except AttributeError:
             return None
         return package_dict
@@ -600,9 +641,8 @@ class SummarySearch:
         if summary_index < \
             (no_of_scenarios % no_of_summaries):
             scenarios_per_summary += 1
-        return scenarios_per_summary
-        # return int(np.ceil(
-        #     alpha*scenarios_per_summary))
+        return int(np.ceil(
+            scenarios_per_summary))
 
 
     def __get_no_of_scenarios_considered(
@@ -615,12 +655,11 @@ class SummarySearch:
             )
         return int(np.ceil(
             alpha*scenarios_per_summary))
-        #return scenarios_per_summary
 
     
     def __csa_solve(self, no_of_scenarios,
                     no_of_summaries, alpha_histories,
-                    previous_package, upper_bound):
+                    previous_package, upper_bound, start_time, timeout):
         alphas = []
         history = []
         clean_history = []
@@ -632,7 +671,6 @@ class SummarySearch:
         # print('Initial alpha history:', alpha_histories)
         best_feasible_package = previous_package
         best_objective_value = 0
-        best_feasibility = 0
         alpha_histories_copy = alpha_histories
 
         while True:
@@ -655,13 +693,13 @@ class SummarySearch:
                     if len(alpha_data) == 1:
                         next_alpha = 1
                     else:
-                        print('Alpha data:', alpha_data)
-                        print('y data:', y_data)
+                        # print('Alpha data:', alpha_data)
+                        # print('y data:', y_data)
                         params, _ = optimize.curve_fit(
                             ArcTangent.func, alpha_data,
                             y_data)
                         next_alpha = np.tan(-params[1]/params[0])
-                    print('Next alpha', next_alpha)
+                    # print('Next alpha', next_alpha)
                     alphas.append(next_alpha)
                     no_of_scenarios_considered.append(
                         self.__get_no_of_scenarios_considered(
@@ -669,11 +707,10 @@ class SummarySearch:
                             no_of_summaries, var_constraint_index
                         )
                     )
-                    print('No of scenarios considered',
-                         no_of_scenarios_considered[-1])
+                    #print('No of scenarios considered',
+                    #      no_of_scenarios_considered[-1])
                     var_constraint_index += 1
             if (no_of_scenarios_considered, previous_package) in history:
-                print("FOUND A MATCH IN HISTORY")
                 return (best_feasible_package, upper_bound)
             
             history.append((no_of_scenarios_considered, previous_package))
@@ -702,10 +739,8 @@ class SummarySearch:
                         ObjectiveType.MAXIMIZATION:
                         if objective_value > best_objective_value:
                             best_feasible_package = previous_package
-                            best_feasibility = self.__validator.get_var_constraint_satisfaction(previous_package, constraint)
                             best_objective_value = objective_value
                     elif objective_value < best_objective_value:
-                        best_feasibility = self.__validator.get_var_constraint_satisfaction(previous_package, constraint)
                         best_feasible_package = previous_package
                         best_objective_value = objective_value
             
@@ -713,16 +748,8 @@ class SummarySearch:
                 objective_value = self.__validator.get_validation_objective_value(
                     previous_package
                 )
-                current_package_feasibility = self.__validator.get_var_constraint_satisfaction(previous_package, constraint)
                 if self.__query.get_objective().get_objective_type() == \
                     ObjectiveType.MAXIMIZATION:
-
-                    if current_package_feasibility > best_feasibility:
-                        print("Prev Best Package Feasibility:",best_feasibility, "objective:",objective_value)
-                        best_feasibility = current_package_feasibility
-                        best_feasible_package = previous_package
-                        best_objective_value = objective_value
-                        print("New Best Package Feasibility:",best_feasibility, "objective:",objective_value)
                     if objective_value < upper_bound:
                         ...
                         # upper_bound = objective_value
@@ -730,12 +757,9 @@ class SummarySearch:
                     ...
                     # upper_bound = objective_value
 
-
             var_constraint_index = 0
             for constraint in self.__query.get_constraints():
                 if constraint.is_var_constraint():
-                    print("EEEJ:",self.__validator.get_var_constraint_satisfaction(
-                                    previous_package, constraint))
                     alpha_histories_copy[var_constraint_index].append(
                         (alphas[var_constraint_index],
                         self.__validator.get_var_constraint_satisfaction(
@@ -744,19 +768,24 @@ class SummarySearch:
                     )
                     #print('Appended', alpha_histories_copy[var_constraint_index][-1])
                     var_constraint_index += 1
-                
+            
+            print("TIME USED = ",time.time() - start_time, "TIMEOUT = ", timeout)
+            if time.time() - start_time > timeout:
+                return (previous_package, upper_bound)          
     
-    def solve(self):
+    def solve(self, start_time, timeout, getDeterministic = False):
         self.__metrics.start_execution()
         no_of_scenarios = self.__init_no_of_scenarios
-        
         self.__model_setup(
             no_of_scenarios,
             probabilistically_constrained=False)
         
         probabilistically_unconstrained_package = \
             self.__get_package()
-        
+
+        if getDeterministic:
+            self.__metrics.set_package(probabilistically_unconstrained_package)
+            return (probabilistically_unconstrained_package, 0)        
         print('Probabilistically unconstrained package:',
               probabilistically_unconstrained_package)
         
@@ -772,37 +801,25 @@ class SummarySearch:
         print('Objective Upper Bound:', upper_bound)
         alpha_histories = []
 
-        best_feasible_package = probabilistically_unconstrained_package
-        best_objective_value = self.__validator.get_validation_objective_value(best_feasible_package)
-        best_feasibility = 0
-
-        VaRConstr = None
-
         if self.__validator.is_package_validation_feasible(
             probabilistically_unconstrained_package):
-            print('Probabilistically unconstrained package is feasible')
-            for constraint in self.__query.get_constraints():
-                if constraint.is_var_constraint():
-                    VaRConstr = constraint
-                    self.__validator.get_var_constraint_satisfaction(
-                                probabilistically_unconstrained_package,
-                                constraint)
-                    print('Passes', self.__validator.get_var_constraint_satisfaction(
-                       package_dict=probabilistically_unconstrained_package,
-                       var_constraint=constraint
-                    ), 'of scenarios')
+            # print('Probabilistically unconstrained package is feasible')
+            # for constraint in self.__query.get_constraints():
+                # if constraint.is_var_constraint():
+                    #print('Passes', self.__validator.get_var_constraint_satisfaction(
+                    #    package_dict=probabilistically_unconstrained_package,
+                    #    var_constraint=constraint
+                    #), 'of scenarios')
+            self.__metrics.set_package(probabilistically_unconstrained_package)
             self.__metrics.end_execution(upper_bound, 0)
             return (probabilistically_unconstrained_package,
                     upper_bound)
 
         else:
-            print('Probabilistically unconstrained package is infeasible')
+            #print('Probabilistically unconstrained package is infeasible')
             for constraint in self.__query.get_constraints():
                 if constraint.is_var_constraint():
                     alpha_histories.append([])
-                    best_feasibility = self.__validator.get_var_constraint_satisfaction(
-                                probabilistically_unconstrained_package,
-                                constraint)
                     alpha_histories[-1].append(
                         (0, self.__validator.get_var_constraint_satisfaction(
                                 probabilistically_unconstrained_package,
@@ -813,18 +830,20 @@ class SummarySearch:
         no_of_summaries = self.__init_no_of_summaries
         
         while no_of_scenarios <= self.__no_of_validation_scenarios:
-            #print('Trying with', no_of_scenarios, 'scenarios and',
-            #      no_of_summaries, 'summaries')
+            if time.time() - start_time > timeout:
+                print("TIMEOUT")
+                break
+            print('Trying with', no_of_scenarios, 'scenarios and',
+                 no_of_summaries, 'summaries')
             package, upper_bound = self.__csa_solve(
                 no_of_scenarios=no_of_scenarios,
                 no_of_summaries=no_of_summaries,
                 alpha_histories=alpha_histories,
                 previous_package=probabilistically_unconstrained_package,
-                upper_bound=upper_bound
+                upper_bound=upper_bound,
+                start_time = start_time,
+                timeout = timeout
             )
-
-            current_package_feasibility = self.__validator.get_var_constraint_satisfaction(package, VaRConstr)
-            current_package_objective = self.__validator.get_validation_objective_value(package)
 
             if self.__validator.is_package_validation_feasible(package):
                 if self.__validator.is_package_1_pm_epsilon_approximate(
@@ -841,36 +860,20 @@ class SummarySearch:
                             validation_objective_value)
                 else:
                     no_of_summaries += 1
-                    print('Summaries',
-                         no_of_summaries)
-            elif no_of_summaries < no_of_scenarios:
-                print('Summaries',no_of_summaries)
-                no_of_summaries += 1
-
-            p = VaRConstr.get_probability_threshold()
-            if current_package_feasibility >= p and best_feasibility >= p:
-                if current_package_objective > best_objective_value:
-                    print("In Solve Prev Best Feasibility:", best_feasibility, "Objective:", best_objective_value)
-                    best_feasible_package = package
-                    best_feasibility = current_package_feasibility
-                    best_objective_value = current_package_objective
-                    print("In Solve New Best Feasibility:", best_feasibility, "Objective:", best_objective_value)
-            elif current_package_feasibility >= p and best_feasibility < p:
-                print("In Solve Prev Best Feasibility:", best_feasibility, "Objective:", best_objective_value)
-                best_feasible_package = package
-                best_feasibility = current_package_feasibility
-                best_objective_value = current_package_objective
-                print("In Solve New Best Feasibility:", best_feasibility, "Objective:", best_objective_value)    
-            elif current_package_feasibility < p and best_feasibility < p:
-                if current_package_feasibility > best_feasibility:
-                    print("In Solve Prev Best Feasibility:", best_feasibility, "Objective:", best_objective_value)
-                    best_feasible_package = package
-                    best_feasibility = current_package_feasibility
-                    best_objective_value = current_package_objective  
-                    print("In Solve New Best Feasibility:", best_feasibility, "Objective:", best_objective_value)
-
-        self.__metrics.end_execution(0)
-        return None
+                    #print('Increasing number of summaries to',
+                    #      no_of_summaries)
+            
+            else:
+                if(no_of_scenarios == self.__no_of_validation_scenarios):
+                    break
+                no_of_scenarios *= 2
+                no_of_scenarios = min(no_of_scenarios, self.__no_of_validation_scenarios)
+                #print('Increasing number of scenarios to',
+                #      no_of_scenarios)
+        
+        self.__metrics.set_package(self.__bestPackage)
+        self.__metrics.end_execution(self.__bestObjective, no_of_scenarios)
+        return (self.__bestPackage, self.__bestObjective)
 
 
     def __get_attributes(self, id):

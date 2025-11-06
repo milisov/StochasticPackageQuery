@@ -49,6 +49,10 @@ class Query:
     def set_relation(self, relation: str):
         self.__relation = relation
 
+
+    def set_relation(self, relation: str):
+        self.__relation = relation
+        
     def get_relation(self):
         return self.__relation
 
@@ -166,35 +170,3 @@ class Query:
 
     def get_objective(self):
         return self.__objective
-
-    def update_var_p_bound(self, new_p_bound: float, index: int | None = None):
-        if new_p_bound < 0.0 or new_p_bound > 1.0:
-            raise ValueError("Probability threshold must be between 0 and 1.")
-
-        if not self.__constraints:
-            raise Exception("No constraints found in the Query.")
-
-        # Collect indices of VaR constraints inside __constraints
-        var_indices = [i for i, c in enumerate(self.__constraints) if c.is_var_constraint()]
-
-        if not var_indices:
-            raise Exception("No VaRConstraint found in the given Query.")
-
-        if index is not None:
-            if index < 0 or index >= len(var_indices):
-                raise IndexError(f"Invalid VaR constraint index: {index}")
-            # Directly update the one inside __constraints
-            self.__constraints[var_indices[index]].set_probability_threshold(new_p_bound)
-        else:
-            # Update all VaR constraints inside __constraints
-            for i in var_indices:
-                self.__constraints[i].set_probability_threshold(new_p_bound)
-
-    def verify_var_p_bounds(self):
-        if not self.__constraints:
-            print("No constraints in query.")
-            return
-        for con in self.__constraints:
-            if(con.is_var_constraint()):
-                print(con.get_probability_threshold())
-                print(con.get_sum_limit())

@@ -12,12 +12,12 @@ class PortfolioInfo(DbInfo):
     
     @staticmethod
     def get_stochastic_attributes():
-        return ['profit']
+        return ['gain']
     
     @staticmethod
     def get_variable_generator_function(
         attribute: str) -> ScenarioGenerator:
-        if attribute == 'profit':
+        if attribute == 'gain':
             return GainScenarioGenerator
         raise Exception('Unknown Attribute')
     
@@ -32,7 +32,11 @@ class PortfolioInfo(DbInfo):
     def get_diameter_threshold(
         attribute: str
     ) -> float:
-        if attribute == 'profit':
+        if attribute == 'gain':
             return Hyperparameters.DIAMETER_THRESHOLD_PORTFOLIO_GAIN
         if attribute == 'price':
             return Hyperparameters.DIAMETER_THRESHOLD_PORTFOLIO_PRICE
+        
+    @staticmethod
+    def has_inter_tuple_correlations() -> bool:
+        return True

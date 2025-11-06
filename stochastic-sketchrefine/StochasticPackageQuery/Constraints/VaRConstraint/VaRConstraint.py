@@ -42,10 +42,8 @@ class VaRConstraint(DeterministicConstraint):
         return self.__is_probability_threshold_set
 
     def set_probability_threshold(self, probability_threshold: float):
-        print("HEEEEEEY")
         if probability_threshold < 0.0 or probability_threshold > 1.0:
             raise Exception
-        #print("VAR p = ", probability_threshold)
         self.__probability_threshold = probability_threshold
         self.__is_probability_threshold_set = True
         self.__cached_probability_string = ''
@@ -57,7 +55,6 @@ class VaRConstraint(DeterministicConstraint):
             if self.__probability_threshold < 0.0 or self.__probability_threshold > 1.0:
                 raise Exception
             self.__is_probability_threshold_set = True
-            #print("VAR p = ", self.__probability_threshold)
         except TypeError:
             ...
 
