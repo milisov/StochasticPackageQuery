@@ -34,9 +34,13 @@ class SummarySearch:
         self.__gurobi_env.setParam(
             'OutputFlag', 0
         )
+
+        self.__timers = {"validation": 0.0, "compareBest": 0.0}
         self.__bestPackage = None
-        self.__bestFeasibility = 0.0
+        self.__bestFeasibilities = []
+        self.__bestSurpluses = []
         self.__bestObjective = float('-inf')
+        self.__solutions = [] 
         self.__model = gp.Model(
             env=self.__gurobi_env)
         self.__is_linear_relaxation = \
@@ -588,32 +592,84 @@ class SummarySearch:
             self.__query.get_objective(), no_of_scenarios)
     
 
-    def __compare_best_packege(self, package):
+    def __validate_package_oos(self, package):
+        start_time = time.time()
+        feasibilities = []
+        surpluses = []
+        validator_oos = Validator(self.__query, self.__dbInfo, 10000)
+        for constraint in self.__query.get_constraints():
+            if constraint.is_risk_constraint():
+                #the true Indicates that we want to validate on out of sample
+                feasibility = validator_oos.get_var_constraint_satisfaction(package, constraint)
+                feasibilities.append(feasibility)
+                p = constraint.get_probability_threshold()
+                surpluses.append(feasibility - p)
+
+        objective_value = validator_oos.get_validation_objective_value(package)
+
+        end_time = time.time()
+        total_time = end_time - start_time
+        
+        self.__timers["validation"] += total_time
+
+        return feasibilities, surpluses, objective_value
+
+    def __compare_best_package(self, package, runtime):
+        validFeasibilities, validSurpluses, validObjective = self.__validate_package_oos(package)
+        print("valid feasibilities =", validFeasibilities, "valid surpluses =", validSurpluses, "valid objective =", validObjective,)
+
+        feasibilities = []
+        surpluses = []
+        objective = self.__validator.get_validation_objective_value(package)
+        time_start = time.time()
         for constraint in self.__query.get_constraints():
             if constraint.is_var_constraint():
                 feasibility = self.__validator.get_var_constraint_satisfaction(package,constraint)
-                objective = self.__validator.get_validation_objective_value(package)
                 p = constraint.get_probability_threshold()
-                print("feasibility =",feasibility, "objective =", objective, "p =", p)
-                print("best feasibility =", self.__bestFeasibility, "best objective =", self.__bestObjective)
-                if feasibility >= p and self.__bestFeasibility >= p:
-                    #abuse Maximization
-                    if objective > self.__bestObjective:
-                        self.__bestPackage = package
-                        self.__bestFeasibility = feasibility
-                        self.__bestObjective = objective
-                elif feasibility < p and self.__bestFeasibility < p:
-                    if feasibility > self.__bestFeasibility:
-                        self.__bestPackage = package
-                        self.__bestFeasibility = feasibility
-                        self.__bestObjective = objective
-                elif feasibility >= p and self.__bestFeasibility < p:
+                feasibilities.append(feasibility)
+                surpluses.append(feasibility - p)
+                print("feasibilities =",feasibilities, "objective =", objective)
+                print("best feasibilities =", self.__bestFeasibilities, "best objective =", self.__bestObjective)
+        time_end = time.time()
+        total_time = time_end - time_start
+        self.__timers["compareBest"] += total_time
+
+        if self.__bestPackage is None:
+            print("Best package is None")
+            self.__bestPackage = package
+            self.__bestFeasibilities = feasibilities
+            self.__bestSurpluses = surpluses
+            self.__bestObjective = objective
+        else: 
+            currentWorstSurplus = np.min(surpluses)
+            bestWorstSurplus = np.min(self.__bestSurpluses)
+            if currentWorstSurplus >= 0 and bestWorstSurplus >= 0:
+                print("Both current and best worst surpluses are non-negative")
+                if objective > self.__bestObjective:
+                    print("Current objective:", objective, "is better than best objective:", self.__bestObjective)
                     self.__bestPackage = package
-                    self.__bestFeasibility = feasibility
+                    self.__bestFeasibilities = feasibilities
+                    self.__bestSurpluses = surpluses
                     self.__bestObjective = objective
+            elif currentWorstSurplus >= 0 and bestWorstSurplus < 0:
+                print("current worst surplus", currentWorstSurplus, "is non-negative and best worst surplus", bestWorstSurplus, "is negative")
+                self.__bestPackage = package
+                self.__bestFeasibilities = feasibilities
+                self.__bestSurpluses = surpluses
+                self.__bestObjective = objective
+            elif currentWorstSurplus < 0 and bestWorstSurplus < 0:
+                print("current worst surplus", currentWorstSurplus, "is negative and best worst surplus", bestWorstSurplus, "is negative")
+                if currentWorstSurplus > bestWorstSurplus:
+                    print("Current worst surplus:", currentWorstSurplus, "is better than best worst surplus:", bestWorstSurplus)
+                    self.__bestPackage = package
+                    self.__bestFeasibilities = feasibilities
+                    self.__bestSurpluses = surpluses
+                    self.__bestObjective = objective
+            
+        self.__solutions.append((runtime*1000, np.round(feasibilities,4), np.round(surpluses,4), objective, np.round(validFeasibilities,4),np.round(validSurpluses,4), validObjective))
     
     
-    def __get_package(self):
+    def __get_package(self, start_time):
         self.__metrics.start_optimizer()
         self.__model.optimize()
         self.__metrics.end_optimizer()
@@ -624,10 +680,17 @@ class SummarySearch:
                 if var.x > 0:
                     package_dict[self.__ids[idx]] = var.x
                 idx += 1
-            
-            self.__compare_best_packege(package_dict)
         except AttributeError:
             return None
+
+        current_time = time.time()
+        unnecessary_time = 0.0
+        for timer in self.__timers:
+            unnecessary_time += self.__timers[timer]
+        print("TIMING",current_time - start_time, unnecessary_time)
+        runtime = current_time - start_time - unnecessary_time
+        #code never reaches here if infeasible
+        self.__compare_best_package(package_dict,runtime)
         return package_dict
 
 
@@ -722,7 +785,7 @@ class SummarySearch:
                 alpha=alphas,
                 previous_package=previous_package
             )
-            previous_package = self.__get_package()
+            previous_package = self.__get_package(start_time)
             
             if self.__validator.is_package_validation_feasible(
                 previous_package):
@@ -769,8 +832,13 @@ class SummarySearch:
                     #print('Appended', alpha_histories_copy[var_constraint_index][-1])
                     var_constraint_index += 1
             
-            print("TIME USED = ",time.time() - start_time, "TIMEOUT = ", timeout)
-            if time.time() - start_time > timeout:
+            current_time = time.time()
+            unnecessary_time = 0.0
+            for timer in self.__timers:
+                unnecessary_time += self.__timers[timer]
+            total_runtime = current_time - start_time - unnecessary_time
+            print("TIME USED = ",total_runtime, "TIMEOUT = ", timeout)
+            if total_runtime - start_time > timeout:
                 return (previous_package, upper_bound)          
     
     def solve(self, start_time, timeout, getDeterministic = False):
@@ -781,7 +849,7 @@ class SummarySearch:
             probabilistically_constrained=False)
         
         probabilistically_unconstrained_package = \
-            self.__get_package()
+            self.__get_package(start_time)
 
         if getDeterministic:
             self.__metrics.set_package(probabilistically_unconstrained_package)
@@ -810,7 +878,14 @@ class SummarySearch:
                     #    package_dict=probabilistically_unconstrained_package,
                     #    var_constraint=constraint
                     #), 'of scenarios')
-            self.__metrics.set_package(probabilistically_unconstrained_package)
+            self.__metrics.set_package(self.__bestPackage)
+            self.__metrics.set_solutions(self.__solutions)
+            current_time = time.time()
+            unnecessary_time = 0.0
+            for timer in self.__timers:
+                unnecessary_time += self.__timers[timer]
+            total_runtime = current_time - start_time - unnecessary_time
+            self.__metrics.set_runtime(total_runtime)
             self.__metrics.end_execution(upper_bound, 0)
             return (probabilistically_unconstrained_package,
                     upper_bound)
@@ -830,7 +905,13 @@ class SummarySearch:
         no_of_summaries = self.__init_no_of_summaries
         
         while no_of_scenarios <= self.__no_of_validation_scenarios:
-            if time.time() - start_time > timeout:
+            current_time = time.time()
+            unnecessary_time = 0.0
+            for timer in self.__timers:
+                unnecessary_time += self.__timers[timer]
+            total_runtime = current_time - start_time - unnecessary_time
+            print("TIME USED = ",total_runtime, "TIMEOUT = ", timeout)
+            if total_runtime - start_time > timeout:
                 print("TIMEOUT")
                 break
             print('Trying with', no_of_scenarios, 'scenarios and',
@@ -852,7 +933,14 @@ class SummarySearch:
                         self.__validator.get_validation_objective_value(
                             package
                         )
-                    self.__metrics.set_package(package)
+                    self.__metrics.set_package(self.__bestPackage)
+                    self.__metrics.set_solutions(self.__solutions)
+                    current_time = time.time()
+                    unnecessary_time = 0.0
+                    for timer in self.__timers:
+                        unnecessary_time += self.__timers[timer]
+                    total_runtime = current_time - start_time - unnecessary_time
+                    self.__metrics.set_runtime(total_runtime)
                     self.__metrics.end_execution(
                         validation_objective_value,
                         no_of_scenarios)
@@ -872,6 +960,13 @@ class SummarySearch:
                 #      no_of_scenarios)
         
         self.__metrics.set_package(self.__bestPackage)
+        self.__metrics.set_solutions(self.__solutions)
+        current_time = time.time()
+        unnecessary_time = 0.0
+        for timer in self.__timers:
+            unnecessary_time += self.__timers[timer]
+        total_runtime = current_time - start_time - unnecessary_time
+        self.__metrics.set_runtime(total_runtime)
         self.__metrics.end_execution(self.__bestObjective, no_of_scenarios)
         return (self.__bestPackage, self.__bestObjective)
 

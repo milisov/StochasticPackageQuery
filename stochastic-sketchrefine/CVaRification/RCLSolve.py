@@ -3,6 +3,8 @@ from gurobipy import GRB
 import numpy as np
 import psutil
 import time
+import copy
+
 
 from CVaRification.CVaRificationSearchResults import CVaRificationSearchResults
 from DbInfo.DbInfo import DbInfo
@@ -36,11 +38,21 @@ class RCLSolve:
                  no_of_validation_scenarios: int,
                  approximation_bound: float,
                  sampling_tolerance: float,
-                 bisection_threshold: float):
+                 bisection_threshold: float,
+                 start_time: float,
+                 timeout: float,timeBudgeted: bool):
+
+        self.__start_time = start_time
+        self.__timeout = timeout         
+        self.__timeBudgeted = timeBudgeted
+        self.__timers = {"validation": 0.0, "compareBest": 0.0, "fetching": 0.0}
         self.__bestPackage = None
-        self.__bestFeasibility = 0.0
+        self.__bestFeasibilities = []
+        self.__bestSurpluses = []
         self.__bestObjective = float('-inf')
+        self.__solutions = [] 
         self.__query = query
+        print("On set", self.__query.get_relation())
         self.__gurobi_env = gp.Env()
         self.__gurobi_env.setParam(
             'OutputFlag', 0
@@ -54,10 +66,21 @@ class RCLSolve:
         
         self.__no_of_validation_scenarios = \
             no_of_validation_scenarios
+
+        start_time_fetching = time.time()
         self.__validator = Validator(
             self.__query, dbInfo,
             self.__no_of_validation_scenarios
         )
+
+        self.__valid_query = copy.deepcopy(query)
+        self.__valid_query.set_relation(self.__query.get_relation() + "_validate")
+        self.__validator_oos = Validator(self.__valid_query, dbInfo, 10000)
+        end_time_fetching = time.time()
+        total_time_fetching = end_time_fetching - start_time_fetching
+        self.__timers["fetching"] += total_time_fetching
+        print("Total time for fetching:", self.__timers["fetching"])
+
         self.__approximation_bound = \
             approximation_bound
         self.__sampling_tolerance = \
@@ -80,6 +103,7 @@ class RCLSolve:
 
         self.__current_number_of_scenarios = 0
 
+        print(self.__query.get_relation())
         self.__all_scenarios = dict()
         for attr in self.__get_stochastic_attributes():
             self.__all_scenarios[attr] = []
@@ -121,6 +145,12 @@ class RCLSolve:
         self.__metrics = OptimizationMetrics(
             'RCLSolve', self.__is_linear_relaxation
         )
+
+    def __get_unnecessary_time(self):
+        unnecessary_time = 0.0
+        for timer in self.__timers:
+            unnecessary_time += self.__timers[timer]
+        return unnecessary_time
 
     
     def __get_stochastic_attributes(self):
@@ -359,7 +389,7 @@ class RCLSolve:
                 if tuple_wise_heaps[var].size() > \
                     no_of_scenarios_to_consider:
                     tuple_wise_heaps[var].pop()
-        
+
         return [tuple_wise_heaps[var].sum()/no_of_scenarios_to_consider\
                 for var in range(self.__no_of_vars)]
 
@@ -457,13 +487,15 @@ class RCLSolve:
                             cvarified_constraint = \
                                 constraint
                         else:
+                            print("The cvar_threshold in use:",cvar_thresholds[
+                                        risk_constraint_index])
                             cvarified_constraint = \
                                 self.__get_cvarified_constraint(
                                     constraint=constraint,
                                     cvar_threshold=cvar_thresholds[
                                         risk_constraint_index]
                                 )
-                        
+                        print("The no of scenarios to consider for risk constraint", no_of_scenarios_to_consider[risk_constraint_index])
                         self.__add_lcvar_constraint_to_model(
                             risk_constraint=constraint,
                             cvarified_constraint=cvarified_constraint,
@@ -546,33 +578,114 @@ class RCLSolve:
             self.__query.get_objective(),
             no_of_scenarios)
 
-    def __compare_best_packege(self, package):
+    def __compare_best_package(self, package, runtime, no_of_scenarios):
+        validFeasibilities, validSurpluses, validObjective = self.__validate_package_oos(package)
+        # print("valid feasibilities =", validFeasibilities, "valid surpluses =", validSurpluses, "valid objective =", validObjective,)
+        objective_type = self.__query.get_objective().get_objective_type()
+        feasibilities = []
+        surpluses = []
+        objective = self.__validator.get_validation_objective_value(package)
+        time_start = time.time()
         for constraint in self.__query.get_constraints():
             if constraint.is_var_constraint():
                 feasibility = self.__validator.get_var_constraint_satisfaction(package,constraint)
-                objective = self.__validator.get_validation_objective_value(package)
                 p = constraint.get_probability_threshold()
-                print("feasibility =",feasibility, "objective =", objective, "p =", p)
-                print("best feasibility =", self.__bestFeasibility, "best objective =", self.__bestObjective)
-                if feasibility >= p and self.__bestFeasibility >= p:
-                    #abuse Maximization
-                    if objective > self.__bestObjective:
-                        self.__bestPackage = package
-                        self.__bestFeasibility = feasibility
-                        self.__bestObjective = objective
-                elif feasibility < p and self.__bestFeasibility < p:
-                    if feasibility > self.__bestFeasibility:
-                        self.__bestPackage = package
-                        self.__bestFeasibility = feasibility
-                        self.__bestObjective = objective
-                elif feasibility >= p and self.__bestFeasibility < p:
-                    self.__bestPackage = package
-                    self.__bestFeasibility = feasibility
-                    self.__bestObjective = objective    
-        
+                feasibilities.append(feasibility)
+                surpluses.append(feasibility - p)
+                print("feasibilities =",feasibilities, "objective =", objective)
+                print("best feasibilities =", self.__bestFeasibilities, "best objective =", self.__bestObjective)
+        time_end = time.time()
+        total_time = time_end - time_start
+        self.__timers["compareBest"] += total_time
 
-    def __get_package(self):
+        if self.__bestPackage is None:
+            print("Best package is None")
+            self.__bestPackage = package
+            self.__bestFeasibilities = feasibilities
+            self.__bestSurpluses = surpluses
+            self.__bestObjective = objective
+        else: 
+            currentWorstSurplus = np.min(surpluses)
+            bestWorstSurplus = np.min(self.__bestSurpluses)
+            if currentWorstSurplus >= 0 and bestWorstSurplus >= 0:
+                print("Both current and best worst surpluses are non-negative")
+                if objective_type == ObjectiveType.MAXIMIZATION and objective > self.__bestObjective:
+                    print("Current objective:", objective, "is better than best objective:", self.__bestObjective)
+                    self.__bestPackage = package
+                    self.__bestFeasibilities = feasibilities
+                    self.__bestSurpluses = surpluses
+                    self.__bestObjective = objective
+                elif objective_type == ObjectiveType.MINIMIZATION and objective < self.__bestObjective:
+                    print("Current objective:", objective, "is better than best objective:", self.__bestObjective)
+                    self.__bestPackage = package
+                    self.__bestFeasibilities = feasibilities
+                    self.__bestSurpluses = surpluses
+                    self.__bestObjective = objective
+            elif currentWorstSurplus >= 0 and bestWorstSurplus < 0:
+                print("current worst surplus", currentWorstSurplus, "is non-negative and best worst surplus", bestWorstSurplus, "is negative")
+                self.__bestPackage = package
+                self.__bestFeasibilities = feasibilities
+                self.__bestSurpluses = surpluses
+                self.__bestObjective = objective
+            elif currentWorstSurplus < 0 and bestWorstSurplus < 0:
+                print("current worst surplus", currentWorstSurplus, "is negative and best worst surplus", bestWorstSurplus, "is negative")
+                if currentWorstSurplus > bestWorstSurplus:
+                    print("Current worst surplus:", currentWorstSurplus, "is better than best worst surplus:", bestWorstSurplus)
+                    self.__bestPackage = package
+                    self.__bestFeasibilities = feasibilities
+                    self.__bestSurpluses = surpluses
+                    self.__bestObjective = objective
+                elif currentWorstSurplus == bestWorstSurplus:
+                    if objective_type == ObjectiveType.MAXIMIZATION and objective > self.__bestObjective:
+                        print("Current objective:", objective, "is better than best objective:", self.__bestObjective)
+                        self.__bestPackage = package
+                        self.__bestFeasibilities = feasibilities
+                        self.__bestSurpluses = surpluses
+                        self.__bestObjective = objective
+                    elif objective_type == ObjectiveType.MINIMIZATION and objective < self.__bestObjective:
+                        print("Current objective:", objective, "is better than best objective:", self.__bestObjective)
+                        self.__bestPackage = package
+                        self.__bestFeasibilities = feasibilities
+                        self.__bestSurpluses = surpluses
+                        self.__bestObjective = objective
+            
+        self.__solutions.append((runtime*1000, np.round(feasibilities,4), np.round(surpluses,4), objective, np.round(validFeasibilities,4),np.round(validSurpluses,4), validObjective, no_of_scenarios))
+        print("Solutions", self.__solutions)
+
+    def __validate_package_oos(self, package):
+
+        start_time = time.time()
+        feasibilities = []
+        surpluses = []
+        for constraint in self.__query.get_constraints():
+            if constraint.is_risk_constraint():
+                #the true Indicates that we want to validate on out of sample
+                feasibility = self.__validator_oos.get_var_constraint_satisfaction(package, constraint)
+                feasibilities.append(feasibility)
+                p = constraint.get_probability_threshold()
+                surpluses.append(feasibility - p)
+
+        objective_value = self.__validator_oos.get_validation_objective_value(package)
+
+        end_time = time.time()
+        total_time = end_time - start_time
+        
+        self.__timers["validation"] += total_time
+
+        return feasibilities, surpluses, objective_value
+
+    def __get_package(self, no_of_scenarios):
         self.__metrics.start_optimizer()
+        if(self.__timeBudgeted):
+            current_time = time.time()
+            unnecessary_time = self.__get_unnecessary_time()
+            time_remaining = self.__timeout - (current_time - self.__start_time - unnecessary_time)
+            if(time_remaining <= 0):
+                print("Time budget exceeded before optimization. Time remaining:", time_remaining)
+                return None
+            else:
+                print("REMAINING TIME:", time_remaining)
+                self.__model.setParam('TimeLimit', time_remaining)
         self.__model.optimize()
         self.__metrics.end_optimizer()
         package_dict = {}
@@ -584,9 +697,16 @@ class RCLSolve:
                         self.__ids[idx]] = \
                             var.x
                 idx += 1
-            self.__compare_best_packege(package_dict)
         except AttributeError:
             return None
+        
+        current_time = time.time()
+        print("CURRENT TIME:", current_time, "START TIME:", self.__start_time)
+        unnecessary_time = self.__get_unnecessary_time()
+        runtime = current_time - self.__start_time - unnecessary_time
+        #code never reaches here if infeasible
+        self.__compare_best_package(package_dict,runtime, no_of_scenarios)
+        print("Package=",package_dict)
         return package_dict
     
 
@@ -765,6 +885,7 @@ class RCLSolve:
         no_of_scenarios: int,
         constraint: VaRConstraint
     ) -> float:
+        print("Getting var among optimization scenarios", no_of_scenarios)
         scenario_scores = \
             self.__get_scenario_scores_ascending(
                 package_with_indices, no_of_scenarios,
@@ -773,7 +894,12 @@ class RCLSolve:
         scenarios_to_consider = \
             int(np.floor((constraint.get_probability_threshold()*\
                       no_of_scenarios)))
-        return scenario_scores[scenarios_to_consider]
+        
+        if constraint.get_inequality_sign() == RelationalOperators.GREATER_THAN_OR_EQUAL_TO:
+            return scenario_scores[no_of_scenarios - scenarios_to_consider - 1]
+        else:
+            return scenario_scores[scenarios_to_consider]
+        # return scenario_scores[scenarios_to_consider]
     
 
     def __is_var_relative_difference_high(
@@ -790,10 +916,14 @@ class RCLSolve:
                 constraint
             )
 
+        print('Var optimization:', var_optimization)
+
         var_validation = \
             self.__validator.get_var_among_validation_scenarios(
                 package, constraint
             )
+        
+        print('Var validation:', var_validation)
         
 
         if constraint.get_inequality_sign() == \
@@ -803,6 +933,7 @@ class RCLSolve:
             rel_diff= var_validation - var_optimization
         rel_diff /= (var_validation + 0.000001)
 
+        print('Var Relative difference:', rel_diff)
         if rel_diff > self.__sampling_tolerance:
             return True, var_validation
         return False, var_validation
@@ -814,6 +945,7 @@ class RCLSolve:
     ) -> bool:
         if var_constraint.get_inequality_sign() ==\
             RelationalOperators.GREATER_THAN_OR_EQUAL_TO:
+            print('Var validation:', var_validation, 'Sum limit:', var_constraint.get_sum_limit())
             return var_validation >=\
                 var_constraint.get_sum_limit()
         
@@ -890,14 +1022,16 @@ class RCLSolve:
         no_of_scenarios_to_consider: list[int],
         is_model_setup: bool,
         can_add_scenarios: bool,
-        start_time,
-        timeout
     ) -> CVaRificationSearchResults:
         while self.__l_inf(
             cvar_upper_bounds, cvar_lower_bounds) >= \
             self.__bisection_threshold:
-            if time.time() - start_time > timeout:
-                print("TIMEOUT")
+            current_time = time.time()
+            unnecessary_time = self.__get_unnecessary_time()
+            total_runtime = current_time - self.__start_time - unnecessary_time
+            print("Total runtime:", total_runtime)
+            if total_runtime > self.__timeout:
+                print("TIMEOUT IN CVAR TRESHOLD SEARCH")
                 break
 
             cvar_mid_thresholds = []
@@ -934,7 +1068,7 @@ class RCLSolve:
                                     risk_constraint_index]
                         risk_constraint_index += 1
             
-            package = self.__get_package()
+            package = self.__get_package(no_of_scenarios)
             print('Package:', package)
             if package is None:
                 cvar_lower_bounds = cvar_mid_thresholds
@@ -1056,15 +1190,16 @@ class RCLSolve:
         max_no_of_scenarios_to_consider: list[int],
         is_model_setup: bool,
         can_add_scenarios: bool,
-        start_time, 
-        timeout
     ) -> CVaRificationSearchResults:
         while self.__l_inf(
             min_no_of_scenarios_to_consider,
             max_no_of_scenarios_to_consider
         ) > 1:
-            if time.time() - start_time > timeout:
-                print("TIMEOUT")
+            current_time = time.time()
+            unnecessary_time = self.__get_unnecessary_time()
+            total_runtime = current_time - self.__start_time - unnecessary_time
+            if total_runtime > self.__timeout:
+                print("TIMEOUT IN COEFFICIENT SEARCH")
                 break
             mid_no_of_scenarios_to_consider = []
             for ind in range(len(min_no_of_scenarios_to_consider)):
@@ -1073,7 +1208,12 @@ class RCLSolve:
                      max_no_of_scenarios_to_consider[ind]) // 2
                 )
             
+            print("Mid no of scenarios to consider:", mid_no_of_scenarios_to_consider)
+            
             if not is_model_setup:
+                print("Model is not setup")
+                print("Setting up model with mid no of scenarios to consider", mid_no_of_scenarios_to_consider, "Thresholds", cvar_thresholds)
+
                 self.__model_setup(
                     no_of_scenarios=no_of_scenarios,
                     no_of_scenarios_to_consider=\
@@ -1084,10 +1224,12 @@ class RCLSolve:
                 )
                 is_model_setup = True
             else:
+                print("Model is setup")
                 risk_constraint_index = 0
                 for constraint in self.__query.get_constraints():
                     if constraint.is_risk_constraint():
                         if risk_constraint_index not in trivial_constraints:
+                            print("Changing threshold",cvar_thresholds[risk_constraint_index], "Mid no of scenarios to consider", mid_no_of_scenarios_to_consider[risk_constraint_index])
                             coefficients = \
                                 self.__get_cvar_constraint_coefficients(
                                     self.__get_cvarified_constraint(
@@ -1105,7 +1247,7 @@ class RCLSolve:
                                 )                    
                         risk_constraint_index += 1
             
-            package = self.__get_package()
+            package = self.__get_package(no_of_scenarios)
             if package is None:
                 min_no_of_scenarios_to_consider = \
                     mid_no_of_scenarios_to_consider
@@ -1120,6 +1262,7 @@ class RCLSolve:
                     no_of_scenarios
                 )
             
+            print("Unnaceptable diff for objective:", unacceptable_diff, "can add scenarios:", can_add_scenarios)
             if unacceptable_diff and can_add_scenarios:
                 result = CVaRificationSearchResults()
                 result.set_needs_more_scenarios(True)
@@ -1165,6 +1308,7 @@ class RCLSolve:
                                     package_with_indices, package,
                                     no_of_scenarios, constraint
                                 )
+                            print("Unnaceptable diff for var:", unacceptable_diff, "can add scenarios:", can_add_scenarios)
                             if unacceptable_diff and can_add_scenarios:
                                 result = CVaRificationSearchResults()
                                 result.set_needs_more_scenarios(True)
@@ -1173,6 +1317,7 @@ class RCLSolve:
                             if self.__is_var_constraint_satisfied(
                                 constraint, var_validation
                             ):
+                                print("Var Constraint is Satisfied")
                                 all_constraints_violated = False
                                 min_no_of_scenarios_to_consider = \
                                     mid_no_of_scenarios_to_consider
@@ -1323,16 +1468,21 @@ class RCLSolve:
             trivial_constraints
     
 
-    def solve(self, can_add_scenarios = True, start_time = None, timeout = float('inf')):
+    def solve(self, can_add_scenarios = True):
         self.__metrics.start_execution()
         no_of_scenarios = self.__init_no_of_scenarios
         unacceptable_diff = True
 
         while unacceptable_diff:
             print("DETERMINISTIC")
-            if time.time() - start_time > timeout:
-                print("TIMEOUT")
+            current_time = time.time()
+            unnecessary_time = self.__get_unnecessary_time()
+            total_runtime = current_time - self.__start_time - unnecessary_time
+            if total_runtime > self.__timeout:
+                print("TIMEOUT IN SOLVE")
                 self.__metrics.set_package(self.__bestPackage)
+                self.__metrics.set_solutions(self.__solutions)
+                self.__metrics.set_runtime(total_runtime)
                 return (self.__bestPackage, self.__bestObjective)
             self.__model_setup(
                 no_of_scenarios=no_of_scenarios,
@@ -1341,7 +1491,7 @@ class RCLSolve:
             )
 
             probabilistically_unconstrained_package = \
-                self.__get_package()
+                self.__get_package(no_of_scenarios)
             print('Probabilistically unconstrained package:',
                 probabilistically_unconstrained_package)
             if probabilistically_unconstrained_package is None:
@@ -1378,13 +1528,24 @@ class RCLSolve:
             self.__metrics.end_execution(
                 objective_upper_bound, 0)
             self.__metrics.set_package(self.__bestPackage)
+            self.__metrics.set_solutions(self.__solutions)
+            current_time = time.time()
+            unnecessary_time = self.__get_unnecessary_time()
+            total_runtime = current_time - self.__start_time - unnecessary_time
+            self.__metrics.set_runtime(total_runtime)
             return (probabilistically_unconstrained_package,
                     objective_upper_bound)
 
         while no_of_scenarios <= self.__no_of_validation_scenarios:
-            if time.time() - start_time > timeout:
-                print("TIMEOUT")
+            current_time = time.time()
+            unnecessary_time = self.__get_unnecessary_time()
+            total_runtime = current_time - self.__start_time - unnecessary_time
+            print("Total runtime:", total_runtime)
+            if total_runtime > self.__timeout:
+                print("TIMEOUT IN MAIN SOLVE LOOP")
                 self.__metrics.set_package(self.__bestPackage)
+                self.__metrics.set_solutions(self.__solutions)
+                self.__metrics.set_runtime(total_runtime)
                 return (self.__bestPackage, self.__bestObjective)
             cvar_upper_bounds, cvar_lower_bounds,\
             max_no_of_scenarios_to_consider,\
@@ -1412,9 +1573,15 @@ class RCLSolve:
                 >= self.__bisection_threshold*init_diff and\
                     self.__l_inf(min_no_of_scenarios_to_consider,
                                  max_no_of_scenarios_to_consider) >= 1:
-                if time.time() - start_time > timeout:
-                    print("TIMEOUT")
+                current_time = time.time()
+                unnecessary_time = self.__get_unnecessary_time()
+                total_runtime = current_time - self.__start_time - unnecessary_time
+                print("Total runtime:", total_runtime)
+                if total_runtime > self.__timeout:
+                    print("TIMEOUT IN MAIN SOLVE LOOP")
                     self.__metrics.set_package(self.__bestPackage)
+                    self.__metrics.set_solutions(self.__solutions)
+                    self.__metrics.set_runtime(total_runtime)
                     return (self.__bestPackage, self.__bestObjective)
                 
                 print('CVaR upper bounds:', cvar_upper_bounds)
@@ -1434,9 +1601,7 @@ class RCLSolve:
                         min_no_of_scenarios_to_consider,
                         max_no_of_scenarios_to_consider,
                         is_model_setup,
-                        can_add_scenarios,
-                        start_time,
-                        timeout
+                        can_add_scenarios
                     )
                 
                 is_model_setup = True
@@ -1452,6 +1617,11 @@ class RCLSolve:
                         no_of_scenarios
                     )
                     self.__metrics.set_package(self.__bestPackage)
+                    self.__metrics.set_solutions(self.__solutions)
+                    current_time = time.time()
+                    unnecessary_time = self.__get_unnecessary_time()
+                    total_runtime = current_time - self.__start_time - unnecessary_time
+                    self.__metrics.set_runtime(total_runtime)
                     return (
                         coefficient_search_result.get_package(),
                         coefficient_search_result.get_objective_value()
@@ -1471,9 +1641,7 @@ class RCLSolve:
                         objective_upper_bound,
                         min_no_of_scenarios_to_consider,
                         is_model_setup,
-                        can_add_scenarios,
-                        start_time, 
-                        timeout
+                        can_add_scenarios
                     )
 
                 if can_add_scenarios and threshold_search_result.\
@@ -1487,6 +1655,11 @@ class RCLSolve:
                         no_of_scenarios
                     )
                     self.__metrics.set_package(self.__bestPackage)
+                    self.__metrics.set_solutions(self.__solutions)
+                    current_time = time.time()
+                    unnecessary_time = self.__get_unnecessary_time()
+                    total_runtime = current_time - self.__start_time - unnecessary_time
+                    self.__metrics.set_runtime(total_runtime)
                     return (
                         threshold_search_result.get_package(),
                         threshold_search_result.get_objective_value()

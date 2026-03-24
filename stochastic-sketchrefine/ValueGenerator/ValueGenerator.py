@@ -21,6 +21,7 @@ class ValueGenerator:
             sql_query += " WHERE " + \
                 self.__base_predicate
         sql_query += " ORDER BY id;"
+        print("Executing SQL Query:", sql_query)
         PgConnection.Execute(sql_query)
         return PgConnection.Fetch()
     

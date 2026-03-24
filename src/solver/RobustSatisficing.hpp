@@ -9,8 +9,9 @@ class RobustSatisficing : public Solver
 {
 public:
     double epsilon;
-    std::vector<pair<int, double>> bestPosActivenessRS;
-    std::vector<pair<int, double>> bestNegActivenessRS;
+    SolutionMetadata<int> bestSolGlobal;
+    std::vector<std::vector<pair<int, double>>> bestPosActiveness;
+    std::vector<std::vector<pair<int, double>>> bestNegActiveness;
     RobustSatisficing(int M = 1e4,
                       std::shared_ptr<StochasticPackageQuery> spq = nullptr,
                       double epsilon = 1e-5)
@@ -25,25 +26,25 @@ public:
         this->epsilon = epsilon;
     }
 
-    SolutionMetadata<int> solveDeterministic(std::shared_ptr<StochasticPackageQuery> spq);
+    SolutionMetadata<int> solveDeterministic(std::shared_ptr<StochasticPackageQuery> spq, SolveOptions &solveOptions);
 
-    SolutionMetadata<int> stochasticDualReducer(std::shared_ptr<StochasticPackageQuery> spq, std::map<std::string, Option> &curveFitOptions);
+    SolutionMetadata<int> stochasticDualReducer(std::shared_ptr<StochasticPackageQuery> spq, SolveOptions &solveOptions);
 
     template <typename T>
-    SolutionMetadata<T> solveSAA(GRBModel &model, FormulateOptions &formOptions)
+    SolutionMetadata<T> solveSAA(GRBModel &model, FormulateOptions &formOptions, SolveOptions &solveOptions)
     {
-        vector<T>x;
-        initializeVector(x,NTuples,T(0));
-        SolveOptions options; 
+        vector<T> x;
+        initializeVector(x, NTuples, T(0));
+        SolveOptions options;
         options.reduced = formOptions.reduced;
         options.reducedIds = formOptions.reducedIds;
-        options.computeActiveness = formOptions.computeActiveness;
-        solve(model,x, options);
-        SolutionMetadata<T> sol; 
-        if(x.size()>0)
+        // options.computeActiveness = formOptions.computeActiveness;
+        solve(model, x, options);
+        SolutionMetadata<T> sol;
+        if (x.size() > 0)
         {
             validate(model, x, spq, options);
-            if(isFeasible(r))
+            if (isFeasible(r))
             {
                 sol.x = x;
                 sol.isFeasible = true;
@@ -57,31 +58,36 @@ public:
 
     void populateMapNonZero(map<int, double> &reducedIds, const vector<double> &solDet);
     void populateMapFromVector(map<int, double> &reducedIdsMap, const vector<int> &reduced);
+    void getReduced(vector<int> &reducedIds, vector<double> &solDet, vector<double> &solStage1, int qTarget);
 
     vector<int> reduceTuplesStageNoObjCons(std::shared_ptr<StochasticPackageQuery> spq,
+                                           FormulateOptions &formOptions,
+                                           SolveOptions &solveOptions, vector<double> &solDet, int qTarget);
+
+    vector<int> reduceTuplesStageNoObjConsNoObj(std::shared_ptr<StochasticPackageQuery> spq,
+                                                FormulateOptions &formOptions,
+                                                SolveOptions &solveOptions, vector<double> &solDet, int qTarget);
+
+    vector<int> reduceTuplesStageNoObjConsUpdatingBounds(std::shared_ptr<StochasticPackageQuery> spq,
                                                          FormulateOptions &formOptions,
-                                                         std::map<std::string, Option> &curveFitOptions);
+                                                         std::map<std::string, Option> &curveFitOptions, int q);
 
     vector<int> reduceTuplesStage(std::shared_ptr<StochasticPackageQuery> spq,
                                   FormulateOptions &formOptions,
-                                  std::map<std::string, Option> &curveFitOptions,double Z0);
+                                  std::map<std::string, Option> &curveFitOptions, double Z0);
 
-    vector<int> finalReduce(map<int, double> &reducedIdsMap, vector<int> &reducedIds,int q);
+    vector<int> finalReduce(map<int, double> &reducedIdsMap, vector<int> &reducedIds, int q);
 
     double findBestObjectiveStage(std::shared_ptr<StochasticPackageQuery> spq,
                                   FormulateOptions &formOptions,
-                                  std::map<std::string, Option> &curveFitOptions, double Z0);
+                                  SolveOptions &solveOptions, double Z0);
 
+    double findBestObjectiveStageSAA(GRBModel &model, std::shared_ptr<StochasticPackageQuery> spq,
+                                     RSFormulator &formulator,
+                                     FormulateOptions &formOptions,
+                                     std::map<std::string, Option> &curveFitOptions, double Z0);
 
-    double findBestObjectiveStageSAA(GRBModel &model,std::shared_ptr<StochasticPackageQuery> spq,
-                                  RSFormulator &formulator,
-                                  FormulateOptions &formOptions,
-                                  std::map<std::string, Option> &curveFitOptions, double Z0);
-
-    
-    SolutionMetadata<int> finalStageILP(GRBModel &model,std::shared_ptr<StochasticPackageQuery> spq,
-                                  RSFormulator &formulator,
-                                  FormulateOptions &formOptions, double bestEps,double Z0);
-
-                                
+    SolutionMetadata<int> finalStageILP(GRBModel &model, std::shared_ptr<StochasticPackageQuery> spq,
+                                        RSFormulator &formulator,
+                                        FormulateOptions &formOptions, double bestEps, double Z0);
 };

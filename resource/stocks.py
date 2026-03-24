@@ -19,7 +19,8 @@ from psycopg2 import Error
 
 nStocksLog = 3
 nPathsLog = 2
-
+seeded = False
+seedVal = None
 
 # In[3]:
 
@@ -33,6 +34,10 @@ if __name__ == "__main__":
     if len(sys.argv) > 2:
         try:
             nPathsLog = int(sys.argv[2])
+            if len(sys.argv) > 4:
+                seeded = (sys.argv[3] == 'seeded')
+                seedVal = int(sys.argv[4])
+                print(f"I am setting a seed value of {seedVal}")
         except ValueError:
             pass
 
@@ -53,14 +58,23 @@ is_rebuild = config['build']['rebuild_stocks'] == 'true'
 validate_scenarios = int(config['build']['validate_scenarios'])
 validate_seed = int(config['build']['validate_seed'])
 generate_seed = int(config['build']['generate_seed'])
+stochastic_seed = int(config['build']['generate_seed'])
+if seeded:
+    stochastic_seed = seedVal
 maturity = 1.0
 stepPerYear = 52
 nSteps = int(maturity * stepPerYear)
 
 pairs = []
 num_cores = multiprocessing.cpu_count() // 2
-table_name = f"stocks_{nStocksLog}_{nPathsLog}"
-validate_table_name = f"stocks_{nStocksLog}_{nPathsLog}_validate"
+table_name = None
+validate_table_name = None
+if not seeded:
+    table_name = f"stocks_{nStocksLog}_{nPathsLog}"
+    validate_table_name = f"stocks_{nStocksLog}_{nPathsLog}_validate"
+else:
+    table_name = f"stocks_{nStocksLog}_{nPathsLog}_seeded_{seedVal}"
+    validate_table_name = f"stocks_{nStocksLog}_{nPathsLog}_seeded_{seedVal}_validate"
 
 stocks = configparser.ConfigParser()
 stocks.read('../resource/stocks/tickers.ini')
@@ -78,7 +92,7 @@ def GeneratePaths(process, maturity, nPaths, nSteps, isValidate):
     if isValidate:
         generator = ql.UniformRandomGenerator(validate_seed)
     else:
-        generator = ql.UniformRandomGenerator(generate_seed)
+        generator = ql.UniformRandomGenerator(stochastic_seed) ## Filip changed this from generate_seed to stochastic_seed --> if we use different seeds we want fixed stocks but different scenarios
     sequenceGenerator = ql.UniformRandomSequenceGenerator(nSteps, generator)
     gaussianSequenceGenerator = ql.GaussianRandomSequenceGenerator(sequenceGenerator)
     paths = np.zeros(shape = (nPaths, nSteps+1), dtype=np.float32)
@@ -138,6 +152,7 @@ conn, cur = get_conn_cur(config)
 is_populating = False
 def check_table(cur, table):
     if table_exists(cur, table):
+        print("Table", table, "already exists.")
         if is_rebuild:
             delete_table_sql = f"DROP TABLE IF EXISTS {table}"
             cur.execute(delete_table_sql)

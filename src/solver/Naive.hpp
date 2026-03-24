@@ -67,7 +67,7 @@ public:
             SolveOptions options;
             options.reduced = formOptions.reduced;
             options.reducedIds = formOptions.reducedIds;
-            options.computeActiveness = formOptions.computeActiveness;
+            // options.computeActiveness = formOptions.computeActiveness;
             solve(model,x, options);
             if(!x.empty())
             {

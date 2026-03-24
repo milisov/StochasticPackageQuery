@@ -21,6 +21,7 @@ class OptimizationMetrics:
         self.__number_of_scenarios_needed = 0
         self.__starting_time = None
         self.__package = []
+        self.__solutions = None
         self.__query = None
         self.__hardness = None
         self.__p = None
@@ -33,6 +34,12 @@ class OptimizationMetrics:
 
     def get_package(self):
         return self.__package
+
+    def get_runtime(self):
+        return self.__runtime
+    
+    def get_solutions(self):
+        return self.__solutions
 
     def end_execution(
         self, objective_value, no_of_scenarios
@@ -63,6 +70,12 @@ class OptimizationMetrics:
     def set_package(self, res_package):
         print("Metrics Res Package = ", res_package)
         self.__package = res_package
+    
+    def set_solutions(self, solutions):
+        self.__solutions = solutions
+    
+    def set_runtime(self, runtime):
+        self.__runtime = runtime
 
     def set_query(self, q):
         self.__query = q
@@ -106,18 +119,19 @@ class OptimizationMetrics:
             "Runtime": runtime_in_ms
         }
 
-        # Check if file exists and read existing data
-        if os.path.exists(filename):
-            with open(filename, "r") as json_file:
-                try:
-                    existing_data = json.load(json_file)  # Load existing JSON
-                    if not isinstance(existing_data, list):
-                        existing_data = []  # Ensure it's a list
-                except json.JSONDecodeError:
-                    existing_data = []  # Handle case where file is empty or invalid
-        else:
-            existing_data = []
+        # # Check if file exists and read existing data
+        # if os.path.exists(filename):
+        #     with open(filename, "r") as json_file:
+        #         try:
+        #             existing_data = json.load(json_file)  # Load existing JSON
+        #             if not isinstance(existing_data, list):
+        #                 existing_data = []  # Ensure it's a list
+        #         except json.JSONDecodeError:
+        #             existing_data = []  # Handle case where file is empty or invalid
+        # else:
+        #     existing_data = []
 
+        existing_data = []
         # Append new data
         existing_data.append(data)
 

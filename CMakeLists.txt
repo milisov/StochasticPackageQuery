@@ -48,7 +48,7 @@ include_directories(
 )
 
 set(MAIN_NAME main)
-#set(MAIN_NAME hello)
+# set(MAIN_NAME hello)
 #set(MAIN_NAME experiments)
 
 file(GLOB ALL_SRCS

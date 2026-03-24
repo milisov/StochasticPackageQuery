@@ -32,6 +32,10 @@ public:
         }
     }
 
+    static void reset() {
+        instance.reset(); // Sets instance to nullptr
+    }
+
     // Deterministic attributes: attrName -> vector<double>
     std::unordered_map<std::string, std::vector<double>> detAttrs;
 
@@ -182,6 +186,7 @@ private:
         this->DB_valid = fmt::format("{}_{}", DB_optim, "validate");
         this->NTuples = pg.getTableSize(spq->tableName);
         this->cntScenarios = pg.getColumnLength(spq->tableName, "profit");
+        deb("I am creating data instance");
     }
 
     // static instance

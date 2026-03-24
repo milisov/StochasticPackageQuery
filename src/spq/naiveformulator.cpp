@@ -4,8 +4,7 @@
 
 using namespace std;
 
-
-void NaiveFormulator::formProbCons(GRBModel &model, std::shared_ptr<Constraint> cons, GRBVar *xx, FormulateOptions& options) 
+void NaiveFormulator::formProbCons(GRBModel &model, std::shared_ptr<Constraint> cons, GRBVar *xx, FormulateOptions &options)
 {
     deb("formulating Prob Cons here");
     shared_ptr<ProbConstraint> probCon;
@@ -18,7 +17,7 @@ void NaiveFormulator::formProbCons(GRBModel &model, std::shared_ptr<Constraint> 
     }
 
     double v = spq->getValue(probCon->v);
-    //double p = spq->getValue(probCon->p);
+    // double p = spq->getValue(probCon->p);
     double p = options.p;
     double pM = ceil(p * cntScenarios);
     GRBVar y[cntScenarios];
@@ -29,33 +28,33 @@ void NaiveFormulator::formProbCons(GRBModel &model, std::shared_ptr<Constraint> 
     model.update();
 
     GRBLinExpr sumYz;
-    vector<double>vect;
-    initializeVectorForm(vect, NTuples, (double) 0.0);
-
+    vector<double> vect;
+    initializeVectorForm(vect, NTuples, (double)0.0);
 
     std::vector<GRBLinExpr> innerCons(cntScenarios);
-    auto& scenarios = data.stochAttrs[attrCon->attr];
-    if(options.reduced)
+    auto &scenarios = data.stochAttrs[attrCon->attr];
+    if (options.reduced)
     {
-        for(int i = 0; i < options.reducedIds.size(); i++)
+        for (int i = 0; i < options.reducedIds.size(); i++)
         {
             int id = options.reducedIds[i] - 1;
-            for(int j = 0; j < cntScenarios; j++)
+            for (int j = 0; j < cntScenarios; j++)
             {
                 innerCons[j] += xx[i] * scenarios[id][j];
             }
         }
-    }else
+    }
+    else
     {
-        for(int i = 0; i < NTuples; i++)
+        for (int i = 0; i < NTuples; i++)
         {
-            for(int j = 0; j < cntScenarios; j++)
+            for (int j = 0; j < cntScenarios; j++)
             {
                 innerCons[j] += xx[i] * scenarios[i][j];
             }
-        }  
+        }
     }
-    for(int i = 0; i < innerCons.size(); i++)
+    for (int i = 0; i < innerCons.size(); i++)
     {
         try
         {
@@ -66,12 +65,11 @@ void NaiveFormulator::formProbCons(GRBModel &model, std::shared_ptr<Constraint> 
             else
             {
                 GRBGenConstr indicator = model.addGenConstrIndicator(y[i], 1, innerCons[i], GRB_LESS_EQUAL, v);
-
             }
         }
         catch (GRBException &e)
         {
-            deb("Error code 8 = ",e.getErrorCode());
+            deb("Error code 8 = ", e.getErrorCode());
             cout << e.getMessage() << endl;
         }
     }
@@ -98,13 +96,13 @@ void NaiveFormulator::formProbCons(GRBModel &model, std::shared_ptr<Constraint> 
     }
 }
 
-
-
 void NaiveFormulator::formProbConsActiveness(GRBModel &model,
-                            std::shared_ptr<Constraint> cons,
-                            GRBVar *xx,
-                            FormulateOptions& options)
+                                             std::shared_ptr<Constraint> cons,
+                                             GRBVar *xx,
+                                             FormulateOptions &options,
+                                             int conOrder)
 {
+    cout<<"formulating activeness"<<endl;
     shared_ptr<ProbConstraint> probCon;
     shared_ptr<AttrConstraint> attrCon;
 
@@ -113,49 +111,53 @@ void NaiveFormulator::formProbConsActiveness(GRBModel &model,
     {
         return;
     }
-
-    sort(options.posActiveness.begin(), options.posActiveness.end(),
+    sort(options.posActiveness[conOrder].begin(), options.posActiveness[conOrder].end(),
          [](const pair<int, double> &a, const pair<int, double> &b)
          {
              return a.second < b.second;
          });
 
-    sort(options.negActiveness.begin(), options.negActiveness.end(),
+    sort(options.negActiveness[conOrder].begin(), options.negActiveness[conOrder].end(),
          [](const pair<int, double> &a, const pair<int, double> &b)
          {
              return a.second > b.second;
          });
 
     double v = spq->getValue(probCon->v);
-    //double p = spq->getValue(probCon->p);
+    // double p = spq->getValue(probCon->p);
     double p = options.p;
 
     int posTarget = 0;
-    int negTarget = 0; 
-    int scDimension = min(options.qSz,cntScenarios);
-    if(options.posActiveness.size() >= ((int)p*cntScenarios))
+    int negTarget = 0;
+    int scDimension = min(options.qSz, cntScenarios);
+    if (options.posActiveness[conOrder].size() >= ((int)p * cntScenarios))
     {
         posTarget = scDimension;
-    }else
+    }
+    else
     {
-        int negativeNeeded = ((int)p*cntScenarios) - options.posActiveness.size();
+        int negativeNeeded = ((int)p * cntScenarios) - options.posActiveness[conOrder].size();
         negTarget = min(scDimension, negativeNeeded);
         posTarget = scDimension - negTarget;
     }
+
+    deb(negTarget, posTarget, options.posActiveness.size(), options.negActiveness.size());
+
+
     std::vector<GRBLinExpr> innerCons(scDimension);
     auto &scenarios = data.stochAttrs[attrCon->attr];
     int q;
-    for(int i = 0; i < options.reducedIds.size(); i++)
+    for (int i = 0; i < options.reducedIds.size(); i++)
     {
         q = 0;
-        for (int j = 0; j < options.negActiveness.size(); j++)
+        for (int j = 0; j < options.negActiveness[conOrder].size(); j++)
         {
             if (q == negTarget)
             {
                 break;
             }
             int id = options.reducedIds[i] - 1;
-            int scenarioId = options.negActiveness[j].first;
+            int scenarioId = options.negActiveness[conOrder][j].first;
             innerCons[q] += xx[i] * scenarios[id][scenarioId];
             q++;
         }
@@ -164,14 +166,14 @@ void NaiveFormulator::formProbConsActiveness(GRBModel &model,
     for (int i = 0; i < options.reducedIds.size(); i++)
     {
         q = 0;
-        for (int j = 0; j < options.posActiveness.size(); j++)
+        for (int j = 0; j < options.posActiveness[conOrder].size(); j++)
         {
             if (q == posTarget)
             {
                 break;
             }
             int id = options.reducedIds[i] - 1;
-            int scenarioId = options.posActiveness[j].first;
+            int scenarioId = options.posActiveness[conOrder][j].first;
             innerCons[q] += xx[i] * scenarios[id][scenarioId];
             q++;
         }
@@ -180,14 +182,14 @@ void NaiveFormulator::formProbConsActiveness(GRBModel &model,
     {
         if (probCon->psign == Inequality::gteq)
         {
-            for(int i = 0; i < options.qSz; i++)
+            for (int i = 0; i < options.qSz; i++)
             {
                 GRBConstr constr = model.addConstr(innerCons[i], GRB_GREATER_EQUAL, v);
             }
         }
         else
         {
-            for(int i = 0; i < options.qSz; i++)
+            for (int i = 0; i < options.qSz; i++)
             {
                 GRBConstr constr = model.addConstr(innerCons[i], GRB_LESS_EQUAL, v);
             }
@@ -198,16 +200,14 @@ void NaiveFormulator::formProbConsActiveness(GRBModel &model,
         cout << "Error code 9 = " << e.getErrorCode() << endl;
         cout << e.getMessage() << endl;
     }
+    cout<<"formulated activeness"<<endl;
 }
 
-
-
-
-GRBModel NaiveFormulator::formulate(shared_ptr<StochasticPackageQuery> spq, FormulateOptions& formOptions) 
+GRBModel NaiveFormulator::formulate(shared_ptr<StochasticPackageQuery> spq, FormulateOptions &formOptions)
 {
     GRBModel model(env);
     std::unique_ptr<GRBVar[]> xx;
-    if(formOptions.reduced)
+    if (formOptions.reduced)
     {
         xx = std::make_unique<GRBVar[]>(formOptions.reducedIds.size());
         DecisionVarOptions decVarOptions = formOptions.decisionVarOptions;
@@ -216,26 +216,36 @@ GRBModel NaiveFormulator::formulate(shared_ptr<StochasticPackageQuery> spq, Form
             decVarOptions.name = "xx[" + to_string(i) + "]";
             xx[i] = addDecisionVar(model, decVarOptions);
         }
-    }else
+    }
+    else
     {
         xx = std::make_unique<GRBVar[]>(NTuples);
         DecisionVarOptions decVarOptions = formOptions.decisionVarOptions;
         for (int i = 0; i < NTuples; i++)
         {
             decVarOptions.name = "xx[" + to_string(i) + "]";
-            xx[i] = addDecisionVar(model,decVarOptions);
+            xx[i] = addDecisionVar(model, decVarOptions);
         }
     }
     int numCons = spq->cons.size();
-
+    int conOrder = 0;
     for (int i = 0; i < numCons; i++)
     {
         formCountCons(model, spq->cons[i], xx.get(), formOptions);
         formSumCons(model, spq->cons[i], xx.get(), formOptions);
-        if(formOptions.reducedScenarios)
+        if (formOptions.reducedScenarios)
         {
-            formProbConsActiveness(model, spq->cons[i], xx.get(), formOptions);
-        }else
+            shared_ptr<ProbConstraint> probCon;
+            shared_ptr<AttrConstraint> attrCon;
+
+            bool isstoch = isStochastic(spq->cons[i], probCon, attrCon);
+            if (isstoch)
+            {
+                formProbConsActiveness(model, spq->cons[i], xx.get(), formOptions, conOrder);
+                conOrder++;
+            }
+        }
+        else
         {
             formProbCons(model, spq->cons[i], xx.get(), formOptions);
         }

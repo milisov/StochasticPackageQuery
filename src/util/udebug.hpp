@@ -131,6 +131,7 @@ public:
 	void clock(const string &label = "");
 	void stop(const string &label = "");
 	void add(const Profiler &pro);
+	void reset(const string& label);
 	void print() const;
 	double getTime(const string &label) const
 	{

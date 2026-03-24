@@ -23,6 +23,7 @@ bool sortbysecDESC(const pair<double, double> &a, const pair<double, double> &b)
 template <typename T1, typename T2>
 double calculateSummary(vector<double> &scenarios,std::vector<pair<T1, T2>> &innerCons, bool maxS, double alpha)
 {
+    //deb("CALCULATE SUMMARY", alpha, innerCons.size());
     int G_alpha = (int)ceil(alpha * (double)innerCons.size());
     int id = innerCons[0].first;
     double summary = scenarios[id];
@@ -47,6 +48,73 @@ double calculateSummary(vector<double> &scenarios,std::vector<pair<T1, T2>> &inn
     }
     return summary;
 }
+
+
+template <typename T1, typename T2>
+double calculateSummarySmooth(vector<double> &scenarios,std::vector<pair<T1, T2>> &innerCons, bool maxS, double alpha)
+{
+    int topKplus1 = (int)ceil(alpha * (double)innerCons.size());
+    int topK = topKplus1 - 1;
+
+    double alpha0 = topK / (double) innerCons.size();
+    double alpha1 = topKplus1 / (double) innerCons.size();
+
+    // deb(alpha, alpha0, alpha1, topKplus1, topK, innerCons.size());
+
+    double summary1 = 0.0;
+    double summary0;
+    if(topK == 0)
+    {
+        summary0 = 1e7;
+    }else
+    {
+        int id = innerCons[0].first;
+        summary0 = scenarios[id];
+    }
+
+
+    for (int i = 1; i < topK; i++)
+    {
+        if (maxS)
+        {
+            int id = innerCons[i].first;
+            if (scenarios[id] > summary0)
+            {
+                summary0 = scenarios[id];
+            }
+        }
+        else
+        {
+            int id = innerCons[i].first;
+            if (scenarios[id] < summary0)
+            {
+                summary0 = scenarios[id];
+            }
+        }
+    }
+    int id = innerCons[topK].first; 
+    double scenarioValue = scenarios[id];
+    summary1 = summary0;
+    if(maxS)
+    {
+        if(scenarioValue > summary1 || topK == 0)
+        {
+            summary1 = scenarioValue;
+        }
+    }else
+    {
+        if(scenarioValue < summary1 || topK == 0)
+        {
+            summary1 = scenarioValue;
+        }
+    }
+    double step = (alpha - alpha0) / (alpha1 - alpha0);
+    double summary = summary0 + (summary1 - summary0) * step;
+    return summary;
+}
+
+
+
 
 // function that initializes given vector
 template <typename T>
@@ -75,14 +143,22 @@ struct DecisionVarOptions{
 };
 
 struct FormulateOptions{
-    bool SAA = false;
     bool RS = false;
+    bool activenessPartition = false;
     bool objCons = false; // if true, we formulate the objective constraint
     bool reduced = false;
     bool reducedScenarios = false;
-    std::vector<pair<int, double>> posActiveness;
-    std::vector<pair<int, double>> negActiveness;
-    bool computeActiveness = false;
+    bool posNegActiveness = true;
+    bool partitionMostActive = false;
+    bool partitionSpreadActiveness = false;
+    bool includeObjectiveFunction = true;
+    bool finalStage = false; // if true, in the summary search in stage 3, we use the given objective instead of minmax
+    bool stage1 = false;
+    bool indicators = false;
+    vector<vector<pair<int, double>>> posActiveness;
+    vector<vector<pair<int, double>>> negActiveness;
+    vector<vector<pair<int, double>>> activeness;
+    // bool computeActiveness = false;
     std::vector<int> reducedIds;
     std::vector<std::vector< pair<int, double>>> innerConstraints;
     std::map<std::string, double> cntoptions; 
@@ -97,7 +173,7 @@ struct FormulateOptions{
     int iteration = 0;
     DecisionVarOptions decisionVarOptions;
     std::vector<int> vbasis; //warmstart 
-    std::vector<int> cbasis; //warmstart
+    std::vector<int> cbasis;
     double p;
 };
 
@@ -108,7 +184,7 @@ void setDecisionVarOptions(DecisionVarOptions &options, double lb, double ub, do
  */
 class Formulator{
 protected:
-    GRBEnv env = GRBEnv();
+    GRBEnv env = GRBEnv(true);
     PgManager pg;
     string DB_optim;
     string DB_valid;
@@ -122,10 +198,15 @@ protected:
     shared_ptr<StochasticPackageQuery> spq;
     //needed for partition/summarize
     std::vector<int> shuffler;
-    std::vector<vector<pair<int, double>>>partitions;
+    std::vector<vector<vector<pair<int, double>>>> partitions;
     Data& data; 
     Formulator();
     Formulator(shared_ptr<StochasticPackageQuery> spq);
+
+
+    virtual GRBModel& getModel() {
+        throw std::logic_error("Formulator has no model");
+    }
     
     //Build and return a Gurobi model ready for optimization
     virtual GRBModel formulate(shared_ptr<StochasticPackageQuery> spq, FormulateOptions& FormOptions) = 0;
@@ -139,7 +220,12 @@ protected:
     void formExpSumObj(GRBModel &model,shared_ptr<Objective> obj, GRBVar *xx, FormulateOptions& options);
     void formCntObj(GRBModel &model,shared_ptr<Objective> obj, GRBVar *xx, FormulateOptions& options);    
     void partition(int Z, std::vector<pair<int, double>> &innerConstraints, std::vector<int> &shuffler);
-    void createPartitions(FormulateOptions& options);
+    std::set<int> getMostActiveScenarios(vector<pair<int, double>> &posActiveness,vector<pair<int, double>> &negActiveness, int Z, double p);
+    std::set<int> getMostActiveScenarios(vector<pair<int, double>> &activeness, int Z, double p);
+    std::vector<int> getMostActiveScenariosPerPartition(int Z, std::vector<std::pair<int, double>> &sortedActiveness);
+    void stage3Partition(FormulateOptions& options,double p, int conOrder);
+    void activenessPartition(FormulateOptions& options, vector<pair<int, double>> &activeness, std::vector<pair<int, double>> &innerConstraints, double p);
+    void createPartitions(shared_ptr<StochasticPackageQuery> spq, FormulateOptions& options);
     void reshuffleShuffler(std::vector<int> &shuffler);
     void populateShuffler(std::vector<int> &v);
     std::vector<std::vector<double>> summarize(FormulateOptions &formOptions,

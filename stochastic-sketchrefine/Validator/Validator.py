@@ -8,6 +8,7 @@ from Utils.RelationalOperators import RelationalOperators
 from Utils.TailType import TailType
 from Utils.ObjectiveType import ObjectiveType
 from ValueGenerator.ValueGenerator import ValueGenerator
+from Utils.Stochasticity import Stochasticity
 import math
 import numpy as np
 
@@ -21,10 +22,42 @@ class Validator:
         self.__dbInfo = dbInfo
         self.__no_of_validation_scenarios = \
             no_of_validation_scenarios
+        print("creating validator", self.__no_of_validation_scenarios)
+
+        self.__all_scenarios = dict()
+        print("Stochastic attributes:", self.__get_stochastic_attributes())
+        for attr in self.__get_stochastic_attributes():
+            self.__all_scenarios[attr] = []
+            sc = ValueGenerator(
+                    relation=self.__query.get_relation(),
+                    base_predicate=self.__query.get_base_predicate(),
+                    attribute=attr
+                ).get_values()
+            for s in sc:
+                self.__all_scenarios[attr].append(s[0])
+
+        print("created validator")
+
+    def __get_stochastic_attributes(self):
+        attributes = set()
+        for constraint in self.__query.get_constraints():
+            if constraint.is_expected_sum_constraint():
+                attributes.add(
+                    constraint.get_attribute_name())
+            if constraint.is_risk_constraint():
+                attributes.add(
+                    constraint.get_attribute_name())
+        if self.__query.get_objective().get_stochasticity() \
+            == Stochasticity.STOCHASTIC:
+            attributes.add(
+                self.__query.get_objective().\
+                    get_attribute_name()
+            )
+        return attributes
     
 
     def __get_scenarios_and_ids(self, package_dict: dict,
-                              attribute: str, test = False):
+                              attribute: str):
         base_predicate = ''
         ids_with_multiplicities = []
         for id in package_dict:
@@ -34,31 +67,16 @@ class Validator:
                 base_predicate += " or "
             base_predicate += " id=" + str(id)
         ids_with_multiplicities.sort()
+        scenarios = []
         if len(package_dict) > 0:
-            scenarios = []
-            if not test:
-                print(self.__query.get_relation())
-                sc = ValueGenerator(
-                        relation=self.__query.get_relation(),
-                        base_predicate=base_predicate,
-                        attribute=attribute
-                    ).get_values()
-            else:
-                print(self.__query.get_relation()+"_validate")
-                sc = ValueGenerator(
-                        relation=self.__query.get_relation()+"_validate",
-                        base_predicate=base_predicate,
-                        attribute=attribute
-                    ).get_values()
-            for s in sc:
-                scenarios.append(s[0])
-                
-        else:
-            scenarios = []
+            for id in package_dict:
+                i = id - 1 # get only the positive scenarios
+                scenarios.append(self.__all_scenarios[attribute][i])            
+
         return scenarios, ids_with_multiplicities
 
 
-    def get_validation_objective_value(self, package_dict, test = False) -> float:
+    def get_validation_objective_value(self, package_dict) -> float:
         if package_dict is None:
             if self.__query.get_objective().get_objective_type() == \
                 ObjectiveType.MAXIMIZATION:
@@ -73,10 +91,10 @@ class Validator:
             self.__query.get_objective().get_attribute_name()
         scenarios, ids_with_multiplicities = \
             self.__get_scenarios_and_ids(
-                package_dict, attribute, test)
+                package_dict, attribute)
         idx = 0
         objective_value = 0
-        #print(ids_with_multiplicities)
+        # print(ids_with_multiplicities)
         for tuple_values in scenarios:
             _, multiplicity = ids_with_multiplicities[idx]
             idx += 1
@@ -89,14 +107,14 @@ class Validator:
 
     def get_expected_sum_constraint_feasibility(
             self, package_dict,
-            expected_sum_constraint: ExpectedSumConstraint, test = False) -> bool:
+            expected_sum_constraint: ExpectedSumConstraint) -> bool:
         if package_dict is None:
             return True
         
         attribute = expected_sum_constraint.get_attribute_name()
         scenarios, ids_with_multiplicities = \
             self.__get_scenarios_and_ids(
-                package_dict, attribute, test)
+                package_dict, attribute)
         idx = 0
         expected_sum = 0
         for scenario in scenarios:
@@ -121,15 +139,17 @@ class Validator:
 
     def get_var_among_validation_scenarios(
         self, package_dict,
-        var_constraint: VaRConstraint,
-        test = False
+        var_constraint: VaRConstraint
     ) -> float:
+        print("Package dict =", package_dict)
         attribute = var_constraint.get_attribute_name()
         scenarios, ids_with_multiplicities = \
             self.__get_scenarios_and_ids(
-                package_dict, attribute, test
+                package_dict, attribute
             )
-        
+
+        # print("Scenarios =", scenarios)
+        # print("Ids with multiplicities =", ids_with_multiplicities)
         scenario_scores = []
         for _ in range(self.__no_of_validation_scenarios):
             idx = 0
@@ -142,6 +162,7 @@ class Validator:
                 scenario_score
             )
         scenario_scores.sort()
+        # print(scenario_scores)
         scenarios_to_consider = \
             int(np.floor((var_constraint.get_probability_threshold()*\
                       self.__no_of_validation_scenarios)))
@@ -153,15 +174,14 @@ class Validator:
 
     def get_var_constraint_satisfaction(
             self, package_dict,
-            var_constraint: VaRConstraint,
-            test = False
+            var_constraint: VaRConstraint
     ) -> float:
         if package_dict is None:
             return 1.00
         attribute = var_constraint.get_attribute_name()
         scenarios, ids_with_multiplicities = \
             self.__get_scenarios_and_ids(
-                package_dict, attribute, test
+                package_dict, attribute
             )
         satisfying_scenarios = 0
         for _ in range(self.__no_of_validation_scenarios):
@@ -180,13 +200,13 @@ class Validator:
                 RelationalOperators.LESS_THAN_OR_EQUAL_TO:
                 if scenario_score <= var_constraint.get_sum_limit():
                     satisfying_scenarios += 1
+        print("Satisfying scenarios =", satisfying_scenarios, "out of", self.__no_of_validation_scenarios)
         return satisfying_scenarios / self.__no_of_validation_scenarios
     
 
     def get_cvar_constraint_satisfaction(
         self, package_dict,
-        cvar_constraint: CVaRConstraint,
-        test = False
+        cvar_constraint: CVaRConstraint
     ) -> float:
         if package_dict is None:
             if cvar_constraint.get_inequality_sign() == \
@@ -198,7 +218,7 @@ class Validator:
         
         scenarios, ids_with_multiplicities = \
             self.__get_scenarios_and_ids(
-                package_dict, attribute, test
+                package_dict, attribute
             )
         scenario_scores = []
         for scenario_no in range(self.__no_of_validation_scenarios):

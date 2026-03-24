@@ -14,12 +14,17 @@
 #include <boost/algorithm/string/join.hpp>
 #include <util/data.hpp>
 #include <fstream>
+#include <tuple>
 #pragma once
 
 struct SolveOptions
 {
     int Z = 0;
-    bool computeActiveness = false;
+    double timeout_seconds = -1.0;
+    bool timeBudgeted = false;
+    double timeBudget = 0.0;
+    bool activenessAbsoluteValue = false;
+    bool includeObjectiveFunction = true;
     bool reduced = false;
     vector<int> reducedIds;
 };
@@ -49,11 +54,16 @@ public:
     double bestEps;
     int Z = 0;
     int qSz = 0;
+    int qScenarios = 0;
+    bool terminate = false; 
     double timeStage1 = 0.0;
     double timeStage2 = 0.0;
-    double bestRk = -1e7;
-    std::vector<pair<int, double>> bestPosActivenessRS;
-    std::vector<pair<int, double>> bestNegActivenessRS;
+    vector<double>bestRk;
+    vector<std::tuple<double, vector<double>, vector<double>, double, vector<double>, vector<double>, double, int, int>> solutions; // (runtime, validFeas, validSurplus, validnObj, optimFeas, optimSurplus, optimObj, qSz, Z)
+    //double bestRk = -1e7;
+    vector<vector<pair<int, double>>> bestPosActiveness;
+    vector<vector<pair<int, double>>> bestNegActiveness;
+    vector<vector<pair<int, double>>> bestActiveness;
     // Constructors
     SolutionMetadata() : w(0), epsilon(0), isFeasible(false), isOptimal(false) {}
     SolutionMetadata(const std::vector<T> &xInit, double wInit, double epsilonInit, bool isFeasibleInit)
@@ -76,7 +86,7 @@ public:
     Data &data;
     double timeFetch = 0.0;
     double timeSolve = 0.0;
-    Solver() : data(Data::getInstance()) {};
+    Solver() : data(Data::getInstance()) {cout<<"I am getting an instsance of Data"<<endl;};
     PgManager pg;
     int M;
     std::shared_ptr<StochasticPackageQuery> spq;
@@ -85,11 +95,13 @@ public:
     int NTuples;
     int cntScenarios;
     int probConstCnt;
-    std::vector<double> r;
+    std::vector<double> r; //surplus
+    std::vector<double> satisfiedScenarios;
     // for each prob constraint, we carry a value per scenario
-    std::vector<std::vector<pair<int, double>>> innerConstraints;
-    std::vector<pair<int, double>> posActivenessRS;
-    std::vector<pair<int, double>> negActivenessRS;
+    vector<vector<pair<int, double>>> innerConstraints;
+    vector<vector<pair<int, double>>> posActiveness;
+    vector<vector<pair<int, double>>> negActiveness;
+    vector<vector<pair<int, double>>> activeness;
     double W_q;
 
     template <typename T>
@@ -99,6 +111,9 @@ public:
 
     template <typename T>
     void solve(GRBModel &model, std::vector<T> &x, SolveOptions &options);
+
+    template <typename T>
+    int getNonZeroCount(std::vector<T> &x);
 
     template <typename T>
     double calculateObj(std::vector<T> &x,
@@ -131,12 +146,16 @@ public:
                                                                   double high,
                                                                   double rk);
 
-    int countSatisfied(int numScenarios, 
+    int countSatisfied(SolveOptions &options,
+                       int numScenarios, 
                        std::vector<pair<int, double>> &innerConst, 
                        shared_ptr<ProbConstraint> probCon, 
                        shared_ptr<StochasticPackageQuery> spq);
 
     int countProbConst(std::shared_ptr<StochasticPackageQuery> spq);
+
+    template <typename T>
+    bool isCurrentBetterThanBest(vector<double> r, double W_q, SolutionMetadata<T> &bestSol, int sense);
 };
 
 inline void printVariableNames(GRBModel &model)
@@ -181,6 +200,20 @@ inline void findNonzero(std::vector<int> &selectIds, std::vector<T> &x)
 }
 
 template <typename T>
+inline int Solver::getNonZeroCount(std::vector<T> &x)
+{
+    int cnt = 0;
+    for(int i = 0; i < x.size(); i++)
+    {
+        if(x[i] > 0)
+        {
+            cnt += 1;
+        }
+    }
+    return cnt;
+}
+
+template <typename T>
 inline void initializeVector(std::vector<T> &v, int sz, T init)
 {
     for (int i = 0; i < sz; i++)
@@ -189,24 +222,35 @@ inline void initializeVector(std::vector<T> &v, int sz, T init)
     }
 }
 
+
 // for each of the Stochastic Constraints we need to check how many are satisfied
 // get the string sign from each prob constraint and perform the right operation
 // the value of v is retrieved from the spq
-inline int Solver::countSatisfied(int numScenarios, std::vector<pair<int, double>> &innerConst, shared_ptr<ProbConstraint> probCon, shared_ptr<StochasticPackageQuery> spq)
+inline int Solver::countSatisfied(SolveOptions &options, int numScenarios, std::vector<pair<int, double>> &innerConst, shared_ptr<ProbConstraint> probCon, shared_ptr<StochasticPackageQuery> spq)
 {
     int satisfied = 0;
     double epsilon = 1e-7;
+    vector<pair<int,double>>posActivenessForCons;
+    vector<pair<int,double>>negActivenessForCons;
+    vector<pair<int,double>>activenessForCons;
     for (int i = 0; i < numScenarios; i++)
     {
         if (probCon->vsign == Inequality::gteq) // >=
         {
             if (innerConst[i].second >= spq->getValue(probCon->v) - epsilon)
             {
-                posActivenessRS.emplace_back(i,innerConst[i].second - spq->getValue(probCon->v));
+                posActivenessForCons.emplace_back(i,innerConst[i].second - spq->getValue(probCon->v));
                 satisfied++;
             }else
             {
-                negActivenessRS.emplace_back(i,innerConst[i].second - spq->getValue(probCon->v));
+                negActivenessForCons.emplace_back(i,innerConst[i].second - spq->getValue(probCon->v));
+            }
+            if(options.activenessAbsoluteValue)
+            {
+                activenessForCons.emplace_back(i, abs(innerConst[i].second - spq->getValue(probCon->v)));
+            }else
+            {
+                activenessForCons.emplace_back(i, innerConst[i].second - spq->getValue(probCon->v));
             }
         }
         else
@@ -214,13 +258,24 @@ inline int Solver::countSatisfied(int numScenarios, std::vector<pair<int, double
             if (innerConst[i].second <= spq->getValue(probCon->v) + epsilon) // <=
             {
                 satisfied++;
-                posActivenessRS.emplace_back(i, spq->getValue(probCon->v) - innerConst[i].second);
+                posActivenessForCons.emplace_back(i, spq->getValue(probCon->v) - innerConst[i].second);
             }else
             {
-                negActivenessRS.emplace_back(i, spq->getValue(probCon->v) - innerConst[i].second);
+                negActivenessForCons.emplace_back(i, spq->getValue(probCon->v) - innerConst[i].second);
+            }
+            
+            if(options.activenessAbsoluteValue)
+            {
+                activenessForCons.emplace_back(i, abs(innerConst[i].second - spq->getValue(probCon->v)));
+            }else
+            {
+                activenessForCons.emplace_back(i, innerConst[i].second - spq->getValue(probCon->v));
             }
         }
     }
+    negActiveness.push_back(negActivenessForCons);
+    posActiveness.push_back(posActivenessForCons);
+    activeness.push_back(activenessForCons);
     return satisfied;
 }
 
@@ -323,10 +378,12 @@ inline void Solver::validate(GRBModel &model, std::vector<T> &x, shared_ptr<Stoc
     // cout << "Validating!" << endl;
     // clear r from previous iteration -> holds all of the rk values for each iteration
     this->r.clear();
+    this->satisfiedScenarios.clear();
     // we need to clear the innerConstraints in order to update them with new values
     this->innerConstraints.clear();
-    this->posActivenessRS.clear();
-    this->negActivenessRS.clear();
+    this->posActiveness.clear();
+    this->negActiveness.clear();
+    this->activeness.clear();
 
     // because we get row by row we need a way to compute the innerConst for all scenarios in the same time
     int cons_num = spq->cons.size();
@@ -344,7 +401,7 @@ inline void Solver::validate(GRBModel &model, std::vector<T> &x, shared_ptr<Stoc
             for (int i = 0; i < cntScenarios; i++)
             {
                 innerConst.emplace_back(i, 0.0);
-                //activenessRS.emplace_back(i, 0.0);
+                //activenessRS.emplace_back(i , 0.0);
             }
             auto &scenarios = data.stochAttrs[attrCon->attr];
             if (options.reduced)
@@ -370,26 +427,64 @@ inline void Solver::validate(GRBModel &model, std::vector<T> &x, shared_ptr<Stoc
             }
             // push innerConst to innerConstraints
             this->innerConstraints.push_back(innerConst);
-            int satisfied = countSatisfied(cntScenarios, innerConst, probCon, spq);
+            int satisfied = countSatisfied(options, cntScenarios, innerConst, probCon, spq);
+            cout<<"satisfied scenarios = "<<satisfied<<endl;
             double rk = calculateRk(probCon, satisfied, cntScenarios, spq);
-            deb(rk);
+            double satisfiedScenarios = (double)satisfied / cntScenarios;
+            deb(rk, satisfiedScenarios);
             this->r.push_back(rk);
+            this->satisfiedScenarios.push_back(satisfiedScenarios);
         }
     }
-    this->W_q = model.get(GRB_DoubleAttr_ObjVal);
-    deb(W_q);
+    if(options.includeObjectiveFunction)
+    {
+        this->W_q = model.get(GRB_DoubleAttr_ObjVal);
+        cout<< "MinMax Objective = " << W_q << endl;
+        shared_ptr<AttrObjective> attrObj;
+        bool isDet = isDeterministic(spq->obj, attrObj);
+        if(isDet)
+        {
+            double obj = calculateExpSumObj(x, attrObj);
+            cout<<"Actual Objective = "<<obj<<endl;
+        }
+    }else 
+    {
+        this->W_q = getNonZeroCount(x);
+        cout<<"Non-zero count objective"<<" "<<W_q<<endl;
+    }
+    vector<int> selectIds;
+    findNonzero(selectIds, x);
+    cout<<"Non-zero variables in this iteration = "<<selectIds.size()<<endl;
 }
 
 // solve() -> model.optimize(); then translate the x[i] GRBVar vector into a x vector so you can manipulate it.
 template <typename T>
 inline void Solver::solve(GRBModel &model, std::vector<T> &x, SolveOptions &options)
 {
+    deb(options.timeBudgeted, options.timeBudget, options.reduced);
+    gpro.stop("effectiveRuntime");
+    if(options.timeBudgeted)
+    {
+        double remainingTime = options.timeBudget - (gpro.getTime("effectiveRuntime") / 1000);
+        //had a bug here --> if remainingTime is negative GRBExcept
+        if(remainingTime <= 0)
+        {
+            std::cout << "Time Budget Exceeded before optimization" << std::endl;
+            x.clear();
+            return;
+        }
+        deb(remainingTime);
+        model.set(GRB_DoubleParam_TimeLimit, remainingTime);
+    }
+    gpro.clock("effectiveRuntime");
+    gpro.clock("gurobi");
+    //model.set(GRB_DoubleParam_TimeLimit, 60.0);
     int numConstraints = model.get(GRB_IntAttr_NumConstrs);
     int numVars = model.get(GRB_IntAttr_NumVars);
-    gpro.clock("time1");
+    deb(numConstraints, numVars);
     model.set(GRB_IntParam_Presolve, 0);
+    model.set(GRB_IntParam_OutputFlag, 0);
     model.optimize();
-    gpro.stop("time1");
     int status = model.get(GRB_IntAttr_Status);
 
     if (model.get(GRB_IntAttr_Status) == GRB_INFEASIBLE || model.get(GRB_IntAttr_Status) == GRB_INF_OR_UNBD)
@@ -427,6 +522,9 @@ inline void Solver::solve(GRBModel &model, std::vector<T> &x, SolveOptions &opti
             x[i] = static_cast<T>(xx[i].get(GRB_DoubleAttr_X));
         }
     }
+    // cout<<"I AM WRITING MODEL WITH"<<options.reducedIds.size()<< " VARIABLES!"<<endl;   
+    // model.write("/home/fm2288/StochasticPackageQuery/src/model"+to_string(options.reducedIds.size())+".lp");
+    gpro.stop("gurobi");
 }
 
 inline BinarySearchMetadata Solver::guessOptimalConservativenessBinarySearch(double low, double high, double rk)
@@ -484,4 +582,98 @@ inline double Solver::calculateEpsilonQ(shared_ptr<StochasticPackageQuery> spq, 
         epsilonQ = (W_q / W0) - 1;
     }
     return epsilonQ;
+}
+
+inline double calculateE(vector<double> &x)
+{
+    double E = 0.0;
+    for (int i = 0; i < x.size(); i++)
+    {
+        E += x[i];
+    }
+
+    return E;
+}
+
+inline void findUnion(vector<double> &solLP1, vector<double> &solLP2, vector<int> &reducedIds)
+{
+    for (int i = 0; i < solLP1.size(); i++)
+    {
+        if (solLP1[i] > 0 || solLP2[i] > 0)
+        {
+            reducedIds.push_back(i + 1);
+        }
+    }
+}
+
+template <typename T>
+inline bool Solver::isCurrentBetterThanBest(vector<double> r, double W_q, SolutionMetadata<T> &bestSol, int sense)
+{
+    bool isFeas = isFeasible(r);
+    if (isFeas && bestSol.isFeasible)
+    {
+        if (sense == GRB_MINIMIZE)
+        {
+            if (W_q < bestSol.w)
+            {
+                return true;
+            }
+        }
+        else
+        {
+            if (W_q > bestSol.w)
+            {
+                return true;
+            }
+        }
+    }
+    else if (isFeas && !bestSol.isFeasible)
+    {
+        return true;
+    }
+    else if (!isFeas && !bestSol.isFeasible)
+    {
+        double worstRkSol = 1e7;
+        double worstRkBestSol = 1e7;
+        if (bestSol.bestRk.empty())
+        {
+            return true;
+        }
+        else
+        {
+            for (int i = 0; i < r.size(); i++)
+            {
+                if (r[i] < worstRkSol)
+                {
+                    worstRkSol = r[i];
+                }
+                if (bestSol.bestRk[i] < worstRkBestSol)
+                {
+                    worstRkBestSol = bestSol.bestRk[i];
+                }
+            }
+            if (worstRkSol > worstRkBestSol)
+            {
+                return true;
+            }
+            else if (worstRkSol == worstRkBestSol)
+            {
+                if (sense == GRB_MINIMIZE)
+                {
+                    if (W_q < bestSol.w) // abusing maximization
+                    {
+                        return true;
+                    }
+                }
+                else
+                {
+                    if (W_q > bestSol.w) // abusing maximization
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
 }

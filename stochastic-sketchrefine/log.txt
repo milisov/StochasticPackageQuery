@@ -1,0 +1,67 @@
+--- Running Parallel Experiment 90 Cores) ---
+Algorithm: RCLSeed
+Workload Base: /home/fm2288/StochasticPackageQuery/test/QueriesSeeds/stocks_4_4_seeded/RCL
+Detected Seeded Experiment. Generating task list...
+Total Tasks Found: 90
+Header written to results/RCLSEED/stocks_4_4_seeded/Results/RCLSEED_4_4.csv
+Launching Pool with 15 processes...
+Starting Processing: stocks_4_4_seeded_7.spaql (H=0, Seed=7)
+On set stocks_4_4_seeded_7
+Set parameter Username
+Starting Processing: stocks_4_4_seeded_1.spaql (H=0, Seed=1)
+On set stocks_4_4_seeded_1
+Set parameter Username
+Starting Processing: stocks_4_4_seeded_5.spaql (H=0, Seed=5)
+On set stocks_4_4_seeded_5
+Set parameter Username
+Starting Processing: stocks_4_4_seeded_1.spaql (H=1, Seed=1)
+On set stocks_4_4_seeded_1
+Set parameter Username
+Starting Processing: stocks_4_4_seeded_10.spaql (H=0, Seed=10)
+On set stocks_4_4_seeded_10
+Set parameter Username
+Starting Processing: stocks_4_4_seeded_6.spaql (H=0, Seed=6)
+On set stocks_4_4_seeded_6
+Set parameter Username
+Starting Processing: stocks_4_4_seeded_3.spaql (H=0, Seed=3)
+On set stocks_4_4_seeded_3
+Set parameter Username
+Starting Processing: stocks_4_4_seeded_2.spaql (H=0, Seed=2)
+On set stocks_4_4_seeded_2
+Set parameter Username
+Starting Processing: stocks_4_4_seeded_8.spaql (H=0, Seed=8)
+On set stocks_4_4_seeded_8
+Set parameter Username
+Starting Processing: stocks_4_4_seeded_2.spaql (H=1, Seed=2)
+On set stocks_4_4_seeded_2
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Academic license - for non-commercial use only - expires 2026-08-20
+Academic license - for non-commercial use only - expires 2026-08-20
+Academic license - for non-commercial use only - expires 2026-08-20
+Starting Processing: stocks_4_4_seeded_5.spaql (H=1, Seed=5)
+On set stocks_4_4_seeded_5
+Set parameter Username
+Starting Processing: stocks_4_4_seeded_4.spaql (H=0, Seed=4)
+On set stocks_4_4_seeded_4
+Set parameter Username
+Starting Processing: stocks_4_4_seeded_9.spaql (H=0, Seed=9)
+On set stocks_4_4_seeded_9
+Set parameter Username
+Starting Processing: stocks_4_4_seeded_3.spaql (H=1, Seed=3)
+On set stocks_4_4_seeded_3
+Set parameter Username
+Starting Processing: stocks_4_4_seeded_4.spaql (H=1, Seed=4)
+On set stocks_4_4_seeded_4
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Academic license - for non-commercial use only - expires 2026-08-20
+Academic license - for non-commercial use only - expires 2026-08-20
+Academic license - for non-commercial use only - expires 2026-08-20
+Academic license - for non-commercial use only - expires 2026-08-20
+Academic license - for non-commercial use only - expires 2026-08-20
+Academic license - for non-commercial use only - expires 2026-08-20
+Academic license - for non-commercial use only - expires 2026-08-20
+Academic license - for non-commercial use only - expires 2026-08-20
+Academic license - for non-commercial use only - expires 2026-08-20
+Academic license - for non-commercial use only - expires 2026-08-20

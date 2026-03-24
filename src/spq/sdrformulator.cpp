@@ -79,6 +79,7 @@ void SDRFormulator::updateBound(GRBModel& model, double ub) {
 GRBModel SDRFormulator::formulate(std::shared_ptr<StochasticPackageQuery> spq,
                                   FormulateOptions& formOptions)
 {
+    setDecisionVarOptions(formOptions.decisionVarOptions, 0.0, 1.0, 0.0, GrbVarType::Binary);
     DecisionVarOptions decVarOptions = formOptions.decisionVarOptions;
     std::unique_ptr<GRBVar[]> xx;
     xx = std::make_unique<GRBVar[]>(NTuples);
@@ -93,13 +94,15 @@ GRBModel SDRFormulator::formulate(std::shared_ptr<StochasticPackageQuery> spq,
     for (int i = 0; i < numCons; i++)
     {
         formLCVaR(model, spq->cons[i], xx.get(), formOptions);
-        //formCountCons(model, spq->cons[i], xx.get(), formOptions); //REMOVE THE COUNT CONSTRAINT
+        formCountCons(model, spq->cons[i], xx.get(), formOptions);
         formSumCons(model, spq->cons[i], xx.get(), formOptions);
     }
     formSumObj(model, spq->obj, xx.get(), formOptions);
     formCntObj(model, spq->obj, xx.get(), formOptions);
     formExpSumObj(model, spq->obj, xx.get(), formOptions);
     model.update();
+    model.set(GRB_DoubleParam_MIPGap, 0.0);
+    model.write("/home/fm2288/StochasticPackageQuery/SDRModel.lp");
     return model;
     
 }

@@ -22,6 +22,6 @@ public:
     void formProbConsActiveness(GRBModel &model,
                             std::shared_ptr<Constraint> cons,
                             GRBVar *xx,
-                            FormulateOptions& options);
+                            FormulateOptions& options, int conOrder);
 
 };

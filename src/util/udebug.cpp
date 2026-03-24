@@ -34,6 +34,15 @@ void Profiler::add(const Profiler& pro){
     }
 }
 
+void Profiler::reset(const string& label){
+    // Erase the accumulated stats (sum and count)
+    clocks.erase(label);
+    
+    // Safety: Erase the start time if a clock is currently running for this label
+    // so it doesn't calculate a weird duration next time you call stop()
+    timePoints.erase(label); 
+}
+
 void Profiler::print() const{
     for (const auto& cl : clocks){
         auto label = cl.first;

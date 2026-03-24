@@ -2,7 +2,6 @@
 #include <fmt/ranges.h>
 #include <boost/algorithm/string/join.hpp>
 
-
 void printConstraints(GRBModel &model)
 {
     GRBConstr *constrs = model.getConstrs();
@@ -129,9 +128,8 @@ void printConstraints(GRBModel &model)
     }
 }
 
-
 // go through the constraints and delete them
-void removeProbConstr(GRBModel &model, std::vector<GRBVar> &yy, std::vector<GRBGenConstr> &genCon, std::vector<GRBConstr> &sumyCon)
+void removeProbConstr(GRBModel &model, std::vector<GRBVar> &yy, std::vector<GRBGenConstr> &genCon, std::vector<GRBConstr> &probCons)
 {
     for (int i = 0; i < genCon.size(); i++)
     {
@@ -139,10 +137,10 @@ void removeProbConstr(GRBModel &model, std::vector<GRBVar> &yy, std::vector<GRBG
         model.remove(genCon[i]);
     }
     model.update();
-    for (int i = 0; i < sumyCon.size(); i++)
+    for (int i = 0; i < probCons.size(); i++)
     {
         // cout << "deleting SUM yy[i]" << endl;
-        model.remove(sumyCon[i]);
+        model.remove(probCons[i]);
     }
     model.update();
     for (int i = 0; i < yy.size(); i++)
@@ -153,16 +151,16 @@ void removeProbConstr(GRBModel &model, std::vector<GRBVar> &yy, std::vector<GRBG
     model.update();
     yy.clear();
     genCon.clear();
-    sumyCon.clear();
+    probCons.clear();
 }
 
-
-void SSFormulator::formProbCons(GRBModel &model,
-                                std::shared_ptr<Constraint> cons,
-                                GRBVar *xx,
-                                std::vector<std::vector<std::vector<double>>> &summaries,
-                                int &probConOrder, FormulateOptions &formOptions)
+void SSFormulator::formProbConsStage3(GRBModel &model,
+                                      std::shared_ptr<Constraint> cons,
+                                      GRBVar *xx,
+                                      std::vector<std::vector<std::vector<double>>> &summaries,
+                                      int &probConOrder, FormulateOptions &formOptions)
 {
+    deb("Formulated ProbCons Stage 3");
     shared_ptr<ProbConstraint> probCon;
     shared_ptr<AttrConstraint> attrCon;
 
@@ -171,7 +169,77 @@ void SSFormulator::formProbCons(GRBModel &model,
     {
         return;
     }
-    removeProbConstr(model, yy, genCon, sumyCon);
+    removeProbConstr(model, yy, genCon, probCons);
+    model.update();
+    // calculate the number of yk indicator variables
+    int Z = summaries[probConOrder].size();
+    double v = spq->getValue(probCon->v);
+    double p = spq->getValue(probCon->p);
+    std::vector<std::vector<double>> S = summaries[probConOrder];
+    cout << probConOrder << " " << summaries.size() << endl;
+    for (int z = 0; z < Z; z++)
+    {
+        GRBLinExpr innerCons;
+        int sz = S[z].size();
+        if (formOptions.reduced)
+        {
+            for (int i = 0; i < formOptions.reducedIds.size(); i++)
+            {
+                int id = formOptions.reducedIds[i] - 1;
+                double coeffVal = S[z][id];
+                // innerCons += coeffVal * xx[id];
+                innerCons += coeffVal * xx[i];
+            }
+        }
+        else
+        {
+            for (int i = 0; i < sz; i++)
+            {
+                int id = i;
+                double coeffVal = S[z][id];
+                innerCons += coeffVal * xx[id];
+            }
+        }
+
+        try
+        {
+            if (probCon->psign == Inequality::gteq)
+            {
+                GRBConstr constr = model.addConstr(innerCons, GRB_GREATER_EQUAL, v);
+                probCons.push_back(constr);
+            }
+            else
+            {
+                GRBConstr constr = model.addConstr(innerCons, GRB_LESS_EQUAL, v);
+                probCons.push_back(constr);
+            }
+        }
+        catch (GRBException &e)
+        {
+            cout << "Error code 9 = " << e.getErrorCode() << endl;
+            cout << e.getMessage() << endl;
+        }
+    }
+    probConOrder += 1;
+    model.update();
+}
+
+void SSFormulator::formProbCons(GRBModel &model,
+                                std::shared_ptr<Constraint> cons,
+                                GRBVar *xx,
+                                std::vector<std::vector<std::vector<double>>> &summaries,
+                                int &probConOrder, FormulateOptions &formOptions)
+{
+    deb("FORMULATING WITH INDICATORS");
+    shared_ptr<ProbConstraint> probCon;
+    shared_ptr<AttrConstraint> attrCon;
+
+    bool isstoch = isStochastic(cons, probCon, attrCon);
+    if (!isstoch)
+    {
+        return;
+    }
+    removeProbConstr(model, yy, genCon, probCons);
     model.update();
     // calculate the number of yk indicator variables
     int Z = summaries[probConOrder].size();
@@ -198,10 +266,10 @@ void SSFormulator::formProbCons(GRBModel &model,
         {
             for (int i = 0; i < formOptions.reducedIds.size(); i++)
             {
-                    int id = formOptions.reducedIds[i] - 1;
-                    double coeffVal = S[z][id];
-                    //innerCons += coeffVal * xx[id];
-                    innerCons += coeffVal * xx[i];
+                int id = formOptions.reducedIds[i] - 1;
+                double coeffVal = S[z][id];
+                // innerCons += coeffVal * xx[id];
+                innerCons += coeffVal * xx[i];
             }
         }
         else
@@ -240,12 +308,12 @@ void SSFormulator::formProbCons(GRBModel &model,
         if (probCon->psign == Inequality::gteq)
         {
             GRBConstr constr = model.addConstr(sumYz, GRB_GREATER_EQUAL, pZ);
-            sumyCon.push_back(constr);
+            probCons.push_back(constr);
         }
         else
         {
             GRBConstr constr = model.addConstr(sumYz, GRB_LESS_EQUAL, pZ);
-            sumyCon.push_back(constr);
+            probCons.push_back(constr);
         }
     }
     catch (GRBException &e)
@@ -257,35 +325,37 @@ void SSFormulator::formProbCons(GRBModel &model,
     model.update();
 }
 
-//formulate is used for the most basic forms of the algorithm, so this function shall not be used for SDR
-GRBModel SSFormulator::formulate(std::shared_ptr<StochasticPackageQuery> spq,FormulateOptions &formOptions)
+// formulate is used for the most basic forms of the algorithm, so this function shall not be used for SDR
+GRBModel SSFormulator::formulate(std::shared_ptr<StochasticPackageQuery> spq, FormulateOptions &formOptions)
 {
-    if(formOptions.iteration == 0)
+    cout<<"FORMULATING IN SUMMARY SEARCH"<<endl;
+    if (formOptions.iteration == 0)
     {
         DecisionVarOptions decVarOptions = formOptions.decisionVarOptions;
         std::unique_ptr<GRBVar[]> xx;
-        if(formOptions.reduced)
+        if (formOptions.reduced)
         {
             xx = std::make_unique<GRBVar[]>(formOptions.reducedIds.size());
             for (int i = 0; i < formOptions.reducedIds.size(); i++)
             {
                 decVarOptions.name = "xx[" + to_string(i) + "]";
-                xx[i] = addDecisionVar(model,decVarOptions);
+                xx[i] = addDecisionVar(model, decVarOptions);
             }
-        }else
+        }
+        else
         {
             xx = std::make_unique<GRBVar[]>(NTuples);
             for (int i = 0; i < NTuples; i++)
             {
                 decVarOptions.name = "xx[" + to_string(i) + "]";
-                xx[i] = addDecisionVar(model,decVarOptions);
+                xx[i] = addDecisionVar(model, decVarOptions);
             }
         }
         model.update();
     }
 
     std::vector<std::vector<std::vector<double>>> summaries;
-    if(formOptions.iteration != 0)
+    if (formOptions.iteration != 0)
     {
         int conOrder = 0;
         for (int i = 0; i < spq->cons.size(); i++)
@@ -299,17 +369,16 @@ GRBModel SSFormulator::formulate(std::shared_ptr<StochasticPackageQuery> spq,For
                 summaries.push_back(summariesCons);
                 conOrder++;
             }
-        }   
+        }
     }
-    
-    GRBVar* xx = model.getVars();;
+
+    GRBVar *xx = model.getVars();
     formulateSAA(model, summaries, xx, formOptions);
-    //printConstraints(model);
     return model;
 }
 
-void SSFormulator::formulateSAA(GRBModel &model,std::vector<std::vector<std::vector<double>>> &summaries,
-                                GRBVar *xx,FormulateOptions &formOptions) //q here is iteration number from the paper
+void SSFormulator::formulateSAA(GRBModel &model, std::vector<std::vector<std::vector<double>>> &summaries,
+                                GRBVar *xx, FormulateOptions &formOptions) // q here is iteration number from the paper
 {
     int numCons = spq->cons.size();
     int probConOrder = 0;
@@ -323,15 +392,23 @@ void SSFormulator::formulateSAA(GRBModel &model,std::vector<std::vector<std::vec
         }
         else
         {
-            formProbCons(model, spq->cons[i], xx, summaries, probConOrder, formOptions);
-            GRBConstr *constrs = model.getConstrs();
+            if(formOptions.finalStage && !formOptions.indicators)
+            {
+                formProbConsStage3(model, spq->cons[i], xx, summaries, probConOrder, formOptions);
+            }else
+            {
+                formProbCons(model, spq->cons[i], xx, summaries, probConOrder, formOptions);
+            }
         }
     }
     if (formOptions.iteration == 0)
     {
+        cout<<"FORMULATING OBJECTIVE"<<endl;
         formSumObj(model, spq->obj, xx, formOptions);
         formExpSumObj(model, spq->obj, xx, formOptions);
         formCntObj(model, spq->obj, xx, formOptions);
     }
     model.update();
+    int numVars = model.get(GRB_IntAttr_NumVars);
+    //model.write("/home/fm2288/StochasticPackageQuery/model"+std::to_string(numVars)+"_"+std::to_string(formOptions.iteration)+".lp");
 }

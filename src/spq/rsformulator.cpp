@@ -194,33 +194,23 @@ void RSFormulator::formulateRS(GRBModel &model, std::shared_ptr<StochasticPackag
     int probConOrder = 0;
     int conOrder = 0;
 
-    if (formOptions.SAA == false)
+    for (int i = 0; i < spq->cons.size(); i++)
     {
-        for (int i = 0; i < spq->cons.size(); i++)
+        shared_ptr<ProbConstraint> probCon;
+        shared_ptr<AttrConstraint> attrCon;
+        bool isstoch = isStochastic(spq->cons[i], probCon, attrCon);
+        if (isstoch)
         {
-            shared_ptr<ProbConstraint> probCon;
-            shared_ptr<AttrConstraint> attrCon;
-            bool isstoch = isStochastic(spq->cons[i], probCon, attrCon);
-            if (isstoch)
-            {
-                std::vector<std::vector<double>> summariesCons = summarize(formOptions, probCon, attrCon, conOrder);
-                summaries.push_back(summariesCons);
-                conOrder++;
-            }
-        }
-        for (int i = 0; i < spq->cons.size(); i++)
-        {
-            // checks inside if stochastic or not, probConOrder is increased within the function too
-            formProbCons(model, spq->cons[i], model.getVars(), summaries, probConOrder, formOptions);
+            std::vector<std::vector<double>> summariesCons = summarize(formOptions, probCon, attrCon, conOrder);
+            summaries.push_back(summariesCons);
+            conOrder++;
         }
     }
-    else
+    cout<<summaries[0][0][0]<<" "<<summaries[0][0][1]<<" "<<summaries[0][0][2]<<endl;
+    for (int i = 0; i < spq->cons.size(); i++)
     {
-        for (int i = 0; i < spq->cons.size(); i++)
-        {
-            // checks inside if stochastic or not, probConOrder is increased within the function too
-            formProbConsSAA(model, spq->cons[i], model.getVars(), probConOrder, formOptions);
-        }
+        // checks inside if stochastic or not, probConOrder is increased within the function too
+        formProbCons(model, spq->cons[i], model.getVars(), summaries, probConOrder, formOptions);
     }
     model.update();
 }
@@ -253,8 +243,9 @@ void RSFormulator::formulateBestObjProblem(GRBModel &model, std::shared_ptr<Stoc
 
 void RSFormulator::formulateDeterministic(GRBModel &model, std::shared_ptr<StochasticPackageQuery> spq, FormulateOptions &formOptions)
 {
+    cout<<"I AM ADDING VARIABLES TO THE MODEL"<<endl;
     std::unique_ptr<GRBVar[]> xx;
-    if(formOptions.reduced)
+    if (formOptions.reduced)
     {
         xx = std::make_unique<GRBVar[]>(formOptions.reducedIds.size());
         DecisionVarOptions decVarOptions = formOptions.decisionVarOptions;
@@ -263,7 +254,8 @@ void RSFormulator::formulateDeterministic(GRBModel &model, std::shared_ptr<Stoch
             decVarOptions.name = "xx[" + to_string(i) + "]";
             xx[i] = addDecisionVar(model, decVarOptions);
         }
-    }else
+    }
+    else
     {
         xx = std::make_unique<GRBVar[]>(NTuples);
         DecisionVarOptions decVarOptions = formOptions.decisionVarOptions;
@@ -282,6 +274,7 @@ void RSFormulator::formulateDeterministic(GRBModel &model, std::shared_ptr<Stoch
         formSumCons(model, spq->cons[i], xx.get(), formOptions);
         formExpCons(model, spq->cons[i], xx.get(), formOptions);
     }
+
     formObjCons(model, spq->obj, xx.get(), formOptions);
     formMinMaxObjective(model, xx.get(), formOptions);
     model.update();
@@ -316,32 +309,30 @@ void RSFormulator::formProbConsSAA(GRBModel &model, std::shared_ptr<Constraint> 
         y[i] = model.addVar(0.0, GRB_INFINITY, 0.0, GRB_CONTINUOUS, "y[" + to_string(i) + "]");
     }
 
-    auto& scenarios = data.stochAttrs[attrCon->attr];
+    auto &scenarios = data.stochAttrs[attrCon->attr];
     std::vector<GRBLinExpr> innerCons(Z);
-    if(formOptions.reduced)
+    if (formOptions.reduced)
     {
-        for(int i = 0; i < formOptions.reducedIds.size(); i++)
+        for (int i = 0; i < formOptions.reducedIds.size(); i++)
         {
-            int id = formOptions.reducedIds[i] - 1; 
-            for(int j = 0; j < cntScenarios; j++)
+            int id = formOptions.reducedIds[i] - 1;
+            for (int j = 0; j < cntScenarios; j++)
             {
                 double coefVal = -scenarios[id][j];
-                //innerCons[j] += coefVal * xx[id];
                 innerCons[j] += coefVal * xx[i];
             }
         }
     }
     else
     {
-        for(int i = 0; i < NTuples; i++)
+        for (int i = 0; i < NTuples; i++)
         {
-            for(int j = 0; j < cntScenarios; j++)
+            for (int j = 0; j < cntScenarios; j++)
             {
                 double coefVal = -scenarios[i][j];
                 innerCons[j] += coefVal * xx[i];
             }
         }
-        
     }
     for (int z = 0; z < Z; z++)
     {
@@ -375,6 +366,7 @@ void RSFormulator::formProbCons(GRBModel &model,
     {
         return;
     }
+    cout<<"I AM FORMULATING PROB CONS"<<endl;
     int numCons = model.get(GRB_IntAttr_NumConstrs);
     int numVars = model.get(GRB_IntAttr_NumVars);
     removeLastProbConstraints(model);
@@ -384,7 +376,7 @@ void RSFormulator::formProbCons(GRBModel &model,
     double v = spq->getValue(probCon->v);
     double p = spq->getValue(probCon->p);
     double pZ = ceil(p * Z);
-    deb(p,Z,v);
+    cout<< "Z: " << Z << ", pZ: " << pZ << ", v: " << v << ", p: " << p << endl;
     GRBVar y[Z];
 
     GRBVar beta = model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, GRB_CONTINUOUS, "beta");
@@ -406,7 +398,7 @@ void RSFormulator::formProbCons(GRBModel &model,
             {
                 int id = formOptions.reducedIds[i] - 1;
                 double coeffVal = -S[z][id];
-                //innerCons += coeffVal * xx[id];
+                // innerCons += coeffVal * xx[id];
                 innerCons += coeffVal * xx[i];
             }
         }
@@ -446,7 +438,8 @@ void RSFormulator::formObjCons(GRBModel &model,
     {
         return;
     }
-
+    cout<<"FORMULATE OBJECTIVE CONS"<<endl;
+    
     GRBConstr objConstr;
     bool exists = true;
     try
@@ -471,7 +464,7 @@ void RSFormulator::formObjCons(GRBModel &model,
             for (int i = 0; i < formOptions.reducedIds.size(); i++)
             {
                 int id = formOptions.reducedIds[i] - 1;
-                //expSumObjExpr += xx[id] * data.stockExpectedProfit[id];
+                // expSumObjExpr += xx[id] * data.stockExpectedProfit[id];
                 expSumObjExpr += xx[i] * data.stockExpectedProfit[id];
             }
         }
@@ -483,7 +476,7 @@ void RSFormulator::formObjCons(GRBModel &model,
                 expSumObjExpr += xx[id] * data.stockExpectedProfit[id];
             }
         }
-    
+
         try
         {
             if (obj->objSense == maximize)
@@ -505,6 +498,11 @@ void RSFormulator::formObjCons(GRBModel &model,
 
 void RSFormulator::formMinMaxObjective(GRBModel &model, GRBVar *xx, FormulateOptions &formOptions)
 {
+    if(!formOptions.includeObjectiveFunction)
+    {
+        //don't include the minmax objective if indicated
+        return;
+    }
     // removeMinMaxObjective(model);
     GRBLinExpr minMaxExpr;
     GRBVar k = model.addVar(0.0, GRB_INFINITY, 0.0, GRB_CONTINUOUS, "k");
@@ -513,7 +511,7 @@ void RSFormulator::formMinMaxObjective(GRBModel &model, GRBVar *xx, FormulateOpt
         // if reduced, we need to use the reduced ids
         for (int i = 0; i < formOptions.reducedIds.size(); i++)
         {
-            //int id = formOptions.reducedIds[i] - 1;
+            // int id = formOptions.reducedIds[i] - 1;
             model.addConstr(xx[i] <= k, "minmax_" + std::to_string(i));
         }
     }
@@ -532,12 +530,8 @@ void RSFormulator::formMinMaxObjective(GRBModel &model, GRBVar *xx, FormulateOpt
 
 GRBModel RSFormulator::formulate(shared_ptr<StochasticPackageQuery> spq, FormulateOptions &formOptions)
 {
-    if (formOptions.SAA)
-    {
-        formulateDeterministic(modelRS, spq, formOptions);
-        formulateRS(modelRS, spq, formOptions);
-    }
-    else if (formOptions.iteration == 0 && formOptions.Z == formOptions.Zinit)
+    cout<<"Formulating RS model..."<<endl;
+    if (formOptions.iteration == 0 && formOptions.Z == formOptions.Zinit)
     {
         formulateDeterministic(modelRS, spq, formOptions);
         formulateRS(modelRS, spq, formOptions);
@@ -546,6 +540,7 @@ GRBModel RSFormulator::formulate(shared_ptr<StochasticPackageQuery> spq, Formula
     {
         formulateRS(modelRS, spq, formOptions);
     }
-    deb("formulated");
+    cout<<"Model constraint no:"<< modelRS.get(GRB_IntAttr_NumConstrs) << endl;
+    cout<<"Model variable no:"<< modelRS.get(GRB_IntAttr_NumVars) << endl;
     return modelRS;
 }
