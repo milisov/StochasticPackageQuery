@@ -59,6 +59,7 @@ public:
     void addColumn(const string& tableName, const string& columnName, const string& pgType);
     bool existTable(const string& tableName);
     void dropTable(const string& tableName);
+    std::map<std::string, std::string> getExactPgTypes(const std::string& tableName);
 };
 
 void readArray(char* start, vector<double>& array);
@@ -121,6 +122,14 @@ public:
         data += strV + delimiter;
     }
     void send();
+};
+
+class BulkFetch {
+private:
+    PGconn* conn;
+public:
+    BulkFetch(PGconn* existing_conn, const std::string& query);
+    std::vector<char> fetchAll();
 };
 
 #endif

@@ -79,7 +79,7 @@ double SPQChecker::getConIndicator(const SolType& sol, shared_ptr<Constraint> co
             vector<double> attrs; attrs.reserve(n);
             vector<string> strIds; strIds.reserve(n);
             for (const auto& p : sol) strIds.push_back(to_string(p.first));
-            stat->getDetAttrs(spq->tableName, attrCon->attr, fmt::format("{} IN ({}) ORDER BY {}", PgManager::id, boost::join(strIds, ","), PgManager::id), attrs);
+            stat->getDetAttrs(validateTableName, attrCon->attr, fmt::format("{} IN ({}) ORDER BY {}", PgManager::id, boost::join(strIds, ","), PgManager::id), attrs);
             size_t i = 0;
             for (const auto& p : sol) res += p.second*attrs[i++];
         }
@@ -93,7 +93,7 @@ bool SPQChecker::feasible(const SolType& sol, vector<double> &feasibility, vecto
     if (spq->repeat != StochasticPackageQuery::NO_REPEAT){
         for (const auto& p : sol) if (isGreater(p.second, spq->repeat+1)) return false;
     }
-    auto tableSize = stat->pg->getTableSize(spq->tableName);
+    auto tableSize = stat->pg->getTableSize(validateTableName);
     for (const auto& p : sol) if (p.first < 1 || p.first > tableSize) return false;
     for (const auto& con : spq->cons){
         shared_ptr<ProbConstraint>probCon;
@@ -139,9 +139,9 @@ void SPQChecker::display(const SolType& sol) const{
             cout << fmt::format("sol[{}]={}{}{}>{}\n", p.first, RED, p.second, RESET, spq->repeat+1);
         }
     }
-    auto tableSize = stat->pg->getTableSize(spq->tableName);
+    auto tableSize = stat->pg->getTableSize(validateTableName);
     for (const auto& p : sol) if (p.first < 1 || p.first > tableSize){
-        cout << fmt::format("sol has index {}{}{} outside the range [{},{}] of table '{}'\n", RED, p.first, RESET, 1, tableSize, spq->tableName);
+        cout << fmt::format("sol has index {}{}{} outside the range [{},{}] of table '{}'\n", RED, p.first, RESET, 1, tableSize, validateTableName);
     }
 	cout << fmt::format("SELECT PACKAGE({}) FROM {}", spq->strAttrList(), spq->tableName);
 	if (spq->cons.size()) cout << " SUCH THAT\n";

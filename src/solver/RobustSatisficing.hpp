@@ -14,16 +14,20 @@ public:
     std::vector<std::vector<pair<int, double>>> bestNegActiveness;
     RobustSatisficing(int M = 1e4,
                       std::shared_ptr<StochasticPackageQuery> spq = nullptr,
-                      double epsilon = 1e-5)
+                      double epsilon = 1e-5, string validateTableNameBase = "")
     {
         this->M = M;
         this->spq = spq;
         this->DB_optim = spq->tableName;
-        this->DB_valid = fmt::format("{}_{}", DB_optim, "validate");
+        this->DB_valid = validateTableNameBase;
         this->NTuples = pg.getTableSize(spq->tableName);
         this->cntScenarios = pg.getColumnLength(spq->tableName, "profit");
         this->probConstCnt = countProbConst(spq);
         this->epsilon = epsilon;
+
+        spq->setTableName(DB_valid);
+        this->checker = std::make_unique<SPQChecker>(this->spq);
+        spq->setTableName(DB_optim);
     }
 
     SolutionMetadata<int> solveDeterministic(std::shared_ptr<StochasticPackageQuery> spq, SolveOptions &solveOptions);

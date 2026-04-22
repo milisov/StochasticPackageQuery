@@ -49,9 +49,9 @@ double calculateSummary(vector<double> &scenarios,std::vector<pair<T1, T2>> &inn
     return summary;
 }
 
-
+//this function gets scenarios, for the row and the partition
 template <typename T1, typename T2>
-double calculateSummarySmooth(vector<double> &scenarios,std::vector<pair<T1, T2>> &innerCons, bool maxS, double alpha)
+double calculateSummarySmooth(vector<double> &scenarios,std::vector<pair<T1, T2>> &innerCons, bool maxS, double alpha, double partitionMax)
 {
     int topKplus1 = (int)ceil(alpha * (double)innerCons.size());
     int topK = topKplus1 - 1;
@@ -59,13 +59,16 @@ double calculateSummarySmooth(vector<double> &scenarios,std::vector<pair<T1, T2>
     double alpha0 = topK / (double) innerCons.size();
     double alpha1 = topKplus1 / (double) innerCons.size();
 
-    // deb(alpha, alpha0, alpha1, topKplus1, topK, innerCons.size());
+    // if(innerCons.size() < 5)
+    // {
+    //     deb(alpha, alpha0, alpha1, topKplus1, topK, innerCons);
+    // }
 
     double summary1 = 0.0;
     double summary0;
     if(topK == 0)
     {
-        summary0 = 1e7;
+        summary0 = partitionMax + 2*abs(partitionMax);
     }else
     {
         int id = innerCons[0].first;
@@ -109,6 +112,10 @@ double calculateSummarySmooth(vector<double> &scenarios,std::vector<pair<T1, T2>
         }
     }
     double step = (alpha - alpha0) / (alpha1 - alpha0);
+    // if(innerCons.size() < 5)
+    // {
+    //     deb(summary0, summary1, step);
+    // }
     double summary = summary0 + (summary1 - summary0) * step;
     return summary;
 }
@@ -161,6 +168,7 @@ struct FormulateOptions{
     // bool computeActiveness = false;
     std::vector<int> reducedIds;
     std::vector<std::vector< pair<int, double>>> innerConstraints;
+    std::vector<vector<vector<double>>> partitionMaximums;
     std::map<std::string, double> cntoptions; 
     int M; 
     int Z;
@@ -219,11 +227,11 @@ protected:
     void formSumObj(GRBModel &model,shared_ptr<Objective> obj, GRBVar *xx, FormulateOptions& options);
     void formExpSumObj(GRBModel &model,shared_ptr<Objective> obj, GRBVar *xx, FormulateOptions& options);
     void formCntObj(GRBModel &model,shared_ptr<Objective> obj, GRBVar *xx, FormulateOptions& options);    
-    void partition(int Z, std::vector<pair<int, double>> &innerConstraints, std::vector<int> &shuffler);
+    void partition(int Z, FormulateOptions &formOptions, std::vector<pair<int, double>> &innerConstraints, std::vector<int> &shuffler, int conOrder, std::shared_ptr<AttrConstraint> attrCon);
     std::set<int> getMostActiveScenarios(vector<pair<int, double>> &posActiveness,vector<pair<int, double>> &negActiveness, int Z, double p);
     std::set<int> getMostActiveScenarios(vector<pair<int, double>> &activeness, int Z, double p);
     std::vector<int> getMostActiveScenariosPerPartition(int Z, std::vector<std::pair<int, double>> &sortedActiveness);
-    void stage3Partition(FormulateOptions& options,double p, int conOrder);
+    void stage3Partition(FormulateOptions& options,double p, int conOrder, std::shared_ptr<AttrConstraint> attrCon);
     void activenessPartition(FormulateOptions& options, vector<pair<int, double>> &activeness, std::vector<pair<int, double>> &innerConstraints, double p);
     void createPartitions(shared_ptr<StochasticPackageQuery> spq, FormulateOptions& options);
     void reshuffleShuffler(std::vector<int> &shuffler);

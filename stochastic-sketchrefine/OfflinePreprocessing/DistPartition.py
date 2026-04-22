@@ -36,27 +36,43 @@ class DistPartition:
         self.__metrics = OfflinePreprocessingMetrics()
         
         self.__metrics.start_scenario_generation()
+
+        # First fetch all tuple IDs to use as keys
+        id_results = ValueGenerator(
+            relation=self.__relation,
+            base_predicate='',
+            attribute='id'
+        ).get_values()
+        tuple_ids = [int(row[0]) for row in id_results]
+
         for det_attr in self.__dbInfo.get_deterministic_attributes():
             self.__diameter_thresholds[det_attr] = \
                 self.__dbInfo.get_diameter_threshold(
                     det_attr)
-            values =\
-                self.__get_values(0, self.__total_tuples-1,
-                                  det_attr)
-            self.__values[det_attr] = []
-            for value in values:
-                self.__values[det_attr].append(value[0])
+            values = ValueGenerator(
+                relation=self.__relation,
+                base_predicate='',
+                attribute=det_attr
+            ).get_values()
+            self.__values[det_attr] = {}
+            for idx, value in enumerate(values):
+                self.__values[det_attr][tuple_ids[idx]] = value[0]
             print('Created values for', det_attr)
-        
+
         self.__scenarios = dict()
         for stoch_attr in self.__dbInfo.get_stochastic_attributes():
             self.__diameter_thresholds[stoch_attr] = \
                 self.__dbInfo.get_diameter_threshold(
                     stoch_attr)
-            self.__scenarios[stoch_attr] = \
-                self.__get_scenarios(0, self.__total_tuples-1,
-                                     stoch_attr)
-            print('Created Scenarios for', stoch_attr)
+            self.__scenarios[stoch_attr] = {}
+            sc = ValueGenerator(
+                relation=self.__relation,
+                base_predicate='',
+                attribute=stoch_attr
+            ).get_values()
+            for idx, s in enumerate(sc):
+                self.__scenarios[stoch_attr][tuple_ids[idx]] = s[0]
+            print('Loaded Scenarios for', stoch_attr)
         self.__metrics.end_scenario_generation()
         self.__ids_in_partition = []
         self.__hist_bins = dict()
@@ -525,16 +541,7 @@ class DistPartition:
                     print('Something wrong, expected', num_samples, 'samples, but got',
                           len(samples), 'samples')
                 '''
-                individual_scenario_generator = \
-                    self.__dbInfo.get_variable_generator_function(attr)(
-                        relation=self.__relation,
-                        base_predicate='id='+str(tid)
-                    )
-                
-                samples = individual_scenario_generator.generate_scenarios(
-                    seed=Hyperparameters.INIT_SEED,
-                    no_of_scenarios=num_samples
-                )[0]
+                samples = self.__scenarios[attr][tid]
 
                 
                 min_sample = np.min(samples)

@@ -67,19 +67,7 @@ class RCLSolve:
         self.__no_of_validation_scenarios = \
             no_of_validation_scenarios
 
-        start_time_fetching = time.time()
-        self.__validator = Validator(
-            self.__query, dbInfo,
-            self.__no_of_validation_scenarios
-        )
 
-        self.__valid_query = copy.deepcopy(query)
-        self.__valid_query.set_relation(self.__query.get_relation() + "_validate")
-        self.__validator_oos = Validator(self.__valid_query, dbInfo, 10000)
-        end_time_fetching = time.time()
-        total_time_fetching = end_time_fetching - start_time_fetching
-        self.__timers["fetching"] += total_time_fetching
-        print("Total time for fetching:", self.__timers["fetching"])
 
         self.__approximation_bound = \
             approximation_bound
@@ -145,6 +133,19 @@ class RCLSolve:
         self.__metrics = OptimizationMetrics(
             'RCLSolve', self.__is_linear_relaxation
         )
+
+        self.__validator = Validator(
+            self.__query, dbInfo,
+            self.__no_of_validation_scenarios, self.__all_scenarios
+        )
+
+        self.__valid_query = copy.deepcopy(query)
+        baseName = query.get_relation().split("_seeded_")[0]  # e.g., stocks_3_100
+        parts = baseName.split("_")  # ['stocks', '3', '100']
+        validateTableName = f"{parts[0]}_{parts[1]}_validate"  # stocks_3_validate
+        self.__valid_query.set_relation(validateTableName)
+        self.__validator_oos = Validator(self.__valid_query, dbInfo, 10000)
+
 
     def __get_unnecessary_time(self):
         unnecessary_time = 0.0
@@ -352,10 +353,10 @@ class RCLSolve:
         self, cvar_constraint: CVaRConstraint,
         no_of_scenarios: int
     ):
-        return int(np.floor(
+        return max(1, int(np.floor(
             (cvar_constraint.get_percentage_of_scenarios()\
                 *no_of_scenarios)/100
-        ))
+        )))
 
 
     def __get_cvar_constraint_coefficients(
@@ -585,7 +586,6 @@ class RCLSolve:
         feasibilities = []
         surpluses = []
         objective = self.__validator.get_validation_objective_value(package)
-        time_start = time.time()
         for constraint in self.__query.get_constraints():
             if constraint.is_var_constraint():
                 feasibility = self.__validator.get_var_constraint_satisfaction(package,constraint)
@@ -594,9 +594,6 @@ class RCLSolve:
                 surpluses.append(feasibility - p)
                 print("feasibilities =",feasibilities, "objective =", objective)
                 print("best feasibilities =", self.__bestFeasibilities, "best objective =", self.__bestObjective)
-        time_end = time.time()
-        total_time = time_end - time_start
-        self.__timers["compareBest"] += total_time
 
         if self.__bestPackage is None:
             print("Best package is None")
@@ -650,7 +647,7 @@ class RCLSolve:
                         self.__bestObjective = objective
             
         self.__solutions.append((runtime*1000, np.round(feasibilities,4), np.round(surpluses,4), objective, np.round(validFeasibilities,4),np.round(validSurpluses,4), validObjective, no_of_scenarios))
-        print("Solutions", self.__solutions)
+        # print("Solutions", self.__solutions)
 
     def __validate_package_oos(self, package):
 
@@ -702,7 +699,9 @@ class RCLSolve:
         
         current_time = time.time()
         print("CURRENT TIME:", current_time, "START TIME:", self.__start_time)
+        print("CURRENT TIME - START TIME = ", current_time - self.__start_time)
         unnecessary_time = self.__get_unnecessary_time()
+        print("UNNECESSARY TIME:", unnecessary_time)
         runtime = current_time - self.__start_time - unnecessary_time
         #code never reaches here if infeasible
         self.__compare_best_package(package_dict,runtime, no_of_scenarios)
@@ -874,8 +873,8 @@ class RCLSolve:
         if constraint.get_tail_type() == TailType.HIGHEST:
             scenario_scores.reverse()
         scenarios_to_consider = \
-            np.floor((constraint.get_percentage_of_scenarios()\
-                      *no_of_scenarios))/100
+            max(1, int(np.floor((constraint.get_percentage_of_scenarios()\
+                      *no_of_scenarios)/100)))
         return np.average(
             scenario_scores[0:scenarios_to_consider])
     
@@ -892,11 +891,11 @@ class RCLSolve:
                 constraint
             )
         scenarios_to_consider = \
-            int(np.floor((constraint.get_probability_threshold()*\
-                      no_of_scenarios)))
-        
+            max(1, int(np.floor((constraint.get_probability_threshold()*\
+                      no_of_scenarios))))
+
         if constraint.get_inequality_sign() == RelationalOperators.GREATER_THAN_OR_EQUAL_TO:
-            return scenario_scores[no_of_scenarios - scenarios_to_consider - 1]
+            return scenario_scores[max(0, no_of_scenarios - scenarios_to_consider - 1)]
         else:
             return scenario_scores[scenarios_to_consider]
         # return scenario_scores[scenarios_to_consider]
@@ -1069,14 +1068,14 @@ class RCLSolve:
                         risk_constraint_index += 1
             
             package = self.__get_package(no_of_scenarios)
-            print('Package:', package)
+            # print('Package:', package)
             if package is None:
                 cvar_lower_bounds = cvar_mid_thresholds
                 continue
             
             package_with_indices = \
                 self.__get_package_with_indices()
-            print('Packages with indices:', package_with_indices)
+            # print('Packages with indices:', package_with_indices)
             
             unacceptable_diff, validation_objective_value = \
                 self.__is_objective_value_relative_diff_high(
@@ -1405,13 +1404,13 @@ class RCLSolve:
                     cvar_upper_bounds.append(constraint.get_sum_limit())
                     if constraint.is_cvar_constraint():
                         no_of_scenarios_to_consider =\
-                            int(np.floor(constraint.get_percentage_of_scenarios()\
-                                    *no_of_scenarios/100.0))
+                            max(1, int(np.floor(constraint.get_percentage_of_scenarios()\
+                                    *no_of_scenarios/100.0)))
                     elif constraint.is_var_constraint():
                         no_of_scenarios_to_consider =\
-                            int(np.ceil(
+                            max(1, int(np.ceil(
                                 (1-constraint.get_probability_threshold()
-                            )*no_of_scenarios))
+                            )*no_of_scenarios)))
                     min_no_of_scenarios_to_consider.append(
                         no_of_scenarios_to_consider
                     )
@@ -1429,9 +1428,9 @@ class RCLSolve:
                         cvar_upper_bounds.append(cvar_threshold)
                         cvar_lower_bounds.append(constraint.get_sum_limit())
                         no_of_scenarios_to_consider =\
-                            np.floor(
+                            max(1, int(np.floor(
                                 constraint.get_percentage_of_scenarios()\
-                                 *no_of_scenarios/100.0)
+                                 *no_of_scenarios/100.0)))
                         min_no_of_scenarios_to_consider.append(
                             no_of_scenarios_to_consider
                         )
@@ -1451,9 +1450,9 @@ class RCLSolve:
                         cvar_upper_bounds.append(cvar_threshold)
                         cvar_lower_bounds.append(constraint.get_sum_limit())
                         no_of_scenarios_to_consider =\
-                            np.floor(
+                            max(1, int(np.floor(
                                 cvarified_constraint.get_percentage_of_scenarios()\
-                                 *no_of_scenarios/100.0)
+                                 *no_of_scenarios/100.0)))
                         min_no_of_scenarios_to_consider.append(
                             no_of_scenarios_to_consider
                         )

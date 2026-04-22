@@ -1,0 +1,15 @@
+[
+    {
+        "Algorithm": "RCLSolve",
+        "Query": "stocks_5_2_seeded_8",
+        "Hardness": 8,
+        "p": null,
+        "Linear Relaxation": false,
+        "Runtime": 1415.4033660888672,
+        "Package": [],
+        "Objective Value": 0,
+        "Number of Optimization Calls": 1,
+        "Total Optimizer Runtime": 0.07998275756835938,
+        "Number of Scenarios Needed": 0
+    }
+]

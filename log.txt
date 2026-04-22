@@ -1,0 +1,2220 @@
+-- Using Conan toolchain: /home/fm2288/StochasticPackageQuery/build/Debug/generators/conan_toolchain.cmake
+-- Conan toolchain: C++ Standard 14 with extensions ON
+-- The CXX compiler identification is GNU 13.3.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- The C compiler identification is GNU 13.3.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Conan: Component target declared 'fmt::fmt'
+-- Conan: Component target declared 'libpq::pgport'
+-- Conan: Component target declared 'libpq::pgcommon'
+-- Conan: Component target declared 'libpq::pq'
+-- Conan: Target declared 'PostgreSQL::PostgreSQL'
+-- Conan: Component target declared 'Boost::diagnostic_definitions'
+-- Conan: Component target declared 'Boost::disable_autolinking'
+-- Conan: Component target declared 'Boost::dynamic_linking'
+-- Conan: Component target declared 'Boost::headers'
+-- Conan: Component target declared 'Boost::boost'
+-- Conan: Component target declared 'boost::_libboost'
+-- Conan: Component target declared 'Boost::atomic'
+-- Conan: Component target declared 'Boost::container'
+-- Conan: Component target declared 'Boost::context'
+-- Conan: Component target declared 'Boost::date_time'
+-- Conan: Component target declared 'Boost::exception'
+-- Conan: Component target declared 'Boost::math'
+-- Conan: Component target declared 'Boost::math_c99'
+-- Conan: Component target declared 'Boost::math_c99f'
+-- Conan: Component target declared 'Boost::math_c99l'
+-- Conan: Component target declared 'Boost::math_tr1'
+-- Conan: Component target declared 'Boost::math_tr1f'
+-- Conan: Component target declared 'Boost::math_tr1l'
+-- Conan: Component target declared 'Boost::program_options'
+-- Conan: Component target declared 'Boost::regex'
+-- Conan: Component target declared 'Boost::serialization'
+-- Conan: Component target declared 'Boost::stacktrace'
+-- Conan: Component target declared 'Boost::stacktrace_addr2line'
+-- Conan: Component target declared 'Boost::stacktrace_backtrace'
+-- Conan: Component target declared 'Boost::stacktrace_basic'
+-- Conan: Component target declared 'Boost::stacktrace_noop'
+-- Conan: Component target declared 'Boost::system'
+-- Conan: Component target declared 'Boost::test'
+-- Conan: Component target declared 'Boost::test_exec_monitor'
+-- Conan: Component target declared 'Boost::timer'
+-- Conan: Component target declared 'Boost::url'
+-- Conan: Component target declared 'Boost::wserialization'
+-- Conan: Component target declared 'Boost::chrono'
+-- Conan: Component target declared 'Boost::coroutine'
+-- Conan: Component target declared 'Boost::filesystem'
+-- Conan: Component target declared 'Boost::json'
+-- Conan: Component target declared 'Boost::nowide'
+-- Conan: Component target declared 'Boost::prg_exec_monitor'
+-- Conan: Component target declared 'Boost::random'
+-- Conan: Component target declared 'Boost::thread'
+-- Conan: Component target declared 'Boost::type_erasure'
+-- Conan: Component target declared 'Boost::unit_test_framework'
+-- Conan: Component target declared 'Boost::wave'
+-- Conan: Component target declared 'Boost::contract'
+-- Conan: Component target declared 'Boost::fiber'
+-- Conan: Component target declared 'Boost::fiber_numa'
+-- Conan: Component target declared 'Boost::graph'
+-- Conan: Component target declared 'Boost::iostreams'
+-- Conan: Component target declared 'Boost::locale'
+-- Conan: Component target declared 'Boost::log'
+-- Conan: Component target declared 'Boost::log_setup'
+-- Conan: Target declared 'boost::boost'
+-- Conan: Target declared 'BZip2::BZip2'
+-- Conan: Including build module from '/home/fm2288/.conan2/p/b/bzip26203029aaa844/p/lib/cmake/conan-official-bzip2-variables.cmake'
+-- Conan: Target declared 'libbacktrace::libbacktrace'
+-- Conan: Target declared 'ZLIB::ZLIB'
+-- Conan: Target declared 'pcg-cpp::pcg-cpp'
+-- Conan: Component target declared 'gmp::libgmp'
+-- Conan: Component target declared 'gmp::gmpxx'
+-- Conan: Target declared 'gmp::gmp'
+-- Conan: Component target declared 'TBB::tbb'
+-- Conan: Component target declared 'TBB::tbbmalloc'
+-- Conan: Component target declared 'TBB::tbbmalloc_proxy'
+-- Conan: Target declared 'onetbb::onetbb'
+-- Conan: Target declared 'hwloc::hwloc'
+-- Conan: Target declared 'dlib::dlib'
+-- Conan: Target declared 'GIF::GIF'
+-- Conan: Target declared 'JPEG::JPEG'
+-- Conan: Target declared 'PNG::PNG'
+-- Conan: Component target declared 'WebP::webpdecoder'
+-- Conan: Component target declared 'WebP::sharpyuv'
+-- Conan: Component target declared 'WebP::webp'
+-- Conan: Component target declared 'WebP::webpdemux'
+-- Conan: Component target declared 'WebP::libwebpmux'
+-- Conan: Target declared 'libwebp::libwebp'
+-- Conan: Component target declared 'SQLite::SQLite3'
+-- Conan: Component target declared 'OpenBLAS::pthread'
+-- Conan: Target declared 'OpenBLAS::OpenBLAS'
+-- Conan: Target declared 'nlohmann_json::nlohmann_json'
+-- Found OpenMP_C: -fopenmp (found version "4.5")
+-- Found OpenMP_CXX: -fopenmp (found version "4.5")
+-- Found OpenMP: TRUE (found version "4.5")
+-- Configuring done (2.6s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/fm2288/StochasticPackageQuery/build/Debug/generators
+[  3%] Building CXX object CMakeFiles/main.dir/src/spq/formulator.cpp.o
+[  7%] Linking CXX executable main
+[100%] Built target main
+I am writing headers
+File closed successfully.
+I am getting an instsance of Data
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 100
+MinMax Objective = 18661.8
+Actual Objective = 18661.8
+Non-zero variables in this iteration = 75
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Set parameter OutputFlag to value 1
+Set parameter OutputFlag to value 1
+Set parameter TimeLimit to value 3599.712421093
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 100
+MinMax Objective = 18665
+Actual Objective = 18665
+Non-zero variables in this iteration = 76
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Set parameter OutputFlag to value 1
+Set parameter OutputFlag to value 1
+I am getting an instsance of Data
+Iteration: 0 Z = 1 0 100
+current alpha = 0.500005
+Formulating RS model...
+I AM ADDING VARIABLES TO THE MODEL
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.555616279
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 62
+Non-zero count objective 51
+Non-zero variables in this iteration = 51
+Iteration: 1 Z = 1 0 100
+current alpha = 0.750003
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.546644111
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 85
+Non-zero count objective 60
+Non-zero variables in this iteration = 60
+Iteration: 2 Z = 1 0 100
+current alpha = 0.875001
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.538699055
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 92
+Non-zero count objective 108
+Non-zero variables in this iteration = 108
+Iteration: 3 Z = 1 0 100
+current alpha = 0.937501
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.5313283
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 100
+Non-zero count objective 151
+Non-zero variables in this iteration = 151
+Iteration: 4 Z = 1 0 100
+current alpha = 0.906251
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.523977468
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 100
+Non-zero count objective 150
+Non-zero variables in this iteration = 150
+Iteration: 5 Z = 1 0 100
+current alpha = 0.890626
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.516901811
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 100
+Non-zero count objective 150
+Non-zero variables in this iteration = 150
+Iteration: 6 Z = 1 0 100
+current alpha = 0.882814
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.509813105
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 100
+Non-zero count objective 150
+Non-zero variables in this iteration = 150
+Iteration: 7 Z = 1 0 100
+current alpha = 0.878907
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.502892147
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 100
+Non-zero count objective 150
+Non-zero variables in this iteration = 150
+Iteration: 8 Z = 1 0 100
+current alpha = 0.876954
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.495949449
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 100
+Non-zero count objective 150
+Non-zero variables in this iteration = 150
+Iteration: 9 Z = 1 0 100
+current alpha = 0.875978
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.488990031
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 100
+Non-zero count objective 150
+Non-zero variables in this iteration = 150
+Iteration: 10 Z = 1 0 100
+current alpha = 0.87549
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.482021735
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 100
+Non-zero count objective 150
+Non-zero variables in this iteration = 150
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Set parameter OutputFlag to value 1
+Set parameter OutputFlag to value 1
+I am getting an instsance of Data
+Iteration: 0 Z = 1 0 100
+current alpha = 0.500005
+Formulating RS model...
+I AM ADDING VARIABLES TO THE MODEL
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.365617725
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 62
+Non-zero count objective 101
+Non-zero variables in this iteration = 101
+Iteration: 1 Z = 1 0 100
+current alpha = 0.750003
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.358022976
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 85
+Non-zero count objective 112
+Non-zero variables in this iteration = 112
+Iteration: 2 Z = 1 0 100
+current alpha = 0.875001
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.3504692
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 94
+Non-zero count objective 301
+Non-zero variables in this iteration = 301
+Iteration: 3 Z = 1 0 100
+current alpha = 0.937501
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.342786578
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 4 Z = 1 0 100
+current alpha = 0.906251
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.337804402
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 5 Z = 1 0 100
+current alpha = 0.890626
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.332839032
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 6 Z = 1 0 100
+current alpha = 0.882814
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.327880977
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 7 Z = 1 0 100
+current alpha = 0.878907
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.322955578
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 8 Z = 1 0 100
+current alpha = 0.876954
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.318047334
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 9 Z = 1 0 100
+current alpha = 0.875978
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.313072838
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 94
+Non-zero count objective 301
+Non-zero variables in this iteration = 301
+Iteration: 10 Z = 1 0 100
+current alpha = 0.876466
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.305672588
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 94
+Non-zero count objective 301
+Non-zero variables in this iteration = 301
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Set parameter OutputFlag to value 1
+Set parameter OutputFlag to value 1
+I am getting an instsance of Data
+Iteration: 0 Z = 1 0 100
+current alpha = 0.500005
+Formulating RS model...
+I AM ADDING VARIABLES TO THE MODEL
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.185061974
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 61
+Non-zero count objective 68
+Non-zero variables in this iteration = 68
+Iteration: 1 Z = 1 0 100
+current alpha = 0.750003
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.177304536
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 83
+Non-zero count objective 67
+Non-zero variables in this iteration = 67
+Iteration: 2 Z = 1 0 100
+current alpha = 0.875001
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.16965685
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 165
+Non-zero variables in this iteration = 165
+Iteration: 3 Z = 1 0 100
+current alpha = 0.812502
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.162332049
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 165
+Non-zero variables in this iteration = 165
+Iteration: 4 Z = 1 0 100
+current alpha = 0.781252
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.155285783
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 165
+Non-zero variables in this iteration = 165
+Iteration: 5 Z = 1 0 100
+current alpha = 0.765627
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.148268266
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 165
+Non-zero variables in this iteration = 165
+Iteration: 6 Z = 1 0 100
+current alpha = 0.757815
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.141344
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 165
+Non-zero variables in this iteration = 165
+Iteration: 7 Z = 1 0 100
+current alpha = 0.753909
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.134348652
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 165
+Non-zero variables in this iteration = 165
+Iteration: 8 Z = 1 0 100
+current alpha = 0.751956
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.127368716
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 165
+Non-zero variables in this iteration = 165
+Iteration: 9 Z = 1 0 100
+current alpha = 0.750979
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.120424359
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 165
+Non-zero variables in this iteration = 165
+Iteration: 10 Z = 1 0 100
+current alpha = 0.750491
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3599.113454247
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 165
+Non-zero variables in this iteration = 165
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Set parameter OutputFlag to value 1
+Set parameter OutputFlag to value 1
+I am getting an instsance of Data
+Iteration: 0 Z = 1 0 100
+current alpha = 0.500005
+Formulating RS model...
+I AM ADDING VARIABLES TO THE MODEL
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.994321016
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 64
+Non-zero count objective 81
+Non-zero variables in this iteration = 81
+Iteration: 1 Z = 1 0 100
+current alpha = 0.750003
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.986797938
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 84
+Non-zero count objective 83
+Non-zero variables in this iteration = 83
+Iteration: 2 Z = 1 0 100
+current alpha = 0.875001
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.979205868
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 234
+Non-zero variables in this iteration = 234
+Iteration: 3 Z = 1 0 100
+current alpha = 0.812502
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.971972539
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 233
+Non-zero variables in this iteration = 233
+Iteration: 4 Z = 1 0 100
+current alpha = 0.781252
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.964915255
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 233
+Non-zero variables in this iteration = 233
+Iteration: 5 Z = 1 0 100
+current alpha = 0.765627
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.957942309
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 233
+Non-zero variables in this iteration = 233
+Iteration: 6 Z = 1 0 100
+current alpha = 0.757815
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.950983751
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 233
+Non-zero variables in this iteration = 233
+Iteration: 7 Z = 1 0 100
+current alpha = 0.753909
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.944030133
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 233
+Non-zero variables in this iteration = 233
+Iteration: 8 Z = 1 0 100
+current alpha = 0.751956
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.937076551
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 233
+Non-zero variables in this iteration = 233
+Iteration: 9 Z = 1 0 100
+current alpha = 0.750979
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.930138162
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 233
+Non-zero variables in this iteration = 233
+Iteration: 10 Z = 1 0 100
+current alpha = 0.750491
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.923189011
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 233
+Non-zero variables in this iteration = 233
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Set parameter OutputFlag to value 1
+Set parameter OutputFlag to value 1
+I am getting an instsance of Data
+Iteration: 0 Z = 1 0 100
+current alpha = 0.500005
+Formulating RS model...
+I AM ADDING VARIABLES TO THE MODEL
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.822518341
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 63
+Non-zero count objective 90
+Non-zero variables in this iteration = 90
+Iteration: 1 Z = 1 0 100
+current alpha = 0.750003
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.815771006
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 84
+Non-zero count objective 93
+Non-zero variables in this iteration = 93
+Iteration: 2 Z = 1 0 100
+current alpha = 0.875001
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.809192352
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 94
+Non-zero count objective 268
+Non-zero variables in this iteration = 268
+Iteration: 3 Z = 1 0 100
+current alpha = 0.937501
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.803221424
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 4 Z = 1 0 100
+current alpha = 0.906251
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.799419247
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 268
+Non-zero variables in this iteration = 268
+Iteration: 5 Z = 1 0 100
+current alpha = 0.890626
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.794097273
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 267
+Non-zero variables in this iteration = 267
+Iteration: 6 Z = 1 0 100
+current alpha = 0.882814
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.789226468
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 267
+Non-zero variables in this iteration = 267
+Iteration: 7 Z = 1 0 100
+current alpha = 0.878907
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.784564913
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 267
+Non-zero variables in this iteration = 267
+Iteration: 8 Z = 1 0 100
+current alpha = 0.876954
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.780178786
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 267
+Non-zero variables in this iteration = 267
+Iteration: 9 Z = 1 0 100
+current alpha = 0.875978
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.775920547
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 267
+Non-zero variables in this iteration = 267
+Iteration: 10 Z = 1 0 100
+current alpha = 0.87549
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.771733158
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 267
+Non-zero variables in this iteration = 267
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Set parameter OutputFlag to value 1
+Set parameter OutputFlag to value 1
+I am getting an instsance of Data
+Iteration: 0 Z = 1 0 100
+current alpha = 0.500005
+Formulating RS model...
+I AM ADDING VARIABLES TO THE MODEL
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.684224071
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 63
+Non-zero count objective 95
+Non-zero variables in this iteration = 95
+Iteration: 1 Z = 1 0 100
+current alpha = 0.750003
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.678586041
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 84
+Non-zero count objective 101
+Non-zero variables in this iteration = 101
+Iteration: 2 Z = 1 0 100
+current alpha = 0.875001
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.673024391
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 94
+Non-zero count objective 283
+Non-zero variables in this iteration = 283
+Iteration: 3 Z = 1 0 100
+current alpha = 0.937501
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.667864558
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 4 Z = 1 0 100
+current alpha = 0.906251
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.664557579
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 5 Z = 1 0 100
+current alpha = 0.890626
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.661299638
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 6 Z = 1 0 100
+current alpha = 0.882814
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.658173581
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 94
+Non-zero count objective 283
+Non-zero variables in this iteration = 283
+Iteration: 7 Z = 1 0 100
+current alpha = 0.88672
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.653701522
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 94
+Non-zero count objective 283
+Non-zero variables in this iteration = 283
+Iteration: 8 Z = 1 0 100
+current alpha = 0.888673
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.649320938
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 9 Z = 1 0 100
+current alpha = 0.887696
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.646297379
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 283
+Non-zero variables in this iteration = 283
+Iteration: 10 Z = 1 0 100
+current alpha = 0.887208
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.641674298
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 95
+Non-zero count objective 283
+Non-zero variables in this iteration = 283
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Set parameter OutputFlag to value 1
+Set parameter OutputFlag to value 1
+I am getting an instsance of Data
+Iteration: 0 Z = 1 0 100
+current alpha = 0.500005
+Formulating RS model...
+I AM ADDING VARIABLES TO THE MODEL
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.55602697
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 62
+Non-zero count objective 98
+Non-zero variables in this iteration = 98
+Iteration: 1 Z = 1 0 100
+current alpha = 0.750003
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.550635862
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 85
+Non-zero count objective 108
+Non-zero variables in this iteration = 108
+Iteration: 2 Z = 1 0 100
+current alpha = 0.875001
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.545643492
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 94
+Non-zero count objective 292
+Non-zero variables in this iteration = 292
+Iteration: 3 Z = 1 0 100
+current alpha = 0.937501
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.540910951
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 4 Z = 1 0 100
+current alpha = 0.906251
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.537777937
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 5 Z = 1 0 100
+current alpha = 0.890626
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.534727349
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 6 Z = 1 0 100
+current alpha = 0.882814
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.531653852
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 7 Z = 1 0 100
+current alpha = 0.878907
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.528585445
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 94
+Non-zero count objective 292
+Non-zero variables in this iteration = 292
+Iteration: 8 Z = 1 0 100
+current alpha = 0.880861
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.524007148
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 94
+Non-zero count objective 292
+Non-zero variables in this iteration = 292
+Iteration: 9 Z = 1 0 100
+current alpha = 0.881837
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.51963191
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 94
+Non-zero count objective 292
+Non-zero variables in this iteration = 292
+Iteration: 10 Z = 1 0 100
+current alpha = 0.882325
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.515104153
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Set parameter OutputFlag to value 1
+Set parameter OutputFlag to value 1
+I am getting an instsance of Data
+Iteration: 0 Z = 1 0 100
+current alpha = 0.500005
+Formulating RS model...
+I AM ADDING VARIABLES TO THE MODEL
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.406789261
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 63
+Non-zero count objective 97
+Non-zero variables in this iteration = 97
+Iteration: 1 Z = 1 0 100
+current alpha = 0.750003
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.400365957
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 84
+Non-zero count objective 101
+Non-zero variables in this iteration = 101
+Iteration: 2 Z = 1 0 100
+current alpha = 0.875001
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.394424992
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 94
+Non-zero count objective 288
+Non-zero variables in this iteration = 288
+Iteration: 3 Z = 1 0 100
+current alpha = 0.937501
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.388932589
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 4 Z = 1 0 100
+current alpha = 0.906251
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.385479034
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 5 Z = 1 0 100
+current alpha = 0.890626
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.382153886
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 6 Z = 1 0 100
+current alpha = 0.882814
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.378940475
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 94
+Non-zero count objective 287
+Non-zero variables in this iteration = 287
+Iteration: 7 Z = 1 0 100
+current alpha = 0.88672
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.374271942
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 8 Z = 1 0 100
+current alpha = 0.884767
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.371222187
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 9 Z = 1 0 100
+current alpha = 0.88379
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.368134827
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 94
+Non-zero count objective 288
+Non-zero variables in this iteration = 288
+Iteration: 10 Z = 1 0 100
+current alpha = 0.884279
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.363692177
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 94
+Non-zero count objective 287
+Non-zero variables in this iteration = 287
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Set parameter OutputFlag to value 1
+Set parameter OutputFlag to value 1
+I am getting an instsance of Data
+Iteration: 0 Z = 1 0 100
+current alpha = 0.500005
+Formulating RS model...
+I AM ADDING VARIABLES TO THE MODEL
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.278444407
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 63
+Non-zero count objective 96
+Non-zero variables in this iteration = 96
+Iteration: 1 Z = 1 0 100
+current alpha = 0.750003
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.272964965
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 84
+Non-zero count objective 101
+Non-zero variables in this iteration = 101
+Iteration: 2 Z = 1 0 100
+current alpha = 0.875001
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.267627079
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 94
+Non-zero count objective 286
+Non-zero variables in this iteration = 286
+Iteration: 3 Z = 1 0 100
+current alpha = 0.937501
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.262512706
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 4 Z = 1 0 100
+current alpha = 0.906251
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.259225292
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 5 Z = 1 0 100
+current alpha = 0.890626
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.256113254
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 6 Z = 1 0 100
+current alpha = 0.882814
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.253046003
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 94
+Non-zero count objective 285
+Non-zero variables in this iteration = 285
+Iteration: 7 Z = 1 0 100
+current alpha = 0.88672
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.248574141
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 8 Z = 1 0 100
+current alpha = 0.884767
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.245587897
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 94
+Non-zero count objective 285
+Non-zero variables in this iteration = 285
+Iteration: 9 Z = 1 0 100
+current alpha = 0.885743
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.241427612
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 94
+Non-zero count objective 285
+Non-zero variables in this iteration = 285
+Iteration: 10 Z = 1 0 100
+current alpha = 0.886232
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.237001686
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 96
+Non-zero count objective 286
+Non-zero variables in this iteration = 286
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Set parameter OutputFlag to value 1
+Set parameter OutputFlag to value 1
+I am getting an instsance of Data
+Iteration: 0 Z = 1 0 100
+current alpha = 0.500005
+Formulating RS model...
+I AM ADDING VARIABLES TO THE MODEL
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.15547923
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 62
+Non-zero count objective 96
+Non-zero variables in this iteration = 96
+Iteration: 1 Z = 1 0 100
+current alpha = 0.750003
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.150203633
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 86
+Non-zero count objective 106
+Non-zero variables in this iteration = 106
+Iteration: 2 Z = 1 0 100
+current alpha = 0.875001
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.145139137
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 93
+Non-zero count objective 278
+Non-zero variables in this iteration = 278
+Iteration: 3 Z = 1 0 100
+current alpha = 0.937501
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.140408015
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 4 Z = 1 0 100
+current alpha = 0.906251
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.137316308
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 5 Z = 1 0 100
+current alpha = 0.890626
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.13428671
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 6 Z = 1 0 100
+current alpha = 0.882814
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.131332425
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 94
+Non-zero count objective 287
+Non-zero variables in this iteration = 287
+Iteration: 7 Z = 1 0 100
+current alpha = 0.88672
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.127086121
+Set parameter Presolve to value 0
+Initial model is infeasible or unbounded
+Iteration: 8 Z = 1 0 100
+current alpha = 0.884767
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.124113397
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 94
+Non-zero count objective 286
+Non-zero variables in this iteration = 286
+Iteration: 9 Z = 1 0 100
+current alpha = 0.885743
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.119751432
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 95
+Non-zero count objective 286
+Non-zero variables in this iteration = 286
+Iteration: 10 Z = 1 0 100
+current alpha = 0.885255
+Formulating RS model...
+summarizing
+updated innerconstraints
+summarized
+I AM FORMULATING PROB CONS
+Z: 1, pZ: 1, v: 2981.4, p: 0.95
+Model constraint no:5
+Model variable no:990
+Set parameter TimeLimit to value 3598.115280777
+Set parameter Presolve to value 0
+Model optimization ended with status: 2
+Solution Found
+satisfied scenarios = 95
+Non-zero count objective 286
+Non-zero variables in this iteration = 286
+I FINISHED BINARY SEARCH
+REDUCEDIDS SIZE = 335
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+Set parameter OutputFlag to value 1
+Set parameter OutputFlag to value 1
+SKIPPING STAGE 2 100 500
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+I am getting an instsance of Data
+Model optimization ended with status: 2
+Solution Found
+Iteration: 0 Z = 100
+satisfied scenarios = 100
+MinMax Objective = 18661.8
+Actual Objective = 18661.8
+Non-zero variables in this iteration = 75
+Feasible
+summarizing
+updated innerconstraints
+summarized
+0 1
+Model optimization ended with status: 2
+Solution Found
+Iteration: 1 Z = 100
+satisfied scenarios = 100
+MinMax Objective = 18661.8
+Actual Objective = 18661.8
+Non-zero variables in this iteration = 75
+Feasible
+summarizing
+updated innerconstraints
+summarized
+0 1
+Model optimization ended with status: 2
+Solution Found
+Iteration: 2 Z = 100
+satisfied scenarios = 100
+MinMax Objective = 18661.8
+Actual Objective = 18661.8
+Non-zero variables in this iteration = 75
+Feasible
+summarizing
+updated innerconstraints
+summarized
+0 1
+Model optimization ended with status: 2
+Solution Found
+Iteration: 3 Z = 100
+satisfied scenarios = 100
+MinMax Objective = 18661.8
+Actual Objective = 18661.8
+Non-zero variables in this iteration = 75
+Feasible
+summarizing
+updated innerconstraints
+summarized
+0 1
+Model optimization ended with status: 2
+Solution Found
+Iteration: 4 Z = 100
+satisfied scenarios = 100
+MinMax Objective = 18661.8
+Actual Objective = 18661.8
+Non-zero variables in this iteration = 75
+Feasible
+summarizing
+updated innerconstraints
+summarized
+0 1
+Model optimization ended with status: 2
+Solution Found
+Iteration: 5 Z = 100
+satisfied scenarios = 100
+MinMax Objective = 18661.8
+Actual Objective = 18661.8
+Non-zero variables in this iteration = 75
+Feasible
+summarizing
+updated innerconstraints
+summarized
+0 1
+Model optimization ended with status: 2
+Solution Found
+Iteration: 6 Z = 100
+satisfied scenarios = 100
+MinMax Objective = 18661.8
+Actual Objective = 18661.8
+Non-zero variables in this iteration = 75
+Feasible
+summarizing
+updated innerconstraints
+summarized
+0 1
+Model optimization ended with status: 2
+Solution Found
+Iteration: 7 Z = 100
+satisfied scenarios = 100
+MinMax Objective = 18661.8
+Actual Objective = 18661.8
+Non-zero variables in this iteration = 75
+Feasible
+summarizing
+updated innerconstraints
+summarized
+0 1
+Model optimization ended with status: 2
+Solution Found
+Iteration: 8 Z = 100
+satisfied scenarios = 100
+MinMax Objective = 18661.8
+Actual Objective = 18661.8
+Non-zero variables in this iteration = 75
+Feasible
+summarizing
+updated innerconstraints
+summarized
+0 1
+Model optimization ended with status: 2
+Solution Found
+Iteration: 9 Z = 100
+satisfied scenarios = 100
+MinMax Objective = 18661.8
+Actual Objective = 18661.8
+Non-zero variables in this iteration = 75
+Feasible
+summarizing
+updated innerconstraints
+summarized
+0 1
+Model optimization ended with status: 2
+Solution Found
+Iteration: 10 Z = 100
+satisfied scenarios = 100
+MinMax Objective = 18661.8
+Actual Objective = 18661.8
+Non-zero variables in this iteration = 75
+Feasible
+summarizing
+updated innerconstraints
+summarized
+0 1
+Model optimization ended with status: 2
+Solution Found
+Iteration: 11 Z = 100
+satisfied scenarios = 100
+MinMax Objective = 18661.8
+Actual Objective = 18661.8
+Non-zero variables in this iteration = 75
+Feasible
+summarizing
+updated innerconstraints
+summarized
+0 1
+Model optimization ended with status: 2
+Solution Found
+Iteration: 12 Z = 100
+satisfied scenarios = 100
+MinMax Objective = 18661.8
+Actual Objective = 18661.8
+Non-zero variables in this iteration = 75
+Feasible
+summarizing
+updated innerconstraints
+summarized
+0 1
+Model optimization ended with status: 2
+Solution Found
+Iteration: 13 Z = 100
+satisfied scenarios = 100
+MinMax Objective = 18661.8
+Actual Objective = 18661.8
+Non-zero variables in this iteration = 75
+Feasible
+summarizing
+updated innerconstraints
+summarized
+0 1
+Model optimization ended with status: 2
+Solution Found
+Iteration: 14 Z = 100
+satisfied scenarios = 100
+MinMax Objective = 18661.8
+Actual Objective = 18661.8
+Non-zero variables in this iteration = 75
+Feasible
+summarizing
+updated innerconstraints
+summarized
+0 1
+Model optimization ended with status: 2
+Solution Found
+Iteration: 15 Z = 100
+satisfied scenarios = 100
+MinMax Objective = 18661.8
+Actual Objective = 18661.8
+Non-zero variables in this iteration = 75
+Feasible
+summarizing
+updated innerconstraints
+summarized
+0 1
+Model optimization ended with status: 2
+Solution Found
+Iteration: 16 Z = 100
+satisfied scenarios = 100
+MinMax Objective = 18661.8
+Actual Objective = 18661.8
+Non-zero variables in this iteration = 75
+Feasible
+summarizing
+updated innerconstraints
+summarized
+0 1
+Model optimization ended with status: 2
+Solution Found
+Iteration: 17 Z = 100
+satisfied scenarios = 100
+MinMax Objective = 18661.8
+Actual Objective = 18661.8
+Non-zero variables in this iteration = 75
+Feasible
+summarizing
+updated innerconstraints
+summarized
+0 1
+Model optimization ended with status: 2
+Solution Found
+Iteration: 18 Z = 100
+satisfied scenarios = 100
+MinMax Objective = 18661.8
+Actual Objective = 18661.8
+Non-zero variables in this iteration = 75
+Feasible
+RETURNED TO WHILE LOOP
+TUKAAA
+Set parameter Username
+Academic license - for non-commercial use only - expires 2026-08-20
+I am getting an instsance of Data
+Model optimization ended with status: 2
+Solution Found
+Iteration: 0 Z = 100
+satisfied scenarios = 100
+MinMax Objective = 18661.8
+Actual Objective = 18661.8
+Non-zero variables in this iteration = 75
+Feasible
+summarizing
+updated innerconstraints
+summarized
+0 1
+Model optimization ended with status: 2
+Solution Found
+Iteration: 1 Z = 100
+satisfied scenarios = 100
+MinMax Objective = 18661.8
+Actual Objective = 18661.8
+Non-zero variables in this iteration = 75
+Feasible
+summarizing
+updated innerconstraints
+summarized
+0 1
+Model optimization ended with status: 2
+Solution Found
+Iteration: 2 Z = 100
+satisfied scenarios = 100
+MinMax Objective = 18661.8
+Actual Objective = 18661.8
+Non-zero variables in this iteration = 75
+Feasible
+summarizing
+updated innerconstraints

@@ -18,6 +18,7 @@ from Naive.Naive import Naive
 from SummarySearch.SummarySearch import SummarySearch
 from OfflinePreprocessing.DistPartition import DistPartition
 from PgConnection.PgConnection import PgConnection
+from DbInfo.DbInfo import DbInfo
 from QueryHardness.HardnessEvaluator import HardnessEvaluator
 from QueryHardness.RCLSolveBasedHardness import RCLSolveBasedHardness 
 from ScenarioGenerator.PorfolioScenarioGenerator.GainScenarioGenerator import GainScenarioGenerator
@@ -66,7 +67,11 @@ def validate_and_prepare_row(package_dict, query, hardness, runtime, solutions_h
         query.set_relation(query.get_relation().replace("_validate", ""))
 
     valid_query = copy.deepcopy(query)
-    valid_query.set_relation(query.get_relation() + "_validate")
+
+    baseName = query.get_relation().split("_seeded_")[0]  # e.g., stocks_3_100
+    parts = baseName.split("_")  # ['stocks', '3', '100']
+    validateTableName = f"{parts[0]}_{parts[1]}_validate"  # stocks_3_validate
+    valid_query.set_relation(validateTableName)
     
     # Create a fresh Validator instance (thread/process safe)
     validator = Validator(
@@ -126,7 +131,7 @@ def process_single_task(args):
                 # Hardness Evaluator Logic
                 evaluator = RCLSolveBasedHardness(
                     query=query, linear_relaxation=False, dbInfo=PortfolioInfo,
-                    init_no_of_scenarios=100, no_of_validation_scenarios=10**M,
+                    init_no_of_scenarios= min(M, 100), no_of_validation_scenarios=M,
                     approximation_bound=0.05, sampling_tolerance=1.00, bisection_threshold=0.1
                 )
                 evaluator.solve()
@@ -139,7 +144,7 @@ def process_single_task(args):
                 # Base parameters
                 params = {
                     'query': query, 'linear_relaxation': False, 'dbInfo': PortfolioInfo,
-                    'init_no_of_scenarios': 100, 'no_of_validation_scenarios': 10**M,
+                    'init_no_of_scenarios': min(M, 100), 'no_of_validation_scenarios': M,
                     'approximation_bound': 0.0
                 }
 
@@ -180,9 +185,9 @@ def process_single_task(args):
                     
                     rt_ms = metrics.get_runtime() * 1000
                     
-                    # Save JSON log (Filenames are unique, so this is safe in parallel)
-                    json_name = f"{query_name}_{algorithm}_{h}.json"
-                    metrics.log_to_json(os.path.join(results_base, json_name), rt_ms)
+                    # # Save JSON log (Filenames are unique, so this is safe in parallel)
+                    # json_name = f"{query_name}_{algorithm}_{h}.json"
+                    # metrics.log_to_json(os.path.join(results_base, json_name), rt_ms)
                     
                     # Return the row data to the main process
                     return validate_and_prepare_row(
@@ -194,13 +199,53 @@ def process_single_task(args):
         return None
 
 
+def run_partition(relation_name, dbInfo):
+    """
+    Runs DistPartition for a single relation.
+    """
+    print(f"Partitioning relation: {relation_name}")
+    start = time.time()
+
+    partitioner = DistPartition(
+        relation=relation_name,
+        dbInfo=dbInfo
+    )
+    partitioner.partition_relation()
+
+    elapsed = time.time() - start
+    metrics = partitioner.get_metrics()
+    print(f"Partitioning complete for {relation_name}")
+    print(f"  Number of partitions: {partitioner.get_no_of_partitions()}")
+    print(f"  Total time: {elapsed:.2f}s")
+    return metrics
+
+
+def run_partition_experiment(N, M, seeded=False, dbInfo=PortfolioInfo):
+    """
+    Runs partitioning for stocks_N_M tables.
+    If seeded=True, runs for all 10 seeds (stocks_N_M_seeded_1 through stocks_N_M_seeded_10).
+    """
+    if seeded:
+        print(f"--- Running Partitioning for stocks_{N}_{M}_seeded (all 10 seeds) ---")
+        for seed in range(1, 11):
+            relation_name = f"stocks_{N}_{M}_seeded_{seed}"
+            run_partition(relation_name, dbInfo)
+    else:
+        relation_name = f"stocks_{N}_{M}"
+        print(f"--- Running Partitioning for {relation_name} ---")
+        run_partition(relation_name, dbInfo)
+
+    print("Partitioning experiment complete.")
+
+
 def run_experiment(workload_directory, algorithm, M, N, relation_name):
     print(f"--- Running Parallel Experiment 90 Cores) ---")
     print(f"Algorithm: {algorithm}")
     print(f"Workload Base: {workload_directory}")
     
     # Define paths for Results
-    results_base = os.path.join("results", algorithm.upper(), relation_name)
+    # results_base = os.path.join("results", algorithm.upper(), relation_name)
+    results_base = os.path.join("results", "TimeBudgetTen", relation_name)
     csv_dir = os.path.join(results_base, "Results")
     os.makedirs(csv_dir, exist_ok=True)
     
@@ -264,20 +309,25 @@ def run_experiment(workload_directory, algorithm, M, N, relation_name):
 if __name__ == '__main__':
     warnings.filterwarnings('ignore')
     parser = argparse.ArgumentParser()
+    parser.add_argument('algorithm', type=str, choices=['RCL', 'SS', 'Naive', 'DETER', 'HARDNESS', 'RCLSeed', 'SSSeed', 'RCLSeedTimeBudget', 'partition'])
     parser.add_argument('N', type=int)
     parser.add_argument('M', type=int)
-    parser.add_argument('algorithm', type=str, choices=['RCL', 'SS', 'Naive', 'DETER', 'HARDNESS', 'RCLSeed', 'SSSeed', 'RCLSeedTimeBudget'])
+    parser.add_argument('--seeded', action='store_true', help='Run partitioning for all 10 seeds (only for partition command)')
     args = parser.parse_args()
 
-    # --- Directory Logic ---
-    if args.algorithm.upper() in ['RCLSEED', 'SSSEED', 'RCLSEEDTIMEBUDGET']:
-        rel_name = f"stocks_{args.N}_{args.M}_seeded"
-        workload_dir = os.path.join(WORKLOAD_BASE_SEED, rel_name, "RCL")
+    if args.algorithm.lower() == 'partition':
+        # --- Partition Logic ---
+        run_partition_experiment(args.N, args.M, seeded=args.seeded, dbInfo=PortfolioInfo)
     else:
-        rel_name = f"stocks_{args.N}_{args.M}"
-        workload_dir = os.path.join(WORKLOAD_BASE_STD, rel_name, "RCL")
+        # --- Directory Logic ---
+        if args.algorithm.upper() in ['RCLSEED', 'SSSEED', 'RCLSEEDTIMEBUDGET']:
+            rel_name = f"stocks_{args.N}_{args.M}_seeded"
+            workload_dir = os.path.join(WORKLOAD_BASE_SEED, rel_name, "RCL")
+        else:
+            rel_name = f"stocks_{args.N}_{args.M}"
+            workload_dir = os.path.join(WORKLOAD_BASE_STD, rel_name, "RCL")
 
-    if not os.path.exists(workload_dir):
-        print(f"Error: Workload directory not found: {workload_dir}")
-    else:
-        run_experiment(workload_dir, args.algorithm, args.M, args.N, rel_name)
+        if not os.path.exists(workload_dir):
+            print(f"Error: Workload directory not found: {workload_dir}")
+        else:
+            run_experiment(workload_dir, args.algorithm, args.M, args.N, rel_name)

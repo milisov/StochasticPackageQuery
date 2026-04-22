@@ -44,6 +44,21 @@ string PgManager::getConnInfo(){
 		pt.get<string>("postgres.password"));
 }
 
+std::map<std::string, std::string> PgManager::getExactPgTypes(const std::string& tableName) {
+    std::string sql = fmt::format(
+        "SELECT column_name, udt_name FROM information_schema.columns "
+        "WHERE table_schema = '{}' AND table_name = '{}'", schema, tableName);
+    auto res = PQexec(conn.get(), sql.c_str());
+    ck(conn, res);
+    
+    std::map<std::string, std::string> columns;
+    for (int i = 0; i < PQntuples(res); i++) {
+        columns[std::string(PQgetvalue(res, i, 0))] = std::string(PQgetvalue(res, i, 1));
+    }
+    PQclear(res);
+    return columns;
+}
+
 string PgManager::conninfo = PgManager::getConnInfo();
 
 Column PgManager::getColumn(string dataType){
@@ -301,6 +316,60 @@ void BulkCopy::send(){
 	data.reserve(maxSize);
 }
 
+#include <iostream>
+#include <stdexcept>
 
+// Constructor using the existing connection
+BulkFetch::BulkFetch(PGconn* existing_conn, const std::string& query) {
+    conn = existing_conn; // Store the pointer
+    
+    std::string sql = fmt::format("COPY ({}) TO STDOUT WITH BINARY", query);
+    std::cout << "[DEBUG] Executing: " << sql << std::endl; 
+    
+    // Execute on the shared connection
+    auto res = PQexec(conn, sql.c_str());
+    
+    // Verify it actually entered COPY OUT mode
+    if (PQresultStatus(res) != PGRES_COPY_OUT) {
+        std::string err = PQerrorMessage(conn);
+        PQclear(res);
+        throw std::runtime_error("Failed to start COPY: " + err);
+    }
+    PQclear(res);
+}
 
+std::vector<char> BulkFetch::fetchAll() {
+    std::vector<char> buffer;
+    char* ptr = nullptr;
+    
+    std::cout << "[DEBUG] Starting binary stream fetch..." << std::endl;
 
+    while (true) {
+        int len = PQgetCopyData(conn, &ptr, 0); // 0 = blocking mode
+        
+        if (len > 0) {
+            // Success: append binary chunk
+            buffer.insert(buffer.end(), ptr, ptr + len);
+            PQfreemem(ptr);
+        } 
+        else if (len == -1) {
+            // Success: stream complete
+            std::cout << "[DEBUG] Fetch complete. Received " << buffer.size() << " bytes." << std::endl;
+            break; 
+        } 
+        else if (len == -2) {
+            // Error: break to prevent infinite loop
+            std::string err = PQerrorMessage(conn);
+            std::cerr << "[ERROR] PQgetCopyData failed: " << err << std::endl;
+            break; 
+        }
+    }
+    
+    // Clean up the connection state so it can be reused for normal SELECTs later
+    PGresult* res;
+    while ((res = PQgetResult(conn)) != NULL) {
+        PQclear(res);
+    }
+
+    return buffer;
+}

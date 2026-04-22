@@ -5,7 +5,7 @@
         "Hardness": 1,
         "p": null,
         "Linear Relaxation": false,
-        "Runtime": 645028.2227993011,
+        "Runtime": 600105.7834625244,
         "Package": {
             "281": 1.0,
             "282": 1.0,
@@ -84,8 +84,8 @@
             "97158": 1.0
         },
         "Objective Value": 0,
-        "Number of Optimization Calls": 59,
-        "Total Optimizer Runtime": 104.13195824623108,
+        "Number of Optimization Calls": 71,
+        "Total Optimizer Runtime": 132.14533042907715,
         "Number of Scenarios Needed": 0
     }
 ]

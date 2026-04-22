@@ -90,6 +90,7 @@ public:
     PgManager pg;
     int M;
     std::shared_ptr<StochasticPackageQuery> spq;
+    std::unique_ptr<SPQChecker> checker;
     std::string DB_optim;
     std::string DB_valid;
     int NTuples;
@@ -335,6 +336,7 @@ template <typename T>
 inline double Solver::calculateExpSumObj(std::vector<T> &x, shared_ptr<AttrObjective> attrObj)
 {
     double sum = 0;
+    deb(x.size(), NTuples);
     for (int i = 0; i < x.size(); i++)
     {
         sum += x[i] * data.stockExpectedProfit[i];
@@ -509,6 +511,7 @@ inline void Solver::solve(GRBModel &model, std::vector<T> &x, SolveOptions &opti
     GRBVar *xx = model.getVars();
     if (options.reduced)
     {
+        std::fill(x.begin(), x.end(), T(0));
         for (int i = 0; i < options.reducedIds.size(); i++)
         {
             int id = options.reducedIds[i] - 1;
@@ -517,10 +520,11 @@ inline void Solver::solve(GRBModel &model, std::vector<T> &x, SolveOptions &opti
     }
     else
     {
+        std::fill(x.begin(), x.end(), T(0));
         for (int i = 0; i < this->NTuples; i++)
         {
             x[i] = static_cast<T>(xx[i].get(GRB_DoubleAttr_X));
-        }
+        }  
     }
     // cout<<"I AM WRITING MODEL WITH"<<options.reducedIds.size()<< " VARIABLES!"<<endl;   
     // model.write("/home/fm2288/StochasticPackageQuery/src/model"+to_string(options.reducedIds.size())+".lp");

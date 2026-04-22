@@ -101,7 +101,6 @@ SolutionMetadata<int> RobustSatisficing::solveDeterministic(std::shared_ptr<Stoc
         validate(model, x, spq, solveOptions);
         vector<double> feasibilities;
         vector<double> surpluses;
-        SPQChecker Check(this->spq);
         SolType res;
         for (int i = 0; i < NTuples; i++)
         {
@@ -110,8 +109,8 @@ SolutionMetadata<int> RobustSatisficing::solveDeterministic(std::shared_ptr<Stoc
                 res[i + 1] = x[i];
             }
         }
-        bool feas = Check.feasible(res, feasibilities, surpluses);
-        double validObj = Check.getObjective(res);
+        bool feas = checker->feasible(res, feasibilities, surpluses);
+        double validObj = checker->getObjective(res);
     
         gpro.clock("effectiveRuntime");
     
@@ -246,7 +245,8 @@ SolutionMetadata<int> RobustSatisficing::stochasticDualReducer(std::shared_ptr<S
         formOptions.partitionMostActive = true;
         setDecisionVarOptions(decVarOptions, 0.0, 1.0, 0.0, GrbVarType::Binary);
         formOptions.decisionVarOptions = decVarOptions;
-        SummarySearch<int> SS(M, spq, 0.20);
+        SummarySearch<int> SS(M, spq, 0.20, DB_valid);
+        formOptions.partitionMaximums.clear();
         SolutionMetadata<int> sol = SS.summarySearchStage3(spq, formulatorStage3, formOptions, solveOptions);
         cout << "RETURNED TO WHILE LOOP" << endl;
 
@@ -331,7 +331,7 @@ std::vector<int> RobustSatisficing::reduceTuplesStageNoObjCons(std::shared_ptr<S
     formOptions.objCons = false;
     formOptions.iteration = 0;
     RSFormulator formulator(spq);
-    SummarySearch<double> SS(M, spq, epsilonStage1);
+    SummarySearch<double> SS(M, spq, epsilonStage1, DB_valid);
     SolutionMetadata<double> sol = SS.summarySearchRS(SS.spq, formulator, formOptions, solveOptions);
     findNonzero(reducedIds, sol.x);
     vector<int> unioned;
@@ -350,6 +350,7 @@ vector<int> RobustSatisficing::reduceTuplesStageNoObjConsNoObj(std::shared_ptr<S
     double high = 1.0; 
     double epsBinSearch = 1e-3;
 
+    formOptions.partitionMaximums.clear();
     SolutionMetadata<double> best;
     while(high - low > epsBinSearch)
     {
@@ -363,7 +364,7 @@ vector<int> RobustSatisficing::reduceTuplesStageNoObjConsNoObj(std::shared_ptr<S
         formOptions.decisionVarOptions = decVarOptions;
         formOptions.iteration = 0;
         RSFormulator formulator(spq);
-        SummarySearch<double> SS(M, spq, epsilonStage1);
+        SummarySearch<double> SS(M, spq, epsilonStage1, DB_valid);
         SolutionMetadata<double> sol = SS.summarySearchRS(SS.spq, formulator, formOptions, solveOptions);
 
         if(sol.x.empty())
@@ -397,7 +398,7 @@ vector<int> RobustSatisficing::reduceTuplesStageNoObjConsNoObj(std::shared_ptr<S
         }
     }
     cout<<"I FINISHED BINARY SEARCH"<<endl;
-    deb(best.x);
+    // deb(best.x);
     vector<int> reducedIds;
     findNonzero(reducedIds, best.x);
     vector<int> unioned;
@@ -430,7 +431,8 @@ double RobustSatisficing::findBestObjectiveStage(std::shared_ptr<StochasticPacka
         formOptions.objValue = Z; // <- this is the new objective value
         formOptions.iteration = 0;
         RSFormulator formulator(spq);
-        SummarySearch<double> SS(M, spq, epsilonStage1);
+        SummarySearch<double> SS(M, spq, epsilonStage1, DB_valid);
+        formOptions.partitionMaximums.clear();
         SolutionMetadata<double> sol = SS.summarySearchRS(SS.spq, formulator, formOptions, solveOptions);
 
         if (sol.isFeasible) // if feasible this is our current best

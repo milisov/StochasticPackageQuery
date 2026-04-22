@@ -257,7 +257,6 @@ void SSFormulator::formProbCons(GRBModel &model,
     model.update();
     GRBLinExpr sumYz;
     std::vector<std::vector<double>> S = summaries[probConOrder];
-    cout << probConOrder << " " << summaries.size() << endl;
     for (int z = 0; z < Z; z++)
     {
         GRBLinExpr innerCons;
@@ -328,7 +327,6 @@ void SSFormulator::formProbCons(GRBModel &model,
 // formulate is used for the most basic forms of the algorithm, so this function shall not be used for SDR
 GRBModel SSFormulator::formulate(std::shared_ptr<StochasticPackageQuery> spq, FormulateOptions &formOptions)
 {
-    cout<<"FORMULATING IN SUMMARY SEARCH"<<endl;
     if (formOptions.iteration == 0)
     {
         DecisionVarOptions decVarOptions = formOptions.decisionVarOptions;
@@ -403,7 +401,6 @@ void SSFormulator::formulateSAA(GRBModel &model, std::vector<std::vector<std::ve
     }
     if (formOptions.iteration == 0)
     {
-        cout<<"FORMULATING OBJECTIVE"<<endl;
         formSumObj(model, spq->obj, xx, formOptions);
         formExpSumObj(model, spq->obj, xx, formOptions);
         formCntObj(model, spq->obj, xx, formOptions);

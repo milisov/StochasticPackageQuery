@@ -206,7 +206,7 @@ void RSFormulator::formulateRS(GRBModel &model, std::shared_ptr<StochasticPackag
             conOrder++;
         }
     }
-    cout<<summaries[0][0][0]<<" "<<summaries[0][0][1]<<" "<<summaries[0][0][2]<<endl;
+    
     for (int i = 0; i < spq->cons.size(); i++)
     {
         // checks inside if stochastic or not, probConOrder is increased within the function too
@@ -500,6 +500,7 @@ void RSFormulator::formMinMaxObjective(GRBModel &model, GRBVar *xx, FormulateOpt
 {
     if(!formOptions.includeObjectiveFunction)
     {
+        cout<<"I AM NOT INCLUDING MINMAX"<<endl;
         //don't include the minmax objective if indicated
         return;
     }

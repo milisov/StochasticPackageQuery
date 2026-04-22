@@ -48,6 +48,24 @@ class Refine:
         self.__values = dict()
         self.__dbInfo = dbInfo
 
+        # Load all scenarios from database keyed by tuple ID (like RCLSolve)
+        self.__all_scenarios_by_id = dict()
+        for attr in self.__stochastic_attributes:
+            self.__all_scenarios_by_id[attr] = {}
+            sc = ValueGenerator(
+                relation=query.get_relation(),
+                base_predicate='',
+                attribute=attr
+            ).get_values()
+            ids = ValueGenerator(
+                relation=query.get_relation(),
+                base_predicate='',
+                attribute='id'
+            ).get_values()
+            for idx, s in enumerate(sc):
+                tid = int(ids[idx][0])
+                self.__all_scenarios_by_id[attr][tid] = s[0]
+
 
     def get_tuples_in_each_partition(self):    
         base_predicate = ''
@@ -221,78 +239,45 @@ class Refine:
         sizes = []
         for attribute in self.__stochastic_attributes:
             self.__scenarios[attribute] = []
-            
+
+            # Get scenarios for tuples in partition_group from pre-loaded data
             for partition_id in partition_group:
-                partition_wise_scenario_generator =\
-                self.__dbInfo.get_variable_generator_function(
-                    attribute
-                )(
-                    relation=self.__query.get_relation(),
-                    base_predicate=self.__query.get_base_predicate()
-                )
-                
-                scenarios = partition_wise_scenario_generator.\
-                    generate_scenarios_from_partition(
-                        seed=Hyperparameters.INIT_SEED,
-                        no_of_scenarios=self.__no_of_optimization_scenarios,
-                        partition_id=partition_id
-                    )
-                
-                sizes.append(len(scenarios))
-                
-                for scenario in scenarios:
+                tuple_ids_in_partition = self.__tuples_in_partition[partition_id]
+                sizes.append(len(tuple_ids_in_partition))
+                for tid in tuple_ids_in_partition:
+                    scenario = self.__all_scenarios_by_id[attribute][tid][:self.__no_of_optimization_scenarios]
                     self.__scenarios[attribute].append(scenario)
-            
+
+            # Get scenarios for chosen tuples from pre-loaded data
             for tuple_id, _ in chosen_tuples_with_multiplicity:
-                tuple_wise_scenario_generator =\
-                    self.__dbInfo.get_variable_generator_function(
-                        attribute)(
-                        relation=self.__query.get_relation(),
-                        base_predicate='id=' + str(tuple_id)
-                    )
-                
-                scenarios = tuple_wise_scenario_generator.\
-                    generate_scenarios(
-                        seed=Hyperparameters.INIT_SEED,
-                        no_of_scenarios=self.__no_of_optimization_scenarios
-                    )
-                
-                sizes.append(len(scenarios))
-                
-                for scenario in scenarios:
-                    self.__scenarios[attribute].append(scenario)
-                
+                scenario = self.__all_scenarios_by_id[attribute][tuple_id][:self.__no_of_optimization_scenarios]
+                sizes.append(1)
+                self.__scenarios[attribute].append(scenario)
+
+            # Get scenarios for representatives of remaining partitions from pre-loaded data
             for partition_id, multiplicity in remaining_partitions_with_multiplicity:
                 representative_id = self.__representatives[
                         (partition_id, attribute)]
-                    
+
                 no_of_duplicates = self.__max_no_of_duplicates[
                     partition_id]
-                    
+
                 if multiplicity < no_of_duplicates:
                     no_of_duplicates = multiplicity
-                    
-                representative_scenario_generator =\
-                    self.__dbInfo.get_variable_generator_function(
-                        attribute)(
-                        relation=self.__query.get_relation(),
-                        base_predicate='id=' + str(representative_id)
-                    )
-                
-                scenarios = representative_scenario_generator.\
-                    generate_scenarios(
-                        seed=Hyperparameters.INIT_SEED,
-                        no_of_scenarios=(self.__no_of_optimization_scenarios*\
-                            no_of_duplicates)
-                    )
-                    
-                scenarios = np.reshape(scenarios,\
-                                        (no_of_duplicates,
-                                        self.__no_of_optimization_scenarios))
-                    
+
+                rep_scenarios = self.__all_scenarios_by_id[attribute][representative_id]
+                # Reshape for duplicates
+                needed = self.__no_of_optimization_scenarios * no_of_duplicates
+                if len(rep_scenarios) >= needed:
+                    sliced = rep_scenarios[:needed]
+                else:
+                    sliced = list(rep_scenarios) * (needed // len(rep_scenarios) + 1)
+                    sliced = sliced[:needed]
+                reshaped = np.reshape(sliced, (no_of_duplicates, self.__no_of_optimization_scenarios))
+
                 sizes.append(no_of_duplicates)
 
-                for scenario in scenarios:
+                for scenario in reshaped:
                     self.__scenarios[attribute].append(scenario)
 
         for attribute in self.__get_deterministic_attributes():

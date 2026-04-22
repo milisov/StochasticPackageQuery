@@ -17,26 +17,14 @@ class Validator:
 
     def __init__(self,query: Query,
                  dbInfo: DbInfo,
-                 no_of_validation_scenarios: int):
+                 no_of_validation_scenarios: int,
+                 precomputed_scenarios=None):
         self.__query = query
         self.__dbInfo = dbInfo
         self.__no_of_validation_scenarios = \
             no_of_validation_scenarios
-        print("creating validator", self.__no_of_validation_scenarios)
+        self.__all_scenarios = precomputed_scenarios
 
-        self.__all_scenarios = dict()
-        print("Stochastic attributes:", self.__get_stochastic_attributes())
-        for attr in self.__get_stochastic_attributes():
-            self.__all_scenarios[attr] = []
-            sc = ValueGenerator(
-                    relation=self.__query.get_relation(),
-                    base_predicate=self.__query.get_base_predicate(),
-                    attribute=attr
-                ).get_values()
-            for s in sc:
-                self.__all_scenarios[attr].append(s[0])
-
-        print("created validator")
 
     def __get_stochastic_attributes(self):
         attributes = set()
@@ -69,9 +57,19 @@ class Validator:
         ids_with_multiplicities.sort()
         scenarios = []
         if len(package_dict) > 0:
-            for id in package_dict:
-                i = id - 1 # get only the positive scenarios
-                scenarios.append(self.__all_scenarios[attribute][i])            
+            if self.__all_scenarios is None:
+                sc = ValueGenerator(
+                        relation = self.__query.get_relation(),
+                        base_predicate = base_predicate,
+                        attribute = attribute
+                        ).get_values()
+                for s in sc:
+                    scenarios.append(s[0])
+            else:
+                for id in package_dict:
+                    i = id - 1 # get only the positive scenarios
+                    scenarios.append(self.__all_scenarios[attribute][i])            
+
 
         return scenarios, ids_with_multiplicities
 
@@ -141,7 +139,7 @@ class Validator:
         self, package_dict,
         var_constraint: VaRConstraint
     ) -> float:
-        print("Package dict =", package_dict)
+        # print("Package dict =", package_dict)
         attribute = var_constraint.get_attribute_name()
         scenarios, ids_with_multiplicities = \
             self.__get_scenarios_and_ids(

@@ -13,6 +13,7 @@ from SketchRefine.SketchValidator import SketchValidator
 from Utils.Relation_Prefixes import Relation_Prefixes
 from Utils.Stochasticity import Stochasticity
 from ValueGenerator.RepresentativeValueGenerator import RepresentativeValueGenerator
+from ValueGenerator.ValueGenerator import ValueGenerator
 
 
 class Sketch:
@@ -37,21 +38,47 @@ class Sketch:
         self.__constraints_for_attribute = dict()
         self.__stochastic_attributes = \
             self.__get_stochastic_attributes()
-        
+
+        # Load all scenarios from database keyed by tuple ID (like RCLSolve)
+        self.__all_scenarios_by_id = dict()
+        for attr in self.__stochastic_attributes:
+            self.__all_scenarios_by_id[attr] = {}
+            sc = ValueGenerator(
+                relation=self.__query.get_relation(),
+                base_predicate='',
+                attribute=attr
+            ).get_values()
+            ids = ValueGenerator(
+                relation=self.__query.get_relation(),
+                base_predicate='',
+                attribute='id'
+            ).get_values()
+            for idx, s in enumerate(sc):
+                tid = int(ids[idx][0])
+                self.__all_scenarios_by_id[attr][tid] = s[0]
+
+        # Get representative tuple IDs for each partition
+        self.__representative_ids = self.__get_representative_ids()
+
+        # Build __all_scenarios for validation (full scenarios for each representative with max duplicates)
+        # Structure: __all_scenarios[attr] = list of scenario arrays, one per (partition, duplicate)
+        self.__all_scenarios = dict()
         for attribute in self.__stochastic_attributes:
-            self.__scenarios[attribute] = \
-                RepresentativeScenarioGeneratorWithoutCorrelation(
-                    relation=self.__query.get_relation(),
-                    attr=attribute,
-                    scenario_generator=\
-                        self.__dbInfo.\
-                            get_variable_generator_function(
-                                attribute),
-                    duplicates=self.__max_no_of_duplicates
-                ).generate_scenarios(
-                    seed=Hyperparameters.INIT_SEED,
-                    no_of_scenarios=self.__no_of_opt_scenarios
-                )
+            self.__all_scenarios[attribute] = []
+            for partition_idx, partition_id in enumerate(self.__partition_ids):
+                rep_id = self.__representative_ids[(partition_id, attribute)]
+                rep_scenarios = self.__all_scenarios_by_id[attribute][rep_id]
+                num_duplicates = self.__max_no_of_duplicates[partition_idx]
+                for dup in range(num_duplicates):
+                    self.__all_scenarios[attribute].append(rep_scenarios)
+
+        # Build __scenarios for optimization (sliced scenarios)
+        self.__current_number_of_scenarios = 0
+        for attribute in self.__stochastic_attributes:
+            self.__scenarios[attribute] = []
+            for _ in range(len(self.__all_scenarios[attribute])):
+                self.__scenarios[attribute].append([])
+        self.__update_optimization_scenarios(self.__no_of_opt_scenarios)
             
         
         self.__alpha, self.__duplicate_vector = \
@@ -87,7 +114,8 @@ class Sketch:
             maxed_out_duplicate_vector=\
                 self.__max_no_of_duplicates,
             partition_id_in_duplicate_vector=\
-                self.__partition_id_in_duplicate_vector
+                self.__partition_id_in_duplicate_vector,
+            all_scenarios_by_id=self.__all_scenarios_by_id
         )
         
         self.__solver = SketchRCLSolve(
@@ -104,12 +132,36 @@ class Sketch:
             partition_sizes=self.__partition_sizes
         )
 
+    def __get_representative_ids(self) -> dict:
+        """Get representative tuple IDs for each (partition_id, attribute) pair."""
+        sql = "SELECT partition_id, attribute, representative_tuple_id FROM " +\
+                Relation_Prefixes.REPRESENTATIVE_RELATION_PREFIX +\
+                    self.__query.get_relation() + ";"
+
+        PgConnection.Execute(sql)
+        tuples = PgConnection.Fetch()
+
+        representative_ids = {}
+        for partition_id, attribute, rep_id in tuples:
+            representative_ids[(partition_id, attribute)] = rep_id
+
+        return representative_ids
+
+    def __update_optimization_scenarios(self, no_of_scenarios: int):
+        """Update __scenarios with sliced scenarios for optimization (like RCLSolve)."""
+        if self.__current_number_of_scenarios >= no_of_scenarios:
+            return
+        for attr in self.__stochastic_attributes:
+            for idx in range(len(self.__all_scenarios[attr])):
+                self.__scenarios[attr][idx] = self.__all_scenarios[attr][idx][:no_of_scenarios]
+        self.__current_number_of_scenarios = no_of_scenarios
+
     def __get_no_of_partitions(self) -> list[int]:
         sql = "SELECT distinct partition_id FROM " +\
                 Relation_Prefixes.REPRESENTATIVE_RELATION_PREFIX +\
                     self.__query.get_relation() +\
             " ORDER BY partition_id;"
-        
+
         PgConnection.Execute(sql)
         tuples = PgConnection.Fetch()
 
@@ -313,38 +365,15 @@ class Sketch:
                         self.__alpha = 0
                 elif self.__no_of_opt_scenarios < \
                     Hyperparameters.NO_OF_VALIDATION_SCENARIOS:
-                    
-                    previous_opt_scenarios = self.__no_of_opt_scenarios
+
                     self.__no_of_opt_scenarios *= 2
                     if self.__no_of_opt_scenarios >\
                         Hyperparameters.NO_OF_VALIDATION_SCENARIOS:
                         self.__no_of_opt_scenarios =\
                             Hyperparameters.NO_OF_VALIDATION_SCENARIOS
-                    
-                    required_optimization_scenarios = \
-                        self.__no_of_opt_scenarios - previous_opt_scenarios
-                    
-                    for attribute in self.__stochastic_attributes:
-                        new_scenarios = \
-                            RepresentativeScenarioGeneratorWithoutCorrelation(
-                                relation=self.__query.get_relation(),
-                                attr=attribute,
-                                scenario_generator=\
-                                    self.__dbInfo.\
-                                        get_variable_generator_function(
-                                            attribute),
-                                duplicates=self.__duplicate_vector
-                            ).generate_scenarios(
-                                seed=SeedManager.get_next_seed(),
-                                no_of_scenarios=required_optimization_scenarios
-                            )
-                        
-                        tuple_index = 0
-                        for tuplewise_new_scenario in new_scenarios:
-                            for value in tuplewise_new_scenario:
-                                self.__scenarios[tuple_index].append(
-                                    value)
-                            tuple_index += 1
+
+                    # Update scenarios from pre-loaded data (like RCLSolve)
+                    self.__update_optimization_scenarios(self.__no_of_opt_scenarios)
             else:
                 break
         

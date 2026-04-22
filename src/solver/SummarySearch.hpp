@@ -44,16 +44,20 @@ public:
     // Constructor
     SummarySearch(int M = 1e4,
                   std::shared_ptr<StochasticPackageQuery> spq = nullptr,
-                  double epsilon = 1e-5) : data(Data::getInstance())
+                  double epsilon = 1e-5, std::string validateTableNameBase = "") : data(Data::getInstance())
     {
         this->M = M;
         this->spq = spq;
         this->DB_optim = spq->tableName;
-        this->DB_valid = fmt::format("{}_{}", DB_optim, "validate");
+        this->DB_valid = validateTableNameBase;
         this->NTuples = pg.getTableSize(spq->tableName);
         this->cntScenarios = pg.getColumnLength(spq->tableName, "profit");
         this->probConstCnt = countProbConst(spq);
         this->epsilon = epsilon;
+
+        spq->setTableName(DB_valid);
+        this->checker = std::make_unique<SPQChecker>(this->spq);
+        spq->setTableName(DB_optim);
     }
 
     // Extra methods specific to SummarySearch
@@ -114,7 +118,7 @@ SolutionMetadata<T> SummarySearch<T>::CSASolveBinSearchStage3(Formulator &formul
         for (int i = 0; i < probConstCnt; i++)
         {
             double eps = 1e-3;
-            if (formOptions.iteration > 0 && history[i].high - history[i].low > eps && (Z <= cntScenarios && qAfterZequalsM <= 1))
+            if (formOptions.iteration > 0 && history[i].high - history[i].low > eps)
             {
                 if (alpha[i] != -1.0)
                 {
@@ -195,7 +199,6 @@ SolutionMetadata<T> SummarySearch<T>::CSASolveBinSearchStage3(Formulator &formul
             gpro.stop("effectiveRuntime");
             vector<double> feasibilities;
             vector<double> surpluses;
-            SPQChecker Check(this->spq);
             SolType res;
             for (int i = 0; i < NTuples; i++)
             {
@@ -204,8 +207,8 @@ SolutionMetadata<T> SummarySearch<T>::CSASolveBinSearchStage3(Formulator &formul
 					res[i + 1] = x[i];
 				}
             }
-            bool feas = Check.feasible(res, feasibilities, surpluses);
-            double validObj = Check.getObjective(res);
+            bool feas = checker->feasible(res, feasibilities, surpluses);
+            double validObj = checker->getObjective(res);
             bestSol.solutions.push_back(make_tuple(gpro.getTime("effectiveRuntime"), satisfiedScenarios,r, this->W_q, feasibilities, surpluses, validObj, formOptions.reducedIds.size(), formOptions.Z));
             gpro.clock("effectiveRuntime");
             int sense;

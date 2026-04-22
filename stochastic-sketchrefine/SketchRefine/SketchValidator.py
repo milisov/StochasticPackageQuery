@@ -25,7 +25,8 @@ class SketchValidator:
         dbInfo: DbInfo,
         no_of_validation_scenarios: int,
         maxed_out_duplicate_vector: list[int],
-        partition_id_in_duplicate_vector: dict
+        partition_id_in_duplicate_vector: dict,
+        all_scenarios_by_id: dict = None
     ):
         self.__query = query
         self.__dbInfo = dbInfo
@@ -35,6 +36,7 @@ class SketchValidator:
             maxed_out_duplicate_vector
         self.__partition_id_in_duplicate_vector = \
             partition_id_in_duplicate_vector
+        self.__all_scenarios_by_id = all_scenarios_by_id
         
         self.__prefix_sum_max_duplicates = \
             [0]
@@ -191,7 +193,15 @@ class SketchValidator:
                 )
 
         if len(package_dict) > 0:
-            if consider_correlation and \
+            # Use pre-loaded scenarios if available (like RCLSolve)
+            if self.__all_scenarios_by_id is not None and attribute in self.__all_scenarios_by_id:
+                scenarios = []
+                for rep_id, num_dups in zip(representatives, duplicates):
+                    rep_scenarios = self.__all_scenarios_by_id[attribute][rep_id]
+                    # Each duplicate gets the same scenarios (sliced to validation count)
+                    for _ in range(num_dups):
+                        scenarios.append(rep_scenarios[:self.__no_of_validation_scenarios])
+            elif consider_correlation and \
                 self.__dbInfo.has_inter_tuple_correlations():
                 start_time = time.time()
                 scenario_generator = \
@@ -334,7 +344,10 @@ class SketchValidator:
         scenarios_to_consider = \
             int(np.floor((var_constraint.get_probability_threshold()*\
                       self.__no_of_validation_scenarios)))
-        return scenario_scores[scenarios_to_consider]
+        if var_constraint.get_inequality_sign() == RelationalOperators.GREATER_THAN_OR_EQUAL_TO:
+            return scenario_scores[self.__no_of_validation_scenarios - scenarios_to_consider - 1]
+        else:
+            return scenario_scores[scenarios_to_consider]
 
 
     def get_var_constraint_satisfaction(

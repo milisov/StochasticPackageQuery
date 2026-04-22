@@ -4,7 +4,7 @@
 
 using namespace std;
 
-Formulator::Formulator() : data(Data::getInstance()) {env.set(GRB_IntParam_OutputFlag, 0);}
+Formulator::Formulator() : data(Data::getInstance()) { env.set(GRB_IntParam_OutputFlag, 0); }
 
 Formulator::Formulator(shared_ptr<StochasticPackageQuery> spqPtr) : env(), spq(spqPtr), data(Data::getInstance())
 {
@@ -50,15 +50,15 @@ Count Constraint is basically Sum (xi) with bounds
 */
 void Formulator::formCountCons(GRBModel &model, shared_ptr<Constraint> cons, GRBVar *xx, FormulateOptions &options)
 {
-    // cout<<"Formulating a Count Constraint"<<endl;
     shared_ptr<CountConstraint> cntCons = getCount(cons);
     double ub_eps = 1e30;
     double lb_eps = -1e30;
-
+    
     if (!cntCons)
     {
         return;
     }
+    cout<<"FORMULATING COUNT CONSTRAINT"<<endl;
 
     GRBLinExpr cntConsExpr;
     if (options.reduced)
@@ -460,10 +460,9 @@ void Formulator::formLCVaR(GRBModel &model, shared_ptr<Constraint> cons, GRBVar 
     GRBLinExpr lcvarExpr;
     // cout << "Formulating CVAR" << endl;
     // double v = spq->getValue(probCon->v);
-    //double p = spq->getValue(probCon->p);
+    // double p = spq->getValue(probCon->p);
     double p = 1 - 0.28;
     double v = -2875.0167797102013;
-
 
     vector<double> coeffs;
     int quantile = (1 - p) * cntScenarios;
@@ -540,9 +539,11 @@ void Formulator::populateShuffler(std::vector<int> &v)
 
 void Formulator::createPartitions(shared_ptr<StochasticPackageQuery> spq, FormulateOptions &formOptions)
 {
+    deb("creating partitions");
     int cons_num = spq->cons.size();
     int order = 0;
     this->partitions.clear();
+    // this->partitionMaximums.clear();
     for (int i = 0; i < cons_num; i++)
     {
         shared_ptr<ProbConstraint> probCon;
@@ -554,15 +555,16 @@ void Formulator::createPartitions(shared_ptr<StochasticPackageQuery> spq, Formul
             if (formOptions.partitionMostActive)
             {
                 formOptions.posNegActiveness = false;
-                stage3Partition(formOptions, p, order);
-            }else if(formOptions.partitionSpreadActiveness)
+                stage3Partition(formOptions, p, order, attrCon);
+            }
+            else if (formOptions.partitionSpreadActiveness)
             {
                 formOptions.posNegActiveness = false;
                 activenessPartition(formOptions, formOptions.activeness[order], formOptions.innerConstraints[order], p);
             }
             else
             {
-                partition(formOptions.Z, formOptions.innerConstraints[order], shuffler);
+                partition(formOptions.Z, formOptions, formOptions.innerConstraints[order], shuffler, order, attrCon);
             }
             order++;
         }
@@ -570,15 +572,15 @@ void Formulator::createPartitions(shared_ptr<StochasticPackageQuery> spq, Formul
     deb("created partitions for constraints");
 }
 
-
-void Formulator::activenessPartition(FormulateOptions& options, vector<pair<int, double>> &activeness, std::vector<pair<int, double>> &innerConstraints, double p)
+void Formulator::activenessPartition(FormulateOptions &options, vector<pair<int, double>> &activeness, std::vector<pair<int, double>> &innerConstraints, double p)
 {
     int Z = options.Z;
     // 1. Sort activeness in DESCENDING order by the second element (double)
-    std::sort(activeness.begin(), activeness.end(), 
-        [](const std::pair<int, double>& a, const std::pair<int, double>& b) {
-            return a.second > b.second;
-        });
+    std::sort(activeness.begin(), activeness.end(),
+              [](const std::pair<int, double> &a, const std::pair<int, double> &b)
+              {
+                  return a.second > b.second;
+              });
 
     int totalLength = activeness.size();
     int baseSize = totalLength / Z;  // Minimum size per partition
@@ -590,20 +592,20 @@ void Formulator::activenessPartition(FormulateOptions& options, vector<pair<int,
     for (int z = 0; z < Z; z++)
     {
         int currentSize = baseSize + (z < remainder ? 1 : 0);
-        
+
         std::vector<std::pair<int, double>> partition;
         partition.reserve(currentSize);
-        
+
         for (int j = 0; j < currentSize; j++)
         {
             int id = activeness[idx].first;
             partition.push_back(innerConstraints[id]);
             idx++;
         }
-        
+
         partitionsForConstraint.push_back(std::move(partition));
     }
-    
+
     // Append to the class member
     partitions.push_back(std::move(partitionsForConstraint));
     deb(partitions[0][0]);
@@ -613,27 +615,84 @@ void Formulator::activenessPartition(FormulateOptions& options, vector<pair<int,
 // shuffle them and then find what is partitionSize
 // start from beginning, count partitionSize numbers and add them into a partition
 // once >= partitionSize reset cnt and start new partition add the prev into partitions
-void Formulator::partition(int Z, std::vector<pair<int, double>> &innerConstraints, std::vector<int> &shuffler)
+void Formulator::partition(int Z, FormulateOptions &formOptions, std::vector<pair<int, double>> &innerConstraints, std::vector<int> &shuffler, int conOrder, std::shared_ptr<AttrConstraint> attrCon)
 {
     int totalLength = innerConstraints.size();
     int baseSize = totalLength / Z;  // minimum size per partition
     int remainder = totalLength % Z; // number of partitions that get +1 element
 
+    // Access the scenarios data using the new attrCon parameter
+    auto &scenarios = data.stochAttrs[attrCon->attr];
+
+    bool computeMaximumsForConstraint = formOptions.partitionMaximums.empty() || formOptions.partitionMaximums[conOrder].empty();
+    deb(computeMaximumsForConstraint, formOptions.partitionMaximums.empty());
+
+    if (computeMaximumsForConstraint)
+    {
+        // Initialize the partitionMaximums matrix for this conOrder
+        if (formOptions.partitionMaximums.size() <= conOrder && computeMaximumsForConstraint)
+        {
+            formOptions.partitionMaximums.resize(conOrder + 1);
+        }
+        if (formOptions.reduced)
+        {
+            int reducedSize = formOptions.reducedIds.size();
+            formOptions.partitionMaximums[conOrder].assign(reducedSize, std::vector<double>(Z, -std::numeric_limits<double>::infinity()));
+            deb(formOptions.partitionMaximums[conOrder].size());
+        }
+        else
+        {
+            formOptions.partitionMaximums[conOrder].assign(NTuples, std::vector<double>(Z, -std::numeric_limits<double>::infinity()));
+            deb(formOptions.    partitionMaximums[conOrder].size());
+        }
+    }
+
     std::vector<vector<pair<int, double>>> partitionsForConstraint;
-    reshuffleShuffler(shuffler);    
+    reshuffleShuffler(shuffler);
     int idx = 0;
+
     for (int z = 0; z < Z; z++)
     {
         int currentSize = baseSize + (z < remainder ? 1 : 0); // distribute remainder
         std::vector<std::pair<int, double>> partition;
         partition.reserve(currentSize);
+
         for (int j = 0; j < currentSize; j++)
         {
-            partition.push_back(innerConstraints[shuffler[idx++]]);
+            int currentScenario = shuffler[idx++];
+            partition.push_back(innerConstraints[currentScenario]);
+
+            if (computeMaximumsForConstraint)
+            {
+                if (formOptions.reduced)
+                {
+                    for (int i = 0; i < formOptions.reducedIds.size(); i++)
+                    {
+                        int id = formOptions.reducedIds[i] - 1;
+                        double val = scenarios[id][currentScenario];
+                        if (val > formOptions.partitionMaximums[conOrder][id][z])
+                        {
+                            formOptions.partitionMaximums[conOrder][id][z] = val;
+                        }
+                    }
+                }
+                else
+                {
+                    for (int tuple = 0; tuple < NTuples; tuple++)
+                    {
+                        double val = scenarios[tuple][currentScenario];
+                        if (val > formOptions.partitionMaximums[conOrder][tuple][z])
+                        {
+                            formOptions.partitionMaximums[conOrder][tuple][z] = val;
+                        }
+                    }
+                }
+            }
         }
         partitionsForConstraint.push_back(std::move(partition));
     }
     partitions.push_back(partitionsForConstraint);
+    deb(formOptions.partitionMaximums[conOrder][0]);
 }
 
 std::set<int> Formulator::getMostActiveScenarios(vector<pair<int, double>> &activeness, int Z, double p)
@@ -645,7 +704,6 @@ std::set<int> Formulator::getMostActiveScenarios(vector<pair<int, double>> &acti
              return a.second < b.second;
          });
 
-
     int scDimension = min(Z, cntScenarios);
     if (scDimension == cntScenarios)
     {
@@ -656,7 +714,7 @@ std::set<int> Formulator::getMostActiveScenarios(vector<pair<int, double>> &acti
         return mostActiveScenarios;
     }
 
-    for(int i = 0; i < scDimension; i++)
+    for (int i = 0; i < scDimension; i++)
     {
         mostActiveScenarios.insert(activeness[i].first);
     }
@@ -721,7 +779,6 @@ std::set<int> Formulator::getMostActiveScenarios(vector<pair<int, double>> &posA
     return mostActiveScenarios;
 }
 
-
 std::vector<int> Formulator::getMostActiveScenariosPerPartition(int Z, std::vector<std::pair<int, double>> &sortedActiveness)
 {
     std::vector<int> representativeIds;
@@ -732,7 +789,7 @@ std::vector<int> Formulator::getMostActiveScenariosPerPartition(int Z, std::vect
     int remainder = totalLength % Z; // The "+ 1 additional" distribution
 
     int idx = 0;
-    
+
     for (int z = 0; z < Z; z++)
     {
         int currentSize = baseSize + (z < remainder ? 1 : 0);
@@ -742,7 +799,7 @@ std::vector<int> Formulator::getMostActiveScenariosPerPartition(int Z, std::vect
         for (int j = 0; j < currentSize; j++)
         {
             double currentAbs = std::abs(sortedActiveness[idx].second);
-            
+
             if (currentAbs < minAbsValue)
             {
                 minAbsValue = currentAbs;
@@ -756,30 +813,81 @@ std::vector<int> Formulator::getMostActiveScenariosPerPartition(int Z, std::vect
     return representativeIds;
 }
 
-void Formulator::stage3Partition(FormulateOptions& options,double p, int conOrder)
+#include <limits>
+
+void Formulator::stage3Partition(FormulateOptions &options, double p, int conOrder, std::shared_ptr<AttrConstraint> attrCon)
 {
+    deb("stage3");
     int Z = options.Z;
     int totalLength = options.innerConstraints[conOrder].size();
     int baseSize = totalLength / Z;  // minimum size per partition
     int remainder = totalLength % Z; // number of partitions that get +1 element
 
+    bool computeMaximumsForConstraint = options.partitionMaximums.empty() || options.partitionMaximums[conOrder].empty();
     int idx = 0;
     std::vector<vector<pair<int, double>>> partitionsForConstraint;
 
-    std::set<int> mostActiveScenarios; 
-    if(options.posNegActiveness)
+    auto &scenarios = data.stochAttrs[attrCon->attr];
+
+    if (options.partitionMaximums.size() <= conOrder && computeMaximumsForConstraint)
+    {
+        options.partitionMaximums.resize(conOrder + 1);
+    }
+
+    if (computeMaximumsForConstraint)
+    {
+        if (options.reduced)
+        {
+            int reducedSize = options.reducedIds.size();
+            options.partitionMaximums[conOrder].assign(reducedSize, std::vector<double>(Z, -std::numeric_limits<double>::infinity()));
+        }
+        else
+        {
+            options.partitionMaximums[conOrder].assign(NTuples, std::vector<double>(Z, -std::numeric_limits<double>::infinity()));
+        }
+    }
+    deb(options.partitionMaximums.size(), options.partitionMaximums[conOrder].size(), options.partitionMaximums[conOrder][0].size());
+
+    std::set<int> mostActiveScenarios;
+    if (options.posNegActiveness)
     {
         mostActiveScenarios = getMostActiveScenarios(options.posActiveness[conOrder], options.negActiveness[conOrder], Z, p);
-    }else
+    }
+    else
     {
         mostActiveScenarios = getMostActiveScenarios(options.activeness[conOrder], Z, p);
     }
+
+    int current_z = 0; // Track the current partition index during the seed setup
     for (int scenario : mostActiveScenarios)
     {
         std::vector<std::pair<int, double>> partition;
         partition.push_back(options.innerConstraints[conOrder][scenario]);
         partitionsForConstraint.push_back(std::move(partition));
+
+        if (computeMaximumsForConstraint)
+        {
+            if (options.reduced)
+            {
+                for (int i = 0; i < options.reducedIds.size(); i++)
+                {
+                    int id = options.reducedIds[i] - 1;
+                    double val = scenarios[id][scenario];
+                    options.partitionMaximums[conOrder][i][current_z] = val;
+                }
+            }
+            else
+            {
+                for (int tuple = 0; tuple < NTuples; tuple++)
+                {
+                    double val = scenarios[tuple][scenario];
+                    options.partitionMaximums[conOrder][tuple][current_z] = val;
+                }
+            }
+            current_z++;
+        }
     }
+
     // deb(mostActiveScenarios, mostActiveScenarios.size());
     // deb(partitionsForConstraint);
     vector<int> shufflerStage3;
@@ -795,15 +903,45 @@ void Formulator::stage3Partition(FormulateOptions& options,double p, int conOrde
         }
     }
     reshuffleShuffler(shufflerStage3);
+
     for (int z = 0; z < Z; z++)
     {
         int currentSize = baseSize + (z < remainder ? 1 : 0); // distribute remainder
         for (int j = 1; j < currentSize; j++)
         {
-            partitionsForConstraint[z].push_back(options.innerConstraints[conOrder][shufflerStage3[idx++]]);
+            int currentScenario = shufflerStage3[idx++];
+            partitionsForConstraint[z].push_back(options.innerConstraints[conOrder][currentScenario]);
+
+            if (computeMaximumsForConstraint)
+            {
+                if (options.reduced)
+                {
+                    for (int i = 0; i < options.reducedIds.size(); i++)
+                    {
+                        int id = options.reducedIds[i] - 1;
+                        double val = scenarios[id][currentScenario];
+                        if (val >  options.partitionMaximums[conOrder][i][z])
+                        {
+                            options.partitionMaximums[conOrder][i][z] = val;
+                        }
+                    }
+                }
+                else
+                {
+                    for (int tuple = 0; tuple < NTuples; tuple++)
+                    {
+                        double val = scenarios[tuple][currentScenario];
+                        if (val > options.partitionMaximums[conOrder][tuple][z])
+                        {
+                            options.partitionMaximums[conOrder][tuple][z] = val;
+                        }
+                    }
+                }
+            }
         }
+        partitions.push_back(partitionsForConstraint);
+        // deb(partitions[0]);
     }
-    partitions.push_back(partitionsForConstraint);
 }
 
 std::vector<std::vector<double>> Formulator::summarize(FormulateOptions &formOptions,
@@ -890,7 +1028,8 @@ std::vector<std::vector<double>> Formulator::summarize(FormulateOptions &formOpt
                 // decide when ASC when DESC
                 if (probCon->vsign == Inequality::gteq) //>= min summary
                 {
-                    summary = calculateSummarySmooth(scenarios[id], partitions[conOrder][i], false, formOptions.alpha[conOrder]);
+                    double partitionMax = formOptions.partitionMaximums[conOrder][j][i];
+                    summary = calculateSummarySmooth(scenarios[id], partitions[conOrder][i], false, formOptions.alpha[conOrder], partitionMax);
                     if (!mostActiveScenariosIdx.empty())
                     {
                         // summary = POS_INF;
@@ -903,7 +1042,8 @@ std::vector<std::vector<double>> Formulator::summarize(FormulateOptions &formOpt
                 }
                 else
                 {
-                    summary = calculateSummarySmooth(scenarios[id], partitions[conOrder][i], true, formOptions.alpha[conOrder]);
+                    double partitionMax = formOptions.partitionMaximums[conOrder][j][i];
+                    summary = calculateSummarySmooth(scenarios[id], partitions[conOrder][i], true, formOptions.alpha[conOrder], partitionMax);
                     if (!mostActiveScenariosIdx.empty())
                     {
                         // summary = NEG_INF;
@@ -933,22 +1073,19 @@ std::vector<std::vector<double>> Formulator::summarize(FormulateOptions &formOpt
                 // decide when ASC when DESC
                 if (probCon->vsign == Inequality::gteq) //>= min summary
                 {
-                    summary = calculateSummarySmooth(scenarios[j], partitions[conOrder][i], false, formOptions.alpha[conOrder]);
+                    double partitionMax = formOptions.partitionMaximums[conOrder][j][i];
+                    summary = calculateSummarySmooth(scenarios[j], partitions[conOrder][i], false, formOptions.alpha[conOrder], partitionMax);
                 }
                 else
                 {
-                    summary = calculateSummarySmooth(scenarios[j], partitions[conOrder][i], true, formOptions.alpha[conOrder]);
+                    double partitionMax = formOptions.partitionMaximums[conOrder][j][i];
+                    summary = calculateSummarySmooth(scenarios[j], partitions[conOrder][i], true, formOptions.alpha[conOrder], partitionMax);
                 }
                 summaries[i][j] = summary;
                 gpro.stop("s2");
             }
         }
         gpro.stop("f2");
-    }
-    if(formOptions.reduced)
-    {
-        int id = formOptions.reducedIds[0] - 1;
-        deb(summaries[0][formOptions.reducedIds[0] - 1],summaries[0][formOptions.reducedIds[1] - 1]);
     }
     cout << "summarized" << endl;
     gpro.stop("calculate");

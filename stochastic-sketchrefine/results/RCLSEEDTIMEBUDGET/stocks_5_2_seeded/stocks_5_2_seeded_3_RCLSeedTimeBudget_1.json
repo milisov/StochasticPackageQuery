@@ -5,7 +5,7 @@
         "Hardness": 1,
         "p": null,
         "Linear Relaxation": false,
-        "Runtime": 600270.3127861023,
+        "Runtime": 608497.8830814362,
         "Package": {
             "37687": 1.0,
             "37688": 1.0,
@@ -28,8 +28,6 @@
             "40350": 1.0,
             "40351": 1.0,
             "40352": 1.0,
-            "40455": 1.0,
-            "40456": 1.0,
             "42481": 1.0,
             "42482": 1.0,
             "42483": 1.0,
@@ -53,6 +51,8 @@
             "51372": 1.0,
             "51373": 1.0,
             "51374": 1.0,
+            "51375": 1.0,
+            "70772": 1.0,
             "71944": 1.0,
             "71946": 1.0,
             "74041": 1.0,
@@ -84,8 +84,8 @@
             "87308": 1.0
         },
         "Objective Value": 0,
-        "Number of Optimization Calls": 53,
-        "Total Optimizer Runtime": 120.9228093624115,
+        "Number of Optimization Calls": 62,
+        "Total Optimizer Runtime": 280.22399711608887,
         "Number of Scenarios Needed": 0
     }
 ]
