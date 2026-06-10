@@ -1,6 +1,7 @@
 import numpy as np
 from numpy.random import SFC64, SeedSequence, Generator
 
+from Hyperparameters.Hyperparameters import Hyperparameters
 from PgConnection.PgConnection import PgConnection
 from ScenarioGenerator.ScenarioGenerator import ScenarioGenerator
 from SeedManager.SeedManager import SeedManager
@@ -47,7 +48,6 @@ class RepresentativeScenarioGeneratorWithoutCorrelation(ScenarioGenerator):
 
         for tuple in tuples:
             representatives.append(tuple[0])
-        
         return representatives    
 
 
@@ -58,25 +58,38 @@ class RepresentativeScenarioGeneratorWithoutCorrelation(ScenarioGenerator):
         if len(self.__representatives) == 0:
             self.__representatives = \
                 self.__get_representatives()
+        
+        print("Representatives for attribute", self.__attribute, ":", len(self.__representatives))
 
         scenarios = []
         duplicate_index = 0
 
+        step = 0
         for representative in self.__representatives:
+            step += 1
+            if step >= 10000:
+                print("Generated scenarios for ", step, "representatives")
+                step = 0
             scenario_generator = self.__scenario_generator(
                 relation=self.__relation,
                 base_predicate='id='+str(representative)
             )
+            
+            # print("I AM GENERATING SCENARIOS IN REPRESENTATIVE GEN", no_of_scenarios, self.__duplicates[duplicate_index])
             rep_scenarios = scenario_generator.generate_scenarios(
-                seed=SeedManager.get_next_seed(),
-                no_of_scenarios=no_of_scenarios*\
-                    self.__duplicates[duplicate_index]
+                seed = SeedManager.get_next_seed(),
+                no_of_scenarios = no_of_scenarios,
+                no_of_duplicates = self.__duplicates[duplicate_index]
             )
 
             rep_scenarios = np.reshape(
-                rep_scenarios, (self.__duplicates[duplicate_index],
-                                no_of_scenarios))
-            
+                rep_scenarios,
+                (self.__duplicates[duplicate_index],
+                no_of_scenarios)
+            )
+
+            # print("rep_scenarios.shape = ", rep_scenarios.shape)
+
             for scenario in rep_scenarios:
                 scenarios.append(scenario)
             

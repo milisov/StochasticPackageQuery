@@ -9,8 +9,8 @@ public:
     
     RSFormulator(std::shared_ptr<StochasticPackageQuery> spqPtr) : modelRS(env), modelBestObj(env), Formulator(spqPtr) // <-- this ensures Formulator's constructor is executed
     {
-        modelRS.set(GRB_IntParam_OutputFlag, 1); 
-        modelBestObj.set(GRB_IntParam_OutputFlag, 1);
+        modelRS.set(GRB_IntParam_OutputFlag, 0); 
+        modelBestObj.set(GRB_IntParam_OutputFlag, 0);
         populateShuffler(shuffler);
         // Additional derived-class initialization
     };
@@ -42,5 +42,9 @@ public:
                      FormulateOptions &formOptions);
 
     void formMinMaxObjective(GRBModel &model, GRBVar *xx, FormulateOptions &formOptions);
+
+    // Formulate probabilistic constraint using LCVaR coefficients
+    void formProbConsWithLCVaR(GRBModel &model, std::shared_ptr<Constraint> cons,
+                               GRBVar *xx, FormulateOptions &formOptions);
 
 };

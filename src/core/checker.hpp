@@ -16,7 +16,7 @@ protected:
 public:
     Checker();
     virtual double getObjective(const SolType& sol) const = 0;
-    virtual bool feasible(const SolType& sol, vector<double> &feasibility, vector<double> &surplus) const = 0;
+    virtual bool feasible(const SolType& sol, vector<double> &feasibility, vector<double> &surplus, bool &deterFeasible, bool &probFeasible) const = 0;
     virtual void display(const SolType& sol) const = 0;
 };
 
@@ -29,7 +29,7 @@ private:
 public:
     SPQChecker(shared_ptr<StochasticPackageQuery> spq);
     double getObjective(const SolType& sol) const override;
-    bool feasible(const SolType& sol, vector<double> &feasibility, vector<double> &surplus) const override;
+    bool feasible(const SolType& sol, vector<double> &feasibility, vector<double> &surplus, bool &deterFeasible, bool &probFeasible) const override;
     void display(const SolType& sol) const override;
 };
 

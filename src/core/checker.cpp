@@ -88,13 +88,15 @@ double SPQChecker::getConIndicator(const SolType& sol, shared_ptr<Constraint> co
     return res;
 }
 
-bool SPQChecker::feasible(const SolType& sol, vector<double> &feasibility, vector<double> &surplus) const{
-    for (const auto& p : sol) if (isLess(p.second, 0)) return false;
+bool SPQChecker::feasible(const SolType& sol, vector<double> &feasibility, vector<double> &surplus, bool &deterFeasible, bool &probFeasible) const{
+    deterFeasible = true;
+    probFeasible = true;
+    for (const auto& p : sol) if (isLess(p.second, 0)) {cout<<"Solution Infeasible negative element"<<endl; deterFeasible = false; }
     if (spq->repeat != StochasticPackageQuery::NO_REPEAT){
-        for (const auto& p : sol) if (isGreater(p.second, spq->repeat+1)) return false;
+        for (const auto& p : sol) if (isGreater(p.second, spq->repeat+1)) { cout<<"Solution Infeasible element exceeds repeat limit"<<endl; deterFeasible = false; }
     }
     auto tableSize = stat->pg->getTableSize(validateTableName);
-    for (const auto& p : sol) if (p.first < 1 || p.first > tableSize) return false;
+    for (const auto& p : sol) if (p.first < 1 || p.first > tableSize) { cout<<"Solution Infeasible index out of bounds"<<endl; deterFeasible = false; }
     for (const auto& con : spq->cons){
         shared_ptr<ProbConstraint>probCon;
         shared_ptr<AttrConstraint>attrCon;
@@ -107,7 +109,7 @@ bool SPQChecker::feasible(const SolType& sol, vector<double> &feasibility, vecto
             double surplusVal = feasScore - spq->getValue(probCon->p);
             feasibility.push_back(feasScore);
             surplus.push_back(surplusVal);
-            if(con->isViolate({getConIndicator(sol, con), boost::get<double>(spq->getBound(probCon->p)),boost::get<double>(spq->getBound(probCon->v))})) return false;
+            if(con->isViolate({getConIndicator(sol, con), boost::get<double>(spq->getBound(probCon->p)),boost::get<double>(spq->getBound(probCon->v))})) { cout<<"VaR infeasaible"<<endl; probFeasible = false; }
         }else
         if(isDeterministic(con,boundCon))
         {
@@ -122,11 +124,11 @@ bool SPQChecker::feasible(const SolType& sol, vector<double> &feasibility, vecto
             if(ub_getBound.which() == 1)
             {
                 ub = boost::get<double>(spq->getBound(ub_getBound));
-            } 
-            if (con->isViolate({getConIndicator(sol, con), lb, ub})) return false;
+            }
+            if (con->isViolate({getConIndicator(sol, con), lb, ub})) { cout<<"Solution Infeasible deterministic constraint violated"<<endl; deterFeasible = false; }
         }
     }
-    return true;
+    return deterFeasible && probFeasible;
 }
 
 void SPQChecker::display(const SolType& sol) const{

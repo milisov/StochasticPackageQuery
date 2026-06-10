@@ -2,6 +2,18 @@ import gurobipy as gp
 from gurobipy import GRB
 import numpy as np
 import psutil
+
+
+def _make_constr(lhs, sense, rhs):
+    """Build a Gurobi TempConstr from (lhs, sense, rhs).
+
+    Gurobi 11+ removed the positional addConstr(lhs, sense, rhs) form.
+    """
+    if sense == GRB.LESS_EQUAL:
+        return lhs <= rhs
+    if sense == GRB.GREATER_EQUAL:
+        return lhs >= rhs
+    return lhs == rhs
 from DbInfo.DbInfo import DbInfo
 from PgConnection.PgConnection import PgConnection
 from SeedManager.SeedManager import SeedManager
@@ -25,6 +37,9 @@ class Naive:
         self.__query = query
         self.__gurobi_env = gp.Env(
             params=GurobiLicense.OPTIONS)
+        self.__gurobi_env.setParam(
+            'OutputFlag', 0
+        )
         self.__model = gp.Model(
             env=self.__gurobi_env)
         self.__is_linear_relaxation = \
@@ -145,10 +160,10 @@ class Naive:
         elif inequality_sign == RelationalOperators.GREATER_THAN_OR_EQUAL_TO:
             gurobi_inequality = GRB.GREATER_EQUAL
         
-        self.__model.addConstr(
+        self.__model.addConstr(_make_constr(
             gp.LinExpr([1]*self.__no_of_vars, self.__vars),
             gurobi_inequality, size_limit
-        )
+        ))
 
     def __add_deterministic_constraint_to_model(
         self, deterministic_constraint):
@@ -163,10 +178,10 @@ class Naive:
             gurobi_inequality = GRB.GREATER_EQUAL
         
         sum_limit = deterministic_constraint.get_sum_limit()
-        self.__model.addConstr(
+        self.__model.addConstr(_make_constr(
             gp.LinExpr(self.__values[attribute], self.__vars),
             gurobi_inequality, sum_limit
-        )
+        ))
 
     def __add_expected_sum_constraint_to_model(
         self, expected_sum_constraint,
@@ -215,10 +230,10 @@ class Naive:
         
         sum_limit = expected_sum_constraint.get_sum_limit()
 
-        self.__model.addConstr(
+        self.__model.addConstr(_make_constr(
             gp.LinExpr(coefficients, self.__vars),
             gurobi_inequality, sum_limit
-        )
+        ))
 
     def __add_var_constraint_to_model(
         self, var_constraint,
@@ -264,12 +279,12 @@ class Naive:
             )
             indicators.append(indicator)
         
-        self.__model.addConstr(
+        self.__model.addConstr(_make_constr(
             gp.LinExpr([1]*no_of_scenarios, indicators),
             GRB.GREATER_EQUAL,
             no_of_scenarios * \
                 var_constraint.get_probability_threshold()
-        )
+        ))
 
 
     def __add_feasible_no_of_scenarios(self, attribute):
@@ -446,7 +461,7 @@ class Naive:
             self.__get_package()
         
         if probabilistically_unconstrained_package is None:
-            return None
+            return None, 0.0
 
         upper_bound = \
             self.__validator.get_validation_objective_value(
@@ -495,6 +510,6 @@ class Naive:
 
             no_of_scenarios *= 2
         
-        return None
+        return None, 0.0
 
 

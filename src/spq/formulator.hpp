@@ -154,22 +154,30 @@ struct FormulateOptions{
     bool activenessPartition = false;
     bool objCons = false; // if true, we formulate the objective constraint
     bool reduced = false;
+    map<string, bool> ablate;
     bool reducedScenarios = false;
-    bool posNegActiveness = true;
     bool partitionMostActive = false;
     bool partitionSpreadActiveness = false;
     bool includeObjectiveFunction = true;
     bool finalStage = false; // if true, in the summary search in stage 3, we use the given objective instead of minmax
-    bool stage1 = false;
     bool indicators = false;
-    vector<vector<pair<int, double>>> posActiveness;
-    vector<vector<pair<int, double>>> negActiveness;
+
+    bool lcvarFormulation = false;
+    bool clearLCVaRCache = false;
+    bool changeVaRBound = false;
+    vector<double> meanPerVaR;
+    vector<double> variancePerVaR;
+    vector<double> minInnerConstPerVaR;
+    bool varianceControl = false;
+    std::vector<std::set<int>> mostActiveScenariosPerConstraint;  // Fixed active scenarios per constraint (if set, used instead of computing)
+    vector<double> kMADValues;
+
+
     vector<vector<pair<int, double>>> activeness;
-    // bool computeActiveness = false;
+    vector<vector<pair<int, double>>> activenessNoAbsValue;
     std::vector<int> reducedIds;
     std::vector<std::vector< pair<int, double>>> innerConstraints;
     std::vector<vector<vector<double>>> partitionMaximums;
-    std::map<std::string, double> cntoptions; 
     int M; 
     int Z;
     int Zinit;
@@ -183,6 +191,7 @@ struct FormulateOptions{
     std::vector<int> vbasis; //warmstart 
     std::vector<int> cbasis;
     double p;
+    unsigned int randomSeed = 42;
 };
 
 void setDecisionVarOptions(DecisionVarOptions &options, double lb, double ub, double obj, GrbVarType GrbVarType);
@@ -198,8 +207,10 @@ protected:
     string DB_valid;
     int NTuples;
     int cntScenarios;
-    
+    static std::map<std::string, std::vector<double>> lcvarCoeffsCache;
+
     GRBVar addDecisionVar(GRBModel &model, DecisionVarOptions &options);
+    std::vector<double> computeLCVaRCoeffs(std::shared_ptr<AttrConstraint> attrCon, double p, FormulateOptions &formOptions);
     
     public:
     double fetchRuntime = 0.0;
@@ -228,7 +239,8 @@ protected:
     void formExpSumObj(GRBModel &model,shared_ptr<Objective> obj, GRBVar *xx, FormulateOptions& options);
     void formCntObj(GRBModel &model,shared_ptr<Objective> obj, GRBVar *xx, FormulateOptions& options);    
     void partition(int Z, FormulateOptions &formOptions, std::vector<pair<int, double>> &innerConstraints, std::vector<int> &shuffler, int conOrder, std::shared_ptr<AttrConstraint> attrCon);
-    std::set<int> getMostActiveScenarios(vector<pair<int, double>> &posActiveness,vector<pair<int, double>> &negActiveness, int Z, double p);
+
+    std::set<int> getReducedScenariosFromActiveness(vector<pair<int, double>> &activeness, int Z, double p);
     std::set<int> getMostActiveScenarios(vector<pair<int, double>> &activeness, int Z, double p);
     std::vector<int> getMostActiveScenariosPerPartition(int Z, std::vector<std::pair<int, double>> &sortedActiveness);
     void stage3Partition(FormulateOptions& options,double p, int conOrder, std::shared_ptr<AttrConstraint> attrCon);

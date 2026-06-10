@@ -112,7 +112,6 @@ SolutionMetadata<T> SummarySearch<T>::CSASolveBinSearchStage3(Formulator &formul
 
     while (true)
     {
-        deb("HERE", q);
         formOptions.iteration = q;
         // call the binary search function with for each constraint
         for (int i = 0; i < probConstCnt; i++)
@@ -124,23 +123,26 @@ SolutionMetadata<T> SummarySearch<T>::CSASolveBinSearchStage3(Formulator &formul
                 {
                     if (x.size() == 0)
                     {
-                        // the solution is feasible but suboptimal or the system is infeasible -> use less conservative summary
-                        // cout << "USE LESS CONSERVATIVE" << endl;
+                        //no solution make the system easier
                         history[i].high = alpha[i];
                     }
                     else
                     {
                         if (r[i] < 0)
                         {
-                            // cout << "USE MORE CONSERVATIVE" << endl;
-                            //  the solution is infeasible -> use more conservative summary
+                            //  the solution is infeasible -> make the system harder
                             history[i].low = alpha[i];
                         }
                         else
                         {
-                            // the solution is feasible but suboptimal or the system is infeasible -> use less conservative summary
-                            // cout << "USE LESS CONSERVATIVE" << endl;
+                            // the solution is feasible -> use less conservative summary
                             history[i].high = alpha[i];
+                            // if(solveOptions.returnFirstFeasible)
+                            // {
+                            //     formOptions.alpha = alpha;
+                            //     formOptions.innerConstraints = this->innerConstraints;
+                            //     return bestSol;
+                            // }
                         }
                     }
                 }
@@ -207,9 +209,10 @@ SolutionMetadata<T> SummarySearch<T>::CSASolveBinSearchStage3(Formulator &formul
 					res[i + 1] = x[i];
 				}
             }
-            bool feas = checker->feasible(res, feasibilities, surpluses);
+            bool deterFeasible, probFeasible;
+            bool feas = checker->feasible(res, feasibilities, surpluses, deterFeasible, probFeasible);
             double validObj = checker->getObjective(res);
-            bestSol.solutions.push_back(make_tuple(gpro.getTime("effectiveRuntime"), satisfiedScenarios,r, this->W_q, feasibilities, surpluses, validObj, formOptions.reducedIds.size(), formOptions.Z));
+            bestSol.solutions.push_back(make_tuple(gpro.getTime("effectiveRuntime"), satisfiedScenarios, r, this->W_q, deterFeasible, probFeasible, feasibilities, surpluses, validObj, formOptions.reducedIds.size(), formOptions.Z));
             gpro.clock("effectiveRuntime");
             int sense;
             if(formOptions.includeObjectiveFunction)
@@ -220,7 +223,7 @@ SolutionMetadata<T> SummarySearch<T>::CSASolveBinSearchStage3(Formulator &formul
                 sense = GRB_MAXIMIZE;
             }
             bool currentIsBetter = isCurrentBetterThanBest(r, this->W_q, bestSol, sense);
-            if (currentIsBetter)
+            if (currentIsBetter || 1 == 1)
             {
                 bestSol.x = x;
                 bool isFeas = isFeasible(r);
@@ -229,6 +232,9 @@ SolutionMetadata<T> SummarySearch<T>::CSASolveBinSearchStage3(Formulator &formul
                 bestSol.bestRk = r;
                 bestSol.w = this->W_q;
                 bestSol.Z = Z;
+                bestSol.meanPerVaR = this->meanPerVaR;
+                bestSol.variancePerVaR = this->variancePerVaR;
+                bestSol.minInnerConstPerVaR = this->minInnerConstPerVaR;
             }
         }
         gpro.stop("effectiveRuntime");
@@ -238,6 +244,12 @@ SolutionMetadata<T> SummarySearch<T>::CSASolveBinSearchStage3(Formulator &formul
         if (elapsed_seconds > solveOptions.timeout_seconds)
         {
             cout << "TIME OUT HAPPENED" << endl;
+            return bestSol;
+        }
+
+        if(qAfterZequalsM)
+        {
+            cout << "I SHOULD BE RUNNING NAIVE" <<endl;
             return bestSol;
         }
 
@@ -409,10 +421,6 @@ SolutionMetadata<T> SummarySearch<T>::CSASolveBinSearchRS(Formulator &formulator
         {
             initializeVector(x, NTuples, T(0));
         }
-        // SolveOptions options;
-        // options.reduced = formOptions.reduced;
-        // options.reducedIds = formOptions.reducedIds;
-        // options.computeActiveness = formOptions.computeActiveness;
 
         if (!vbasis.empty() && !cbasis.empty())
         {
@@ -449,9 +457,8 @@ SolutionMetadata<T> SummarySearch<T>::CSASolveBinSearchRS(Formulator &formulator
                 bestSol.isFeasible = isFeasible(r);
                 deb(isFeasible(r));
                 bestSol.bestRk = r;
-                bestSol.bestPosActiveness = posActiveness;
-                bestSol.bestNegActiveness = negActiveness;
                 bestSol.bestActiveness = activeness;
+                bestSol.bestActivenessNoAbsValue = activenessNoAbsValue;
                 bestSol.w = this->W_q;
             }
 

@@ -194,23 +194,36 @@ void RSFormulator::formulateRS(GRBModel &model, std::shared_ptr<StochasticPackag
     int probConOrder = 0;
     int conOrder = 0;
 
-    for (int i = 0; i < spq->cons.size(); i++)
+    if(!formOptions.lcvarFormulation)
     {
-        shared_ptr<ProbConstraint> probCon;
-        shared_ptr<AttrConstraint> attrCon;
-        bool isstoch = isStochastic(spq->cons[i], probCon, attrCon);
-        if (isstoch)
+        for (int i = 0; i < spq->cons.size(); i++)
         {
-            std::vector<std::vector<double>> summariesCons = summarize(formOptions, probCon, attrCon, conOrder);
-            summaries.push_back(summariesCons);
-            conOrder++;
+            shared_ptr<ProbConstraint> probCon;
+            shared_ptr<AttrConstraint> attrCon;
+            bool isstoch = isStochastic(spq->cons[i], probCon, attrCon);
+            if (isstoch && formOptions.Z != cntScenarios)
+            {
+                std::vector<std::vector<double>> summariesCons = summarize(formOptions, probCon, attrCon, conOrder);
+                summaries.push_back(summariesCons);
+                conOrder++;
+            }
         }
     }
-    
+
     for (int i = 0; i < spq->cons.size(); i++)
     {
         // checks inside if stochastic or not, probConOrder is increased within the function too
-        formProbCons(model, spq->cons[i], model.getVars(), summaries, probConOrder, formOptions);
+        if(formOptions.Z == cntScenarios)
+        {
+            formProbConsSAA(model, spq->cons[i], model.getVars(), probConOrder, formOptions);
+        }else
+        if(formOptions.lcvarFormulation)
+        {
+            formProbConsWithLCVaR(model, spq->cons[i], model.getVars(), formOptions);
+        }else 
+        {
+            formProbCons(model, spq->cons[i], model.getVars(), summaries, probConOrder, formOptions);
+        }
     }
     model.update();
 }
@@ -283,6 +296,7 @@ void RSFormulator::formulateDeterministic(GRBModel &model, std::shared_ptr<Stoch
 void RSFormulator::formProbConsSAA(GRBModel &model, std::shared_ptr<Constraint> cons,
                                    GRBVar *xx, int &probConOrder, FormulateOptions &formOptions)
 {
+    cout<<"I AM FORMULATING PROB CONS SAA"<<endl;
     shared_ptr<ProbConstraint> probCon;
     shared_ptr<AttrConstraint> attrCon;
 
@@ -293,14 +307,16 @@ void RSFormulator::formProbConsSAA(GRBModel &model, std::shared_ptr<Constraint> 
     }
     int numCons = model.get(GRB_IntAttr_NumConstrs);
     int numVars = model.get(GRB_IntAttr_NumVars);
+    cout<<"removing last prob cons"<<endl;
     removeLastProbConstraints(model);
+    cout<<"last prob cons removed"<<endl;
     model.update();
     // calculate the number of yk indicator variables
     int Z = cntScenarios;
     double v = spq->getValue(probCon->v);
     double p = spq->getValue(probCon->p);
     double pZ = ceil(p * Z);
-    GRBVar y[Z];
+    std::vector<GRBVar> y(Z);
 
     GRBVar beta = model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, GRB_CONTINUOUS, "beta");
 
@@ -313,6 +329,7 @@ void RSFormulator::formProbConsSAA(GRBModel &model, std::shared_ptr<Constraint> 
     std::vector<GRBLinExpr> innerCons(Z);
     if (formOptions.reduced)
     {
+        cout<<"formulating reduced prob cons"<<endl;
         for (int i = 0; i < formOptions.reducedIds.size(); i++)
         {
             int id = formOptions.reducedIds[i] - 1;
@@ -334,6 +351,7 @@ void RSFormulator::formProbConsSAA(GRBModel &model, std::shared_ptr<Constraint> 
             }
         }
     }
+    cout<<"inner cons calculated"<<endl;
     for (int z = 0; z < Z; z++)
     {
         innerCons[z] += beta;
@@ -377,7 +395,7 @@ void RSFormulator::formProbCons(GRBModel &model,
     double p = spq->getValue(probCon->p);
     double pZ = ceil(p * Z);
     cout<< "Z: " << Z << ", pZ: " << pZ << ", v: " << v << ", p: " << p << endl;
-    GRBVar y[Z];
+    std::vector<GRBVar> y(Z);
 
     GRBVar beta = model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, GRB_CONTINUOUS, "beta");
 
@@ -532,7 +550,7 @@ void RSFormulator::formMinMaxObjective(GRBModel &model, GRBVar *xx, FormulateOpt
 GRBModel RSFormulator::formulate(shared_ptr<StochasticPackageQuery> spq, FormulateOptions &formOptions)
 {
     cout<<"Formulating RS model..."<<endl;
-    if (formOptions.iteration == 0 && formOptions.Z == formOptions.Zinit)
+    if (formOptions.iteration == 0)
     {
         formulateDeterministic(modelRS, spq, formOptions);
         formulateRS(modelRS, spq, formOptions);
@@ -544,4 +562,59 @@ GRBModel RSFormulator::formulate(shared_ptr<StochasticPackageQuery> spq, Formula
     cout<<"Model constraint no:"<< modelRS.get(GRB_IntAttr_NumConstrs) << endl;
     cout<<"Model variable no:"<< modelRS.get(GRB_IntAttr_NumVars) << endl;
     return modelRS;
+}
+
+void RSFormulator::formProbConsWithLCVaR(GRBModel &model, std::shared_ptr<Constraint> cons,
+                                         GRBVar *xx, FormulateOptions &formOptions)
+{
+    shared_ptr<ProbConstraint> probCon;
+    shared_ptr<AttrConstraint> attrCon;
+
+    bool isstoch = isStochastic(cons, probCon, attrCon);
+    if (!isstoch)
+    {
+        return;
+    }
+
+    removeLastProbConstraints(model);
+    model.update();
+
+    double v = spq->getValue(probCon->v);
+    double p = spq->getValue(probCon->p);
+
+    std::vector<double> lcvarCoeffs = computeLCVaRCoeffs(attrCon, p, formOptions);
+
+    if (lcvarCoeffs.empty())
+    {
+        return;
+    }
+
+    int Z = formOptions.Z; // Single partition using LCVaR coefficients
+
+    GRBVar beta = model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, GRB_CONTINUOUS, "beta");
+    std::vector<GRBVar> y(Z);
+    for (int i = 0; i < Z; i++)
+    {
+        y[i] = model.addVar(0.0, GRB_INFINITY, 0.0, GRB_CONTINUOUS, "y[" + to_string(i) + "]");
+    }
+
+    // Create inner constraint using LCVaR coefficients
+    GRBLinExpr innerCons = beta;
+    for (size_t i = 0; i < lcvarCoeffs.size(); i++)
+    {
+        innerCons += -lcvarCoeffs[i] * xx[i];
+    }
+    model.addConstr(y[0] >= innerCons, "y[0]Cons");
+
+    // CVaR constraint
+    GRBLinExpr cvar = beta;
+    GRBLinExpr sumYs = 0.0;
+    for (int i = 0; i < Z; i++)
+    {
+        sumYs += y[i];
+    }
+    cvar += (-1.0 / (Z * p)) * sumYs;
+    model.addConstr(cvar >= v, "cvar");
+    model.update();
+    cout<<"formulated lcvar prob cons"<<endl;
 }

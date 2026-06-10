@@ -43,16 +43,16 @@ stock_tables = []
 # stock_tables.extend(current_stock_tables)
 
 stock_table = 'stocks'
-nstocks = [3, 4, 5, 6]
+nstocks = [3, 4, 5]
 current_stock_tables = [f'{stock_table}_{nstock}_validate' for nstock in nstocks]
 for table in current_stock_tables:
     config['partition'][table] = 'price,profit'
 
-# stock_tables.extend(current_stock_tables)
+stock_tables.extend(current_stock_tables)
 
 stock_table = 'stocks'
-nstocks = [3,4,5,6]
-npaths = [10,100]
+nstocks = [3, 4, 5]
+npaths = [10, 100, 10000]
 seeds = list(range(1,11))
 current_stock_tables = [f'{stock_table}_{nstock}_{npath}_seeded_{seed}' for nstock in nstocks for npath in npaths for seed in seeds]
 with open(spaql_file.format(stock_table), 'r') as file:

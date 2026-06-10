@@ -58,6 +58,7 @@ is_rebuild = config['build']['rebuild_stocks'] == 'true'
 validate_scenarios = int(config['build']['validate_scenarios'])
 validate_seed = int(config['build']['validate_seed'])
 generate_seed = int(config['build']['generate_seed'])
+partition_seed = int(config['build']['partition_seed'])
 stochastic_seed = int(config['build']['generate_seed'])
 if seeded:
     stochastic_seed = seedVal
@@ -70,12 +71,15 @@ num_cores = multiprocessing.cpu_count() - 10
 print("CORES:",num_cores)
 table_name = None
 validate_table_name = None
+partition_table_name = None
 if not seeded:
     table_name = f"stocks_{nStocksLog}_{nPathsLog}"
     validate_table_name = f"stocks_{nStocksLog}_validate"
+    partition_table_name = f"stocks_{nStocksLog}_partition"
 else:
     table_name = f"stocks_{nStocksLog}_{nPathsLog}_seeded_{seedVal}"
     validate_table_name = f"stocks_{nStocksLog}_validate"
+    partition_table_name = f"stocks_{nStocksLog}_partition"
 
 stocks = configparser.ConfigParser()
 stocks.read('../resource/stocks/tickers.ini')
@@ -89,9 +93,11 @@ NEG_INF = -1e30
 # In[6]:
 
 
-def GeneratePaths(process, maturity, nPaths, nSteps, isValidate):
-    if isValidate:
+def GeneratePaths(process, maturity, nPaths, nSteps, seed_type):
+    if seed_type == 'validate':
         generator = ql.UniformRandomGenerator(validate_seed)
+    elif seed_type == 'partition':
+        generator = ql.UniformRandomGenerator(partition_seed)
     else:
         generator = ql.UniformRandomGenerator(stochastic_seed) ## Filip changed this from generate_seed to stochastic_seed --> if we use different seeds we want fixed stocks but different scenarios
     sequenceGenerator = ql.UniformRandomSequenceGenerator(nSteps, generator)
@@ -104,16 +110,16 @@ def GeneratePaths(process, maturity, nPaths, nSteps, isValidate):
     return paths
 
 # Define your procedure here
-def simulate(start_id, stat, is_populating_main, is_populating_validate):
+def simulate(start_id, stat, is_populating_main, is_populating_validate, is_populating_partition):
     ticker, price, vol, drift = stat
     process = multiprocessing.current_process()
     process_id = (process._identity[0]-1)%num_cores
     conn, cur = pairs[process_id]
     GBM = ql.GeometricBrownianMotionProcess(price, vol, drift)
-    
+
     if is_populating_main:
         # print("Generating Optimization Table")
-        gbm_paths = GeneratePaths(GBM, maturity, nPaths, nSteps, False)[:, 1:] - price
+        gbm_paths = GeneratePaths(GBM, maturity, nPaths, nSteps, 'main')[:, 1:] - price
         data = io.StringIO()
         for week_index in range(nSteps):
             profit = "{" + ",".join(map(str, gbm_paths[:, week_index])) + "}"
@@ -124,7 +130,7 @@ def simulate(start_id, stat, is_populating_main, is_populating_validate):
 
     if is_populating_validate:
         # print("Generating Validation Table")
-        validate_gbm_paths = GeneratePaths(GBM, maturity, validate_scenarios, nSteps, True)[:, 1:] - price
+        validate_gbm_paths = GeneratePaths(GBM, maturity, validate_scenarios, nSteps, 'validate')[:, 1:] - price
         validate_data = io.StringIO()
         for week_index in range(nSteps):
             profit = "{" + ",".join(map(str, validate_gbm_paths[:, week_index])) + "}"
@@ -133,6 +139,16 @@ def simulate(start_id, stat, is_populating_main, is_populating_validate):
         validate_data.seek(0)
         cur.copy_from(validate_data, validate_table_name, sep='|')
 
+    if is_populating_partition:
+        # print("Generating Partition Table")
+        partition_gbm_paths = GeneratePaths(GBM, maturity, validate_scenarios, nSteps, 'partition')[:, 1:] - price
+        partition_data = io.StringIO()
+        for week_index in range(nSteps):
+            profit = "{" + ",".join(map(str, partition_gbm_paths[:, week_index])) + "}"
+            day_index = (week_index+1)*(365//stepPerYear)
+            partition_data.write(f"{start_id+week_index}|'{ticker}'|{day_index}|{price}|{profit}\n")
+        partition_data.seek(0)
+        cur.copy_from(partition_data, partition_table_name, sep='|')
 
     conn.commit()
 
@@ -182,6 +198,7 @@ def check_table(cur, table):
     return False
 is_populating_main = check_table(cur, table_name)
 is_populating_validate = check_table(cur, validate_table_name)
+is_populating_partition = check_table(cur, partition_table_name)
 cur.close()
 conn.close()
 
@@ -189,7 +206,7 @@ conn.close()
 # In[8]:
 
 
-if is_populating_main or is_populating_validate:
+if is_populating_main or is_populating_validate or is_populating_partition:
     print("populating")
     for i in range(num_cores):
         pairs.append(get_conn_cur(config))
@@ -200,14 +217,14 @@ if is_populating_main or is_populating_validate:
     subStats = sorted(stats[:nStocks])
     start_ids = [i*stepPerYear+1 for i in range(nStocks)]
 
-    # Bundle the start_id, stat, and our two flags together for the worker
-    tasks = [(s_id, stat, is_populating_main, is_populating_validate) for s_id, stat in zip(start_ids, subStats)]
-    
+    # Bundle the start_id, stat, and our flags together for the worker
+    tasks = [(s_id, stat, is_populating_main, is_populating_validate, is_populating_partition) for s_id, stat in zip(start_ids, subStats)]
+
     pool.starmap(simulate, tasks)
     #pool.map(simulate, list(zip(start_ids, subStats)))
     pool.close()
     pool.join()
-    for conn, cur in pairs:    
+    for conn, cur in pairs:
         cur.close()
         conn.close()
     conn, cur = get_conn_cur(config)
@@ -215,6 +232,8 @@ if is_populating_main or is_populating_validate:
         cur.execute(f"CREATE INDEX id_{table_name} ON {table_name} (id);")
     if is_populating_validate:
         cur.execute(f"CREATE INDEX id_{validate_table_name} ON {validate_table_name} (id);")
+    if is_populating_partition:
+        cur.execute(f"CREATE INDEX id_{partition_table_name} ON {partition_table_name} (id);")
     conn.commit()
     cur.close()
     conn.close()

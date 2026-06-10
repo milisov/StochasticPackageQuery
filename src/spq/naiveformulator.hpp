@@ -1,4 +1,5 @@
 #include "formulator.hpp"
+#include <set>
 #pragma once
 
 class NaiveFormulator : public Formulator {
@@ -17,11 +18,19 @@ public:
     void formProbCons(GRBModel &model,
                             std::shared_ptr<Constraint> cons,
                             GRBVar *xx,
-                            FormulateOptions& options);
+                            FormulateOptions& options, int conOrder);
 
     void formProbConsActiveness(GRBModel &model,
                             std::shared_ptr<Constraint> cons,
                             GRBVar *xx,
                             FormulateOptions& options, int conOrder);
 
+    // MAD-based variance control with reduced scenarios
+    void formMADVarianceControlConstr(GRBModel &model,
+                                      std::shared_ptr<Constraint> cons,
+                                      GRBVar *xx,
+                                      FormulateOptions &options,
+                                      int &conOrder);
+
+    void randomScenarioSelection(int Z, int conOrder, std::set<int> &selectedScenarios, unsigned int seed = 42);
 };

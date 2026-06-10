@@ -49,5 +49,5 @@ public:
         cout<<endl;
     }
     
-    vector<double> solvelcvarRS(shared_ptr<StochasticPackageQuery>spq, FormulateOptions &formOptions);
+    SolutionMetadata<double> solveLCVaR(shared_ptr<StochasticPackageQuery>spq, FormulateOptions &formOptions, SolveOptions &solveOptions);
 };

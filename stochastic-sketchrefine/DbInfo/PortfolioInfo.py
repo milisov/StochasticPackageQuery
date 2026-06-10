@@ -39,4 +39,4 @@ class PortfolioInfo(DbInfo):
         
     @staticmethod
     def has_inter_tuple_correlations() -> bool:
-        return True
+        return True 

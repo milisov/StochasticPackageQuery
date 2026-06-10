@@ -12,10 +12,20 @@ BoundConstraint::BoundConstraint(const Bound& lb, const Bound& ub) : lb(lb), ub(
 }
 
 bool BoundConstraint::isViolate(const vector<double>& info) const{
-    deb(info);
+    // deb(info);
+    // deb(info.front(), info[1]);
+    // deb(info.front(), info[2]);
     if (!info.size()) return false;
-    if (isLess(info.front(), info[1])) return true;
-    if (isGreater(info.front(), info[2])) return true;
+    if (isLess(info.front(), info[1])) {
+        printf("%.20f  %.20f\n", info.front(), info[1]);
+        cout<<"is less violated"<<endl;
+        return true;
+    }
+    if (isGreater(info.front(), info[2])) {
+        printf("%.20f  %.20f\n", info.front(), info[2]);
+        cout<<"is greater violated"<<endl;
+        return true;
+    }
     return false;
 }
 

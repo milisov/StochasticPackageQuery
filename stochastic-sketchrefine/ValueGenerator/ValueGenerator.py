@@ -39,4 +39,8 @@ class ValueGenerator:
             partition_id
         )
 
-        return self.get_values()
+        values = []
+        for value in self.get_values():
+            values.append(value[0])
+
+        return values

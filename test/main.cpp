@@ -41,25 +41,160 @@ using std::map;
 using std::vector;
 using json = nlohmann::json;
 
-void testRSSeed(int M_input, int N_input)
+std::map<std::pair<int, int>, double> deter;
+
+std::map<std::pair<int, int>, double> loadCSV(const std::string &filename)
+{
+	std::map<std::pair<int, int>, double> data;
+	std::ifstream file(filename);
+	std::string line;
+
+	std::getline(file, line); // skip header
+
+	while (std::getline(file, line))
+	{
+		std::stringstream ss(line);
+		std::string token;
+		int n, hardness;
+		double objective;
+
+		std::getline(ss, token, ',');
+		n = std::stoi(token);
+		std::getline(ss, token, ',');
+		hardness = std::stoi(token);
+		std::getline(ss, token, ',');
+		objective = std::stod(token);
+
+		data[{n, hardness}] = objective;
+	}
+	return data;
+}
+
+double getObjective(const std::map<std::pair<int, int>, double> &deter, int n, int hardness)
+{
+	auto it = deter.find({n, hardness});
+	if (it != deter.end())
+		return it->second;
+	throw std::runtime_error("No entry found for N=" + std::to_string(n) +
+							 ", Hardness=" + std::to_string(hardness));
+}
+
+bool create_nested_directories(const std::string &path)
+{
+	mode_t mode = 0755;
+	std::string current_path = "";
+	std::string dir_name;
+	std::stringstream ss(path);
+
+	// Handle absolute paths starting with '/'
+	if (!path.empty() && path[0] == '/')
+	{
+		current_path = "/";
+	}
+
+	while (std::getline(ss, dir_name, '/'))
+	{
+		if (dir_name.empty())
+			continue;
+
+		// Append the next directory name, avoiding double slashes
+		if (current_path.length() > 1 && current_path.back() != '/')
+		{
+			current_path += "/";
+		}
+		current_path += dir_name;
+
+		if (mkdir(current_path.c_str(), mode) != 0)
+		{
+			if (errno != EEXIST)
+			{
+				std::cerr << "Error creating directory " << current_path << ": " << strerror(errno) << std::endl;
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+void deterministicSolutionForHardness(int N)
+{
+	DataWriter writer("/home/fm2288/StochasticPackageQuery/test/Deterministic/deterministic_solutions.csv", {"N", "Hardness", "Objective", "surplus"});
+	writer.writeHeaders();
+	for (int h = 0; h <= 5; h++)
+	{
+		std::string queryPath = fmt::format("/home/fm2288/StochasticPackageQuery/test/QueriesSeeds/stocks_{}_{}_seeded/RS/{}/stocks_{}_{}_seeded_1.spaql", N, 10, h, N, 10);
+		auto spq = parseSpaqlFromFile(queryPath);
+
+		spq->setTableName(fmt::format("stocks_{}_validate", N));
+		Data::reset();
+		Data::init(spq);
+		Data::getInstance().fetchData();
+		string validateTable = fmt::format("stocks_{}", N);
+		RobustSatisficing RS(10, spq, 0.46, validateTable);
+
+		SolveOptions solveOptions;
+		solveOptions.timeBudgeted = false;
+		solveOptions.hyperParams = {{"reducedTuples", 500}, {"reducedScenarios", 100}, {"cap", 10}, {"benchmark", -1}};
+		SolutionMetadata<int> sol = RS.solveDeterministic(spq, solveOptions);
+		writer.addRow(N, h, sol.w, sol.bestRk);
+	}
+}
+
+void testRSSeed(int M_input, int N_input, map<string, int> hyperParam = {{"reducedTuples", 512}, {"reducedScenarios", 50}, {"cap", 5}, {"benchmark", -1}}, 
+										  map<string, bool> ablate = {{"stage1lcvar", false},{"stage1random", false}, {"stage1", false}, {"stage2", false}, {"ablate", false}})
 {
 	int M = M_input;
 	int N = N_input;
 	int M_hat = 1e6;
+	deb(M,N);
 	double epsilon = 0.46;
 
-	std::string validateTable = fmt::format("stocks_{}", N);
-	std::string outPath = fmt::format("stocks_{}_{}", N, M);
-	std::vector<std::string> headers = {"Hardness", "Seed", "Objective", "feas", "surplus", "tuples", "scenarios", "RuntimeRS", "solutions"};
-	string output = "/home/fm2288/StochasticPackageQuery/test/ExperimentsFewScenariosTenMins/RobustSatisficing/RS" + outPath + ".csv";
+	std::string validateTable;
+	std::string outPath;
+	string output;
+	std::vector<std::string> headers = {"Hardness", "Seed", "Objective", "ObjRatio", "deter_feas", "prob_feas", "feas", "surplus", "NTuples", "NScenarios", "Runtime", "solutions"};
+	if (hyperParam["benchmark"] == -1 && !ablate["ablate"])
+	{
+		validateTable = fmt::format("stocks_{}", N);
+		outPath = fmt::format("stocks_{}_{}", N, M);
+		string dir = fmt::format("/home/fm2288/StochasticPackageQuery/test/RS_MAD/");
+		create_nested_directories(dir);
+		output = "/home/fm2288/StochasticPackageQuery/test/RS_MAD/RS" + outPath + ".csv";
+	}
+	else if (ablate["ablate"])
+	{
+		validateTable = fmt::format("stocks_{}", N);
+		outPath = fmt::format("stocks_{}_{}", N, M);
+		string study = ablate["stage2"] ? "stage2" : ablate["stage1lcvar"] ? "stage1lcvar" : ablate["stage1random"] ? "stage1random" : "stage1fixedN";
+		string dir = fmt::format("/home/fm2288/StochasticPackageQuery/test/AblationStudy2/{}/", study);
+		create_nested_directories(dir);
+		output = dir + outPath + ".csv";
+	}
+	else
+	{
+		validateTable = fmt::format("stocks_{}", N);
+		outPath = fmt::format("stocks_{}_{}", N, M);
+		string dir = fmt::format("/home/fm2288/StochasticPackageQuery/test/HyperParameterBenchmark{}/N_{}_M_{}_cap_{}/", hyperParam["benchmark"], hyperParam["reducedTuples"], hyperParam["reducedScenarios"], hyperParam["cap"]);
+		create_nested_directories(dir);
+		output = fmt::format("/home/fm2288/StochasticPackageQuery/test/HyperParameterBenchmark{}/N_{}_M_{}_cap_{}/" + outPath + ".csv", hyperParam["benchmark"], hyperParam["reducedTuples"], hyperParam["reducedScenarios"], hyperParam["cap"], N, M);
+	}
 	DataWriter writer(output, headers);
 	writer.writeHeaders();
 
 	int max_concurrent = 15;
+	if (N_input == 3)
+	{
+		max_concurrent = 30;
+	}
+	else if (N_input == 5 && M_input == 10000)
+	{
+		max_concurrent = 6;
+	}
 	int active_processes = 0;
 
-	for (int h = 0; h <= 8; h++)
+	for (int h = 0; h <= 5; h++)
 	{
+		double deterObjective = getObjective(deter, N, h);
 		for (int seed = 1; seed <= 10; seed = seed + 1)
 		{
 			// check if any existing children finished
@@ -74,7 +209,6 @@ void testRSSeed(int M_input, int N_input)
 				wait(NULL);
 				active_processes--;
 			}
-
 
 			pid_t pid = fork();
 			if (pid < 0)
@@ -91,13 +225,13 @@ void testRSSeed(int M_input, int N_input)
 				int qScenarios;
 				std::string queryPath = fmt::format("/home/fm2288/StochasticPackageQuery/test/QueriesSeeds/stocks_{}_{}_seeded/RS/{}/stocks_{}_{}_seeded_{}.spaql", N, M, h, N, M, seed);
 				auto spq = parseSpaqlFromFile(queryPath);
-				deb(spq, spq->validate());
 				if (spq->validate())
 				{
 					double fetchingTime = 0.0;
 					// we need to consider the fetching into effective runtime
 					{
 						gpro.clock("effectiveRuntime");
+						gpro.clock("fetchingToEndOfFirstStage");
 						Data::reset();
 						Data::init(spq);
 						Data::getInstance().fetchData();
@@ -107,16 +241,26 @@ void testRSSeed(int M_input, int N_input)
 					}
 					gpro.clock("effectiveRuntime");
 					RobustSatisficing RS(M, spq, epsilon, validateTable);
+
 					double timeout_seconds = 10 * 60;
 
 					// this is for the time budget experiment
 					SolveOptions solveOptions;
+					solveOptions.hyperParams = hyperParam;
 					solveOptions.timeout_seconds = timeout_seconds;
 					solveOptions.timeBudgeted = true;
 					solveOptions.timeBudget = timeout_seconds;
-					SolutionMetadata<int> sol = RS.stochasticDualReducer(RS.spq, solveOptions);
+					solveOptions.randomSeed = static_cast<unsigned int>(h * 10 + seed);
+					SolutionMetadata<int> sol = RS.stochasticDualReducer(RS.spq, solveOptions, ablate);
 					gpro.stop("effectiveRuntime");
-					double totalTimeRS = gpro.getTime("effectiveRuntime");
+					double totalTimeRS; 
+					if(hyperParam["benchmark"] == 2)
+					{
+						totalTimeRS = gpro.getTime("effectiveRuntime") - gpro.getTime("fetchingToEndOfFirstStage");
+					}else
+					{
+						totalTimeRS = gpro.getTime("effectiveRuntime");
+					}
 
 					{
 						cout << "FINAL VALIDATION" << endl;
@@ -124,6 +268,7 @@ void testRSSeed(int M_input, int N_input)
 						SPQChecker Check(spq);
 						vector<double> feasibility;
 						vector<double> surpluses;
+						bool deterFeasible = false, probFeasible = false;
 						if (sol.x.size() > 0)
 						{
 							// deb(sol.x);
@@ -136,7 +281,7 @@ void testRSSeed(int M_input, int N_input)
 								}
 							}
 							deb(res, res.size());
-							RSFeas = Check.feasible(res, feasibility, surpluses);
+							RSFeas = Check.feasible(res, feasibility, surpluses, deterFeasible, probFeasible);
 							RSObjective = Check.getObjective(res);
 							deb("printing-gpro");
 							gpro.print();
@@ -156,8 +301,16 @@ void testRSSeed(int M_input, int N_input)
 						{
 							flock(lock_fd, LOCK_EX); // LOCK
 							double gurobiTime = gpro.getTime("gurobi");
-							//{"Hardness", "Seed", "Objective", "feas", "surplus", "tuples", "scenarios", "RuntimeRS","solutions"};
-							writer.addRow(h, seed, RSObjective, feasibility, surpluses, q, qScenarios, totalTimeRS, sol.solutions);
+							double ratio = RSObjective / deterObjective;
+							//{"Hardness", "Seed", "Objective", "ObjRatio", "deter_feas", "prob_feas", "feas", "surplus", "Runtime", "solutions"};
+							for (int i = 0; i < surpluses.size(); i++)
+							{
+								if (surpluses[i] < 0)
+								{
+									probFeasible = false;
+								}
+							}
+							writer.addRow(h, seed, RSObjective, ratio, deterFeasible, probFeasible, feasibility, surpluses, sol.qSz, sol.qScenarios, totalTimeRS, sol.solutions);
 
 							flock(lock_fd, LOCK_UN); // UNLOCK
 							close(lock_fd);
@@ -191,7 +344,6 @@ void testRSSeed(int M_input, int N_input)
 
 // For convenience
 using json = nlohmann::json;
-
 
 std::string trim_leading_whitespace(const std::string &str)
 {
@@ -337,41 +489,96 @@ std::string transform_query(
 	return final_query;
 }
 
-bool create_nested_directories(const std::string &path)
+void runAllRSSeed()
 {
-	mode_t mode = 0755;
-	std::string current_path = "";
-	std::string dir_name;
-	std::stringstream ss(path);
-
-	// Handle absolute paths starting with '/'
-	if (!path.empty() && path[0] == '/')
+	std::vector<int> Ns = {3, 4, 5};
+	std::vector<int> Ms = {10, 100, 10000};
+	for (int N : Ns)
 	{
-		current_path = "/";
-	}
-
-	while (std::getline(ss, dir_name, '/'))
-	{
-		if (dir_name.empty())
-			continue;
-
-		// Append the next directory name, avoiding double slashes
-		if (current_path.length() > 1 && current_path.back() != '/')
+		for (int M : Ms)
 		{
-			current_path += "/";
+			testRSSeed(M, N);
 		}
-		current_path += dir_name;
+	}
+}
 
-		if (mkdir(current_path.c_str(), mode) != 0)
+void runAblationStudy()
+{
+	std::vector<int> Ns = {3,4,5};
+	std::vector<int> Ms = {10,100,10000};
+	for (int M : Ms)
+	{
+		for (int N : Ns)
 		{
-			if (errno != EEXIST)
+			testRSSeed(M, N, {{"reducedTuples", 512}, {"reducedScenarios", 50}, {"cap", 5}, {"benchmark", -1}}, {{"stage1lcvar", false},{"stage1random", false}, {"stage1", true}, {"stage2", false}, {"ablate", true}}); //original algorithm early stop in stage 2
+			testRSSeed(M, N, {{"reducedTuples", 512}, {"reducedScenarios", 50}, {"cap", 5}, {"benchmark", -1}}, {{"stage1lcvar", true},{"stage1random", false}, {"stage1", true}, {"stage2", false}, {"ablate", true}}); //stage 1 with lcvar
+			testRSSeed(M, N, {{"reducedTuples", 512}, {"reducedScenarios", 50}, {"cap", 5}, {"benchmark", -1}}, {{"stage1lcvar", false},{"stage1random", true}, {"stage1", true}, {"stage2", false}, {"ablate", true}}); //random in stage 1
+			testRSSeed(M, N, {{"reducedTuples", 512}, {"reducedScenarios", 50}, {"cap", 5}, {"benchmark", -1}}, {{"stage1lcvar", false},{"stage1random", false}, {"stage1", false}, {"stage2", true}, {"ablate", true}}); //stage 2 it will runNaiveFinalStage
+			testRSSeed(M, N); //full feedback original algorithm			
+		}
+	}
+}
+
+void runBenchmarkScenariosCap(int N_input)
+{
+	std::vector<int> reducedTuples = {128};
+	std::vector<int> reducedScenariosValues = {10, 25, 50, 100};
+	std::vector<int> capValues = {1, 3, 5, 10};
+	std::vector<int> M = {10, 100, 10000};
+
+	for (int m : M)
+	{
+		// Iterate through all combinations of hyperparameters
+		for (int reducedTuples : reducedTuples)
+		{
+			for (int reducedScenarios : reducedScenariosValues)
 			{
-				std::cerr << "Error creating directory " << current_path << ": " << strerror(errno) << std::endl;
-				return false;
+				for (int cap : capValues)
+				{
+					std::map<std::string, int> hyperParams = {
+						{"reducedTuples", reducedTuples},
+						{"reducedScenarios", reducedScenarios},
+						{"cap", cap},
+						{"benchmark", 1}};
+					testRSSeed(m, N_input, hyperParams);
+				}
 			}
 		}
 	}
-	return true;
+
+	std::cout << "Completed hyperparameter benchmark." << std::endl;
+}
+
+void allBenchmarkTuples()
+{
+	vector<int> Ns = {5};
+	vector<int> Ms = {10, 100, 10000};
+
+	for (int m : Ms)
+	{
+		for (int n : Ns)
+		{
+			for (int i = 7; i <= 16; i++)
+			{
+				int reducedTuples = pow(2, i);
+				std::map<std::string, int> hyperParams = {
+					{"reducedTuples", reducedTuples},
+					{"reducedScenarios", 50},
+					{"cap", 5},
+					{"benchmark", 2}};
+				testRSSeed(m, n, hyperParams);
+			}
+		}
+	}
+}
+
+void allBenchmarkScenariosCap()
+{
+	std::vector<int> Ns = {3, 4};
+	for (int N : Ns)
+	{
+		runBenchmarkScenariosCap(N);
+	}
 }
 
 void createSummaryTables(int N_input)
@@ -402,7 +609,7 @@ void generateSeededQueries(int N, int M)
 	std::cout << "Generating seeded queries in: " << baseOutputDir << std::endl;
 
 	// Iterate through Hardness Levels (0 to 8)
-	for (int h = 0; h <= 8; h++)
+	for (int h = 0; h <= 5; h++)
 	{
 		// Create hardness-specific subdirectories inside RS and RCL
 		std::string rsHardnessDir = rsBaseDir + "/" + std::to_string(h);
@@ -496,7 +703,7 @@ void generateSeededQueries(int N, int M)
 
 int main(int argc, char *argv[])
 {
-
+	deter = loadCSV("/home/fm2288/StochasticPackageQuery/test/Deterministic/deterministic_solutions.csv");
 	if (argc < 4)
 	{
 		std::cerr << "Usage: " << argv[0] << " <N> <M> <algorithm>" << std::endl;
@@ -510,18 +717,38 @@ int main(int argc, char *argv[])
 	std::string dbPath = fmt::format("resource/sqls/_stocks_{}_{}.spaql", N, M);
 	std::string outPath = fmt::format("stocks_{}_{}", N, M);
 
-	if (algorithm == "RSSeed")
+	if (algorithm == "allRSSeed")
+	{
+		runAllRSSeed();
+	}
+	else if (algorithm == "RSSeed")
 	{
 		testRSSeed(M, N);
+	}
+	else if (algorithm == "deter")
+	{
+		deterministicSolutionForHardness(N);
 	}
 	else if (algorithm == "genSeeds")
 	{
 		// New option to generate seeded queries with hardness structure
 		generateSeededQueries(N, M);
 	}
+	else if (algorithm == "allBenchmarkScenariosCap")
+	{
+		allBenchmarkScenariosCap();
+	}
+	else if (algorithm == "allBenchmarkTuples")
+	{
+		allBenchmarkTuples();
+	}
 	else if (algorithm == "summaryTables")
 	{
 		createSummaryTables(N);
+	}
+	else if (algorithm == "ablation")
+	{
+		runAblationStudy();
 	}
 	else
 	{

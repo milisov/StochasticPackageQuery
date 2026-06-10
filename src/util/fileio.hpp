@@ -55,9 +55,9 @@ typename std::enable_if<I < sizeof...(Ts), void>::type
 printTupleElements(std::ostream& os, const std::tuple<Ts...>& tup) {
     if constexpr (I > 0)
         os << ';';
-    // This line caused the error previously because 
+    // This line caused the error previously because
     // it couldn't see the vector overload:
-    os << std::get<I>(tup); 
+    os << std::get<I>(tup);
     printTupleElements<I + 1>(os, tup);
 }
 

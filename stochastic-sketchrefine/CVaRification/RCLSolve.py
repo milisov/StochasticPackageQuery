@@ -142,9 +142,43 @@ class RCLSolve:
         self.__valid_query = copy.deepcopy(query)
         baseName = query.get_relation().split("_seeded_")[0]  # e.g., stocks_3_100
         parts = baseName.split("_")  # ['stocks', '3', '100']
+        N = int(parts[1])
         validateTableName = f"{parts[0]}_{parts[1]}_validate"  # stocks_3_validate
         self.__valid_query.set_relation(validateTableName)
-        self.__validator_oos = Validator(self.__valid_query, dbInfo, 10000)
+
+        if N == 3:
+            start = time.time()
+            oos_base_predicate = self.__valid_query.get_base_predicate()
+            oos_all_scenarios = dict()
+            for attr in self.__get_stochastic_attributes():
+                oos_all_scenarios[attr] = []
+                sc = ValueGenerator(
+                    relation=validateTableName,
+                    base_predicate=oos_base_predicate,
+                    attribute=attr
+                ).get_values()
+                for s in sc:
+                    oos_all_scenarios[attr].append(s[0])
+
+            oos_all_values = dict()
+            for attr in self.__get_deterministic_attributes():
+                oos_all_values[attr] = []
+                vals = ValueGenerator(
+                    relation=validateTableName,
+                    base_predicate=oos_base_predicate,
+                    attribute=attr
+                ).get_values()
+                for v in vals:
+                    oos_all_values[attr].append(v[0])
+
+            self.__validator_oos = Validator(
+                self.__valid_query, dbInfo, 10000,
+                oos_all_scenarios, oos_all_values
+            )
+            end = time.time()
+            self.__timers["validation"] += end - start
+        else:
+            self.__validator_oos = Validator(self.__valid_query, dbInfo, 10000)
 
 
     def __get_unnecessary_time(self):
@@ -580,7 +614,7 @@ class RCLSolve:
             no_of_scenarios)
 
     def __compare_best_package(self, package, runtime, no_of_scenarios):
-        validFeasibilities, validSurpluses, validObjective = self.__validate_package_oos(package)
+        validDeterFeasible, validProbFeasible, validFeasibilities, validSurpluses, validObjective = self.__validate_package_oos(package)
         # print("valid feasibilities =", validFeasibilities, "valid surpluses =", validSurpluses, "valid objective =", validObjective,)
         objective_type = self.__query.get_objective().get_objective_type()
         feasibilities = []
@@ -646,30 +680,14 @@ class RCLSolve:
                         self.__bestSurpluses = surpluses
                         self.__bestObjective = objective
             
-        self.__solutions.append((runtime*1000, np.round(feasibilities,4), np.round(surpluses,4), objective, np.round(validFeasibilities,4),np.round(validSurpluses,4), validObjective, no_of_scenarios))
+        self.__solutions.append((runtime*1000, np.round(feasibilities,4), np.round(surpluses,4), objective, int(validDeterFeasible), int(validProbFeasible), np.round(validFeasibilities,4), np.round(validSurpluses,4), validObjective, no_of_scenarios))
         # print("Solutions", self.__solutions)
 
     def __validate_package_oos(self, package):
-
         start_time = time.time()
-        feasibilities = []
-        surpluses = []
-        for constraint in self.__query.get_constraints():
-            if constraint.is_risk_constraint():
-                #the true Indicates that we want to validate on out of sample
-                feasibility = self.__validator_oos.get_var_constraint_satisfaction(package, constraint)
-                feasibilities.append(feasibility)
-                p = constraint.get_probability_threshold()
-                surpluses.append(feasibility - p)
-
-        objective_value = self.__validator_oos.get_validation_objective_value(package)
-
-        end_time = time.time()
-        total_time = end_time - start_time
-        
-        self.__timers["validation"] += total_time
-
-        return feasibilities, surpluses, objective_value
+        result = self.__validator_oos.validate_package(package)
+        self.__timers["validation"] += time.time() - start_time
+        return result
 
     def __get_package(self, no_of_scenarios):
         self.__metrics.start_optimizer()
@@ -689,11 +707,12 @@ class RCLSolve:
         idx = 0
         try:
             for var in self.__vars:
-                if var.x > 0:
+                val = round(var.x)
+                if val > 0:
                     package_dict[
-                        self.__ids[idx]] = \
-                            var.x
+                        self.__ids[idx]] = val
                 idx += 1
+            print("PACKAGE SIZE", len(package_dict))
         except AttributeError:
             return None
         
@@ -714,10 +733,12 @@ class RCLSolve:
         idx = 0
         try:
             for var in self.__vars:
-                if var.x > 0:
+                val = round(var.x)
+                if val > 0:
                     package_dict[
-                        idx] = var.x
+                        idx] = val
                 idx += 1
+            print("PACKAGE WITH INDICES SIZE", len(package_dict))
         except AttributeError:
             return None
         return package_dict

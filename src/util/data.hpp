@@ -16,6 +16,7 @@
 #include <cstring>
 #include <cstdint>
 #include <vector>
+#include <cmath>
 #pragma once
 
 // Byte-swapping for Big-Endian to Little-Endian conversion
@@ -165,6 +166,7 @@ public:
     // For expected profit values
     std::vector<double> stockExpectedProfit;
     std::vector<std::pair<int, double>> stockExpectedProfitSorted;
+    std::vector<double> stockProfitStdDev;
 
     // Size of tuples in the table
     std::shared_ptr<StochasticPackageQuery> spq;
@@ -211,7 +213,6 @@ public:
                 columns.insert(attrObj2->obj);
                 statColumns.insert(attrObj2->obj);
             }
-            // initStockExpectedProfit(fmt::format("{}_{}", DB_optim, "summary"), "profit_quantiles");
         }
     }
 
@@ -225,48 +226,19 @@ public:
         return sum / values.size();
     }
 
-    // void fetchData()
-    // {
-    //     fetchColumns(spq);
-    //     auto dataColumns = pg.getColumns(spq->tableName);
-    //     std::vector<std::string> cols(columns.begin(), columns.end());
-    //     std::string selectcols = fmt::format("{}", fmt::join(cols, ", "));
+    double computeStdDev(std::vector<double> &values, double mean)
+    {
+        if (values.size() <= 1) return 0.0;
 
-    //     std::string sql = fmt::format("SELECT {} FROM \"{}\" ORDER BY id", selectcols, spq->tableName);
-
-    //     SingleRow sr(sql);
-    //     int id = 0;
-    //     while (sr.fetchRow())
-    //     {
-    //         for (int i = 0; i < cols.size(); i++)
-    //         {
-    //             std::string colName = cols[i];
-    //             Column colType = dataColumns[colName];
-    //             if (colType == numeric_type)
-    //             {
-    //                 detAttrs[colName].push_back(sr.getNumeric(i));
-    //             }
-    //             else
-    //             {
-    //                 std::vector<double> values;
-    //                 sr.getArray(i, values);
-    //                 stochAttrs[colName].push_back(values);
-    //                 if (statColumns.count(colName) > 0)
-    //                 {
-    //                     double avg = computeAverage(values);
-    //                     stockExpectedProfit.push_back(avg);
-    //                     stockExpectedProfitSorted.emplace_back(id, avg);
-    //                 }
-    //             }
-    //         }
-    //         id++;
-    //     }
-    //     std::sort(stockExpectedProfitSorted.begin(), stockExpectedProfitSorted.end(),
-    //               [](const auto &a, const auto &b)
-    //               { return a.second > b.second; });
-
-    //     //deb(stockExpectedProfitSorted, stockExpectedProfitSorted.size());
-    // }
+        double sumSquaredDiff = 0.0;
+        for (size_t i = 0; i < values.size(); i++)
+        {
+            double diff = values[i] - mean;
+            sumSquaredDiff += diff * diff;
+        }
+        // Sample standard deviation (n-1)
+        return std::sqrt(sumSquaredDiff / (values.size() - 1));
+    }
 
     void fetchData()
     {
@@ -284,6 +256,7 @@ public:
         {
             stockExpectedProfit.reserve(NTuples);
             stockExpectedProfitSorted.reserve(NTuples);
+            stockProfitStdDev.reserve(NTuples);
         }
 
         std::vector<std::vector<double> *> detDests(cols.size(), nullptr);
@@ -392,7 +365,9 @@ public:
                         if (isStat[i])
                         {
                             double avg = computeAverage(stochDests[i]->back());
+                            double stddev = computeStdDev(stochDests[i]->back(), avg);
                             stockExpectedProfit.push_back(avg);
+                            stockProfitStdDev.push_back(stddev);
                             stockExpectedProfitSorted.emplace_back(id, avg);
                         }
                     }
@@ -418,36 +393,6 @@ public:
 
         const auto& lastRowScenarios = stochAttrs["profit"].back();
         deb(stochAttrs["profit"].size());
-        deb(lastRowScenarios);
-    }
-
-    // Compute expected profit values (needed for ExpSum constraints/obj)
-    void initStockExpectedProfit(const std::string &table, const std::string &colName)
-    {
-        std::string sql = fmt::format(
-            "SELECT id, AVG(val) AS avg_val "
-            "FROM \"{}\", unnest({}) AS val "
-            "GROUP BY id",
-            table, colName);
-
-        SingleRow sr(sql);
-
-        while (sr.fetchRow())
-        {
-            double mean = sr.getNumeric(1);
-            int id = sr.getBigInt(0) - 1;
-            stockExpectedProfit[id] = mean;
-        }
-
-        stockExpectedProfitSorted.clear();
-        for (int i = 0; i < (int)stockExpectedProfit.size(); i++)
-        {
-            stockExpectedProfitSorted.emplace_back(i, stockExpectedProfit[i]);
-        }
-
-        std::sort(stockExpectedProfitSorted.begin(), stockExpectedProfitSorted.end(),
-                  [](const auto &a, const auto &b)
-                  { return a.second > b.second; });
     }
 
 private:

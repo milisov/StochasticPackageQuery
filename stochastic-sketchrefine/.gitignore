@@ -1,0 +1,19 @@
+# Large data files — obtain separately per README instructions
+Data/lineitem.tbl
+
+# Database credentials
+Data/database.ini
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual environment
+venv/
+.venv/
+
+# Slurm scripts
+slurm_scripts/
+
+# Logs
+logs/

@@ -129,7 +129,7 @@ void Bounder::generate(const vector<double>& hards){
     vector<double> probs (n);
     for (size_t i = 0; i < n; ++i){
         varTables.try_emplace(hards[i]);
-        probs[i] = sigmoid(-hards[i]);
+        probs[i] = sigmoid(-hards[i]*64/67);
     }
     deb(hards);
     deb(probs);

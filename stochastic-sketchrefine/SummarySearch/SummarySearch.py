@@ -594,28 +594,50 @@ class SummarySearch:
 
     def __validate_package_oos(self, package):
         start_time = time.time()
+        deter_feasible = True
+        prob_feasible = True
         feasibilities = []
         surpluses = []
         validator_oos = Validator(self.__query, self.__dbInfo, 10000)
+
         for constraint in self.__query.get_constraints():
-            if constraint.is_risk_constraint():
-                #the true Indicates that we want to validate on out of sample
-                feasibility = validator_oos.get_var_constraint_satisfaction(package, constraint)
-                feasibilities.append(feasibility)
+            if constraint.is_package_size_constraint():
+                if validator_oos.get_package_size_constraint_feasibility(package, constraint):
+                    pass
+                else:
+                    deter_feasible = False
+
+            elif constraint.is_deterministic_constraint():
+                if validator_oos.get_deterministic_constraint_feasibility(package, constraint):
+                    pass
+                else:
+                    deter_feasible = False
+
+            elif constraint.is_expected_sum_constraint():
+                if validator_oos.get_expected_sum_constraint_feasibility(package, constraint):
+                    pass
+                else:
+                    deter_feasible = False
+
+            elif constraint.is_var_constraint():
+                probability = validator_oos.get_var_constraint_satisfaction(package, constraint)
                 p = constraint.get_probability_threshold()
-                surpluses.append(feasibility - p)
+                feasibilities.append(probability)
+                surpluses.append(probability - p)
+                if validator_oos.get_var_constraint_feasibility(package, constraint):
+                    pass
+                else:
+                    prob_feasible = False
 
         objective_value = validator_oos.get_validation_objective_value(package)
 
         end_time = time.time()
-        total_time = end_time - start_time
-        
-        self.__timers["validation"] += total_time
+        self.__timers["validation"] += end_time - start_time
 
-        return feasibilities, surpluses, objective_value
+        return deter_feasible, prob_feasible, feasibilities, surpluses, objective_value
 
     def __compare_best_package(self, package, runtime):
-        validFeasibilities, validSurpluses, validObjective = self.__validate_package_oos(package)
+        validDeterFeasible, validProbFeasible, validFeasibilities, validSurpluses, validObjective = self.__validate_package_oos(package)
         print("valid feasibilities =", validFeasibilities, "valid surpluses =", validSurpluses, "valid objective =", validObjective,)
 
         feasibilities = []
@@ -666,7 +688,7 @@ class SummarySearch:
                     self.__bestSurpluses = surpluses
                     self.__bestObjective = objective
             
-        self.__solutions.append((runtime*1000, np.round(feasibilities,4), np.round(surpluses,4), objective, np.round(validFeasibilities,4),np.round(validSurpluses,4), validObjective))
+        self.__solutions.append((runtime*1000, np.round(feasibilities,4), np.round(surpluses,4), objective, int(validDeterFeasible), int(validProbFeasible), np.round(validFeasibilities,4), np.round(validSurpluses,4), validObjective, self.__no_of_validation_scenarios))
     
     
     def __get_package(self, start_time):

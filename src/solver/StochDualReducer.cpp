@@ -11,27 +11,22 @@ void findUnionDetCVaR(vector<double> &solDet, vector<double> &solCVaR, vector<do
 }
 
 
-vector<double> StochDualReducer::solvelcvarRS(shared_ptr<StochasticPackageQuery> spq, FormulateOptions &formOptions)
+SolutionMetadata<double> StochDualReducer::solveLCVaR(shared_ptr<StochasticPackageQuery> spq, FormulateOptions &formOptions, SolveOptions &solveOptions)
 {
     SDRFormulator formulator(spq);
-    setDecisionVarOptions(formOptions.decisionVarOptions, 0.0, 1.0, 0.0, GrbVarType::Binary);
-    GRBModel model = formulator.formulate(spq,formOptions);
-    SolveOptions options;
-    options.reduced = formOptions.reduced;
-    options.reducedIds = formOptions.reducedIds;
-    vector<double> x(NTuples, 0.0);
-    solve(model, x, options);
-    validate(model, x, spq, options);
-
-    double E = calculateE(x);
-    deb(E);
-    // double ub = E/500;
-    // deb(E, ub);
-
-    // formulator.updateBound(model, ub);
-    // vector<double> lcvarSol(NTuples, 0.0);
-    // solve(model, lcvarSol, options);
-    // validate(model, lcvarSol, spq, options);
-    // deb(lcvarSol);
-    return x;
+    GRBModel model = formulator.formulate(spq, formOptions);
+    vector<double> x;
+    initializeVector(x, NTuples, 0.0);
+    solve(model, x, solveOptions);
+    
+    SolutionMetadata<double> sol;
+    if(!x.empty())
+    {
+        validate(model, x, spq, solveOptions);
+        sol.x = x;
+        sol.w = this->W_q;
+        sol.bestRk = this->r;
+        sol.isFeasible = isFeasible(this->r);
+    }
+    return sol;
 }

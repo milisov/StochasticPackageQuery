@@ -1,8 +1,13 @@
+import math
 import numpy as np
 
 from DbInfo.DbInfo import DbInfo
 from Hyperparameters.Hyperparameters import Hyperparameters
 from PgConnection.PgConnection import PgConnection
+from ScenarioGenerator.RepresentativeScenarioGenerator.RepresentativeScenarioGenerator import RepresentativeScenarioGenerator
+from ScenarioGenerator.RepresentativeScenarioGenerator.RepresentativeScenarioGeneratorWithoutCorrelation import RepresentativeScenarioGeneratorWithoutCorrelation
+from SketchRefine.RefineValidator import RefineValidator
+from SketchRefine.RefineRCLSolve import RefineRCLSolve
 from StochasticPackageQuery.Query import Query
 from Utils.Stochasticity import Stochasticity
 from Utils.Relation_Prefixes import Relation_Prefixes
@@ -19,9 +24,16 @@ class Refine:
         max_no_of_duplicates: list[int],
         sketch_objective_value: float,
         sketch_package: dict[int, int],
-        query: Query, dbInfo: DbInfo):
+        query: Query, dbInfo: DbInfo,
+        linear_relaxation: bool,
+        check_feasibility: bool = False,
+        optimize_lcvar: bool = False,
+        gurobi_env = None,
+        early_termination: bool = False
+    ):
 
         self.__partition_groups = partition_groups
+        self.__early_termination = early_termination
         self.__no_of_optimization_scenarios =\
             no_of_optimization_scenarios
         self.__no_of_validation_scenarios =\
@@ -32,6 +44,7 @@ class Refine:
             sketch_objective_value
         self.__sketch_package =\
             sketch_package
+        self.__is_linear_relaxation = linear_relaxation
         
         self.__query = query
         self.__tuples_in_partition =\
@@ -44,53 +57,221 @@ class Refine:
 
         self.__stochastic_attributes = \
             self.__get_stochastic_attributes()
-        self.__scenarios = dict()
-        self.__values = dict()
+        self.__deterministic_attributes = \
+            self.__get_deterministic_attributes()
         self.__dbInfo = dbInfo
+        self.__correlation_cache = dict()
 
-        # Load all scenarios from database keyed by tuple ID (like RCLSolve)
-        self.__all_scenarios_by_id = dict()
+        self.__partition_optimization_scenarios = dict()
+        self.__partition_validation_scenarios = dict()
+        self.__partition_values = dict()
+
+        self.__chosen_tuple_optimization_scenarios = dict()
+        self.__chosen_tuple_validation_scenarios = dict()
+        self.__chosen_tuple_values = dict()
+
+        self.__partition_variable_multiplicity = dict()
+        self.__chosen_tuple_multiplicity = dict()
+        self.__total_optimizer_runtime = 0.0
+        self.__total_optimization_calls = 0
+
+        for attr in self.__deterministic_attributes:
+            self.__partition_values[attr] = dict()
+            self.__chosen_tuple_values[attr] = dict()
+
+            for partition_group in self.__partition_groups:
+                for partition in partition_group:
+                    num_duplicates = \
+                        self.__get_materialized_duplicate_count(
+                            partition
+                        )
+                    self.__partition_values[attr][partition] = \
+                        RepresentativeValueGenerator(
+                            relation=self.__query.get_relation(),
+                            base_predicate='r.partition_id=' + str(partition),
+                            attribute=attr,
+                            duplicate_vector=[num_duplicates]
+                        ).get_values()
+
+
         for attr in self.__stochastic_attributes:
-            self.__all_scenarios_by_id[attr] = {}
-            sc = ValueGenerator(
-                relation=query.get_relation(),
-                base_predicate='',
-                attribute=attr
-            ).get_values()
-            ids = ValueGenerator(
-                relation=query.get_relation(),
-                base_predicate='',
-                attribute='id'
-            ).get_values()
-            for idx, s in enumerate(sc):
-                tid = int(ids[idx][0])
-                self.__all_scenarios_by_id[attr][tid] = s[0]
+            
+            self.__partition_optimization_scenarios[attr] = dict()
+            self.__partition_validation_scenarios[attr] = dict()
 
+            self.__chosen_tuple_optimization_scenarios[attr] = dict()
+            self.__chosen_tuple_validation_scenarios[attr] = dict()
 
-    def get_tuples_in_each_partition(self):    
-        base_predicate = ''
+            for partition_group in self.__partition_groups:
+                for partition in partition_group:
+                    num_duplicates = \
+                        self.__get_materialized_duplicate_count(
+                            partition
+                        )
+
+                    self.__partition_optimization_scenarios[attr][partition] = \
+                        self.__generate_partition_representative_scenarios(
+                            attribute=attr,
+                            partition=partition,
+                            num_duplicates=num_duplicates,
+                            seed=Hyperparameters.INIT_SEED,
+                            no_of_scenarios=no_of_optimization_scenarios,
+                            use_correlation=\
+                                self.__is_cvar_objective_attribute(attr)
+                        )
+                    
+                    if self.__dbInfo.has_inter_tuple_correlations():
+                        self.__partition_validation_scenarios[attr][partition] = \
+                            RepresentativeScenarioGenerator(
+                                relation=self.__query.get_relation(),
+                                attr=attr,
+                                dbInfo=self.__dbInfo
+                            ).generate_scenarios(
+                                seed=Hyperparameters.VALIDATION_SEED,
+                                no_of_scenarios=Hyperparameters.NO_OF_VALIDATION_SCENARIOS,
+                                pid=partition,
+                                duplicates_to_use=num_duplicates
+                            )
+                    else:
+                        self.__partition_validation_scenarios[attr][partition] = \
+                            RepresentativeScenarioGeneratorWithoutCorrelation(
+                                relation=self.__query.get_relation(),
+                                attr=attr, 
+                                scenario_generator=\
+                                    self.__dbInfo.get_variable_generator_function(attr),
+                                base_predicate='partition_id=' + str(partition),
+                                duplicates=[num_duplicates]
+                            ).generate_scenarios(
+                                seed=Hyperparameters.VALIDATION_SEED,
+                                        no_of_scenarios=Hyperparameters.NO_OF_VALIDATION_SCENARIOS
+                                    )
+                                        
+        for partition_group in self.__partition_groups:
+            for partition in partition_group:
+                self.__partition_variable_multiplicity[partition] = \
+                    self.__get_partition_variable_multiplicities(
+                        partition
+                    )
+        self.__check_feasibility = check_feasibility
+        self.__optimize_lcvar = optimize_lcvar
+        self.__gurobi_env = gurobi_env
+
+    def __to_integral_count(self, multiplicity: float) -> int:
+        rounded = round(multiplicity)
+        if abs(multiplicity - rounded) <= 1e-6:
+            return int(rounded)
+        return int(multiplicity)
+
+    def __get_materialized_duplicate_count(
+        self,
+        partition: int
+    ) -> int:
+        tuple_count = len(self.__tuples_in_partition[partition])
+        if tuple_count == 0:
+            return 0
+
+        multiplicity = float(self.__sketch_package[partition])
+        if multiplicity <= 1e-9:
+            return 0
+
+        if self.__is_linear_relaxation:
+            return min(
+                tuple_count,
+                max(1, int(math.ceil(multiplicity - 1e-9)))
+            )
+
+        return min(
+            tuple_count,
+            max(0, self.__to_integral_count(multiplicity))
+        )
+
+    def __get_partition_variable_multiplicities(
+        self,
+        partition: int
+    ) -> list[float | int]:
+        num_duplicates = self.__get_materialized_duplicate_count(
+            partition
+        )
+        if num_duplicates == 0:
+            return []
+
+        multiplicity = float(self.__sketch_package[partition])
+        if not self.__is_linear_relaxation:
+            total = self.__to_integral_count(multiplicity)
+            multiplicities = [
+                total // num_duplicates
+                for _ in range(num_duplicates)
+            ]
+            for idx in range(total % num_duplicates):
+                multiplicities[idx] += 1
+            return multiplicities
+
+        base = math.floor(multiplicity / num_duplicates)
+        multiplicities = [
+            float(base) for _ in range(num_duplicates)
+        ]
+        remaining = multiplicity - (base * num_duplicates)
+        idx = 0
+        while remaining > 1e-9 and idx < num_duplicates:
+            increment = min(1.0, remaining)
+            multiplicities[idx] += increment
+            remaining -= increment
+            idx += 1
+        if remaining > 1e-9:
+            multiplicities[-1] += remaining
+        return multiplicities
+
+    def __normalize_tuple_multiplicity(
+        self,
+        multiplicity: float
+    ) -> float | int:
+        if self.__is_linear_relaxation:
+            return multiplicity
+        return self.__to_integral_count(multiplicity)
+
+    def get_tuples_in_each_partition(self):
+        partition_predicate = ''
         for partition_group in self.__partition_groups:
             for partition_id in partition_group:
-                if len(base_predicate) > 0:
-                    base_predicate += ' or '
-                base_predicate += 'partition_id = ' +\
+                if len(partition_predicate) > 0:
+                    partition_predicate += ' or '
+                partition_predicate += 'p.partition_id = ' +\
                     str(partition_id)
-        
-        sql = 'SELECT partition_id, tuple_id FROM ' +\
-            Relation_Prefixes.PARTITION_RELATION_PREFIX +\
-            self.__query.get_relation() + ' WHERE ' +\
-            base_predicate + ' ORDER BY (partition_id, tuple_id);'
-        
+
+        relation = self.__query.get_relation()
+        partition_relation = Relation_Prefixes.PARTITION_RELATION_PREFIX + relation
+        query_base = self.__query.get_base_predicate()
+
+        if query_base and query_base != '1=1':
+            sql = (
+                f'SELECT p.partition_id, p.tuple_id FROM {relation} AS r '
+                f'INNER JOIN {partition_relation} AS p ON r.id = p.tuple_id '
+                f'WHERE ({partition_predicate}) AND ({query_base}) '
+                f'ORDER BY (p.partition_id, p.tuple_id);'
+            )
+        else:
+            sql = (
+                f'SELECT p.partition_id, p.tuple_id FROM {partition_relation} AS p '
+                f'WHERE {partition_predicate} '
+                f'ORDER BY (p.partition_id, p.tuple_id);'
+            )
+
         PgConnection.Execute(sql)
 
         tuples = PgConnection.Fetch()
-        
+
         for pid, tid in tuples:
             if pid not in self.__tuples_in_partition:
-                self.__tuples_in_partition[pid] =\
-                    []
-            self.__tuples_in_partition[pid].append(
-                tid)
+                self.__tuples_in_partition[pid] = []
+            self.__tuples_in_partition[pid].append(tid)
+
+        # Guarantee every partition referenced by the sketch has an entry.
+        # A partition can be absent from the query results when the partition
+        # table has no rows for that ID (e.g. data not yet loaded for a year).
+        for partition_group in self.__partition_groups:
+            for partition_id in partition_group:
+                if partition_id not in self.__tuples_in_partition:
+                    self.__tuples_in_partition[partition_id] = []
 
 
     def get_representative_of_each_partition(self):
@@ -121,14 +302,17 @@ class Refine:
                 attributes.add(
                     constraint.get_attribute_name())
             if constraint.is_risk_constraint():
-                attr = constraint.get_attribute_name()
-                attributes.add(attr)
+                attributes.add(
+                    constraint.get_attribute_name())
         
-        if self.__query.get_objective().get_stochasticity()\
-            == Stochasticity.STOCHASTIC:
+        if self.__query.get_objective().is_cvar_objective():
+            attributes.add(self.__query.get_objective().get_attribute_name())
+        elif self.__query.get_objective().is_stochasticity_set() and \
+                self.__query.get_objective().get_stochasticity() \
+                == Stochasticity.STOCHASTIC:
             attributes.add(self.__query.get_objective().\
                            get_attribute_name())
-        
+
         return attributes
 
     
@@ -139,194 +323,400 @@ class Refine:
                 attributes.add(
                     constraint.get_attribute_name())
         
-        if self.__query.get_objective().get_stochasticity() \
-            == Stochasticity.DETERMINISTIC:
+        if self.__query.get_objective().is_stochasticity_set() and \
+                self.__query.get_objective().get_stochasticity() \
+                == Stochasticity.DETERMINISTIC:
             attributes.add(
-                self.__query.get_objective().\
+                    self.__query.get_objective().\
                     get_attribute_name())
         return attributes
 
+    def __is_cvar_objective_attribute(
+        self, attribute: str
+    ) -> bool:
+        objective = self.__query.get_objective()
+        return objective.is_cvar_objective() and \
+            objective.get_attribute_name() == attribute
+
+    def __get_partition_correlations(
+        self, attribute: str
+    ) -> dict[int, list[float]]:
+        if attribute in self.__correlation_cache:
+            return self.__correlation_cache[attribute]
+
+        partition_ids = [
+            partition_id
+            for partition_group in self.__partition_groups
+            for partition_id in partition_group
+        ]
+        correlations = {pid: [] for pid in partition_ids}
+        if not self.__dbInfo.has_inter_tuple_correlations():
+            self.__correlation_cache[attribute] = correlations
+            return correlations
+
+        correlation_relation = \
+            Relation_Prefixes.INIT_CORRELATION_PREFIX + \
+            self.__query.get_relation()
+        sql = "SELECT partition_id, duplicates, init_corr FROM " + \
+            correlation_relation + " WHERE attribute='" + attribute + \
+            "' AND partition_id IN (" + \
+            ','.join(str(pid) for pid in partition_ids) + \
+            ") ORDER BY partition_id, duplicates;"
+
+        PgConnection.Execute(sql)
+        tuples = PgConnection.Fetch()
+        for partition_id, _, init_corr in tuples:
+            if partition_id in correlations:
+                correlations[partition_id].append(init_corr)
+
+        self.__correlation_cache[attribute] = correlations
+        return correlations
+
+    def __get_correlation_for_partition(
+        self, attribute: str,
+        partition: int,
+        num_duplicates: int
+    ) -> float:
+        if num_duplicates <= 0:
+            return 0.0
+        correlations = self.__get_partition_correlations(attribute)
+        partition_correlations = correlations.get(partition, [])
+        if len(partition_correlations) == 0:
+            return 0.0
+        corr_idx = min(num_duplicates, len(partition_correlations)) - 1
+        return partition_correlations[corr_idx]
+
+    def __generate_partition_representative_scenarios(
+        self, attribute: str,
+        partition: int,
+        num_duplicates: int,
+        seed: int,
+        no_of_scenarios: int,
+        use_correlation: bool
+    ):
+        if use_correlation and self.__dbInfo.has_inter_tuple_correlations():
+            return RepresentativeScenarioGenerator(
+                relation=self.__query.get_relation(),
+                attr=attribute,
+                dbInfo=self.__dbInfo
+            ).generate_scenarios(
+                seed=seed,
+                no_of_scenarios=no_of_scenarios,
+                pid=partition,
+                duplicates_to_use=num_duplicates,
+                correlation_to_use=self.__get_correlation_for_partition(
+                    attribute, partition, num_duplicates
+                )
+            )
+
+        return RepresentativeScenarioGeneratorWithoutCorrelation(
+            relation=self.__query.get_relation(),
+            attr=attribute,
+            scenario_generator=\
+                self.__dbInfo.get_variable_generator_function(attribute),
+            base_predicate='partition_id=' + str(partition),
+            duplicates=[num_duplicates]
+        ).generate_scenarios(
+            seed=seed,
+            no_of_scenarios=no_of_scenarios
+        )
+
+
+    def get_optimizer_runtime(self):
+        return self.__total_optimizer_runtime
+
+    def get_number_of_optimization_calls(self):
+        return self.__total_optimization_calls
 
     def solve(self):
-        forward_bins = []        
-        self.__partition_groups.reverse()
-
-        for partition_group in self.__partition_groups:
-            forward_bins.append(partition_group)
+        forward_bins = list(reversed(self.__partition_groups))
 
         chosen_tuples_per_bin = []
 
         group_index = 0
 
         while group_index < len(forward_bins):
-            chosen_tuples_with_multiplicity = []
-            for previous_index in range(0, group_index-1):
-                for chosen_tuple, multiplicity in chosen_tuples_per_bin[previous_index]:
-                    chosen_tuples_with_multiplicity.append(
-                        (chosen_tuple, multiplicity))
-
-            remaining_partitions_with_multiplicty = []
-
-            for next_index in range(group_index+1, len(forward_bins)):
-                for pid in forward_bins[next_index]:
-                    remaining_partitions_with_multiplicty.append(
-                        (pid, int(self.__sketch_package[pid])))
-
-
+            
             package, objective_value = \
                 self.solve_partition(
                     forward_bins[group_index],
-                    chosen_tuples_with_multiplicity,
-                    remaining_partitions_with_multiplicty
                 )
             
             if package is None:
                 if group_index > 0:
                     forward_bins[group_index], forward_bins[group_index-1] =\
                         forward_bins[group_index-1], forward_bins[group_index]
+                    
+                    for chosen_tuple in chosen_tuples_per_bin[-1]:
+                        del self.__chosen_tuple_multiplicity[chosen_tuple]
+                    
+                    for attr in self.__deterministic_attributes:
+                        for chosen_tuple in chosen_tuples_per_bin[-1]:
+                            del self.__chosen_tuple_values[attr][chosen_tuple]
+
+                        for partition in forward_bins[group_index]:
+                            num_duplicates = \
+                                self.__get_materialized_duplicate_count(
+                                    partition
+                                )
+                            
+                            self.__partition_values[attr][partition] = \
+                                RepresentativeValueGenerator(
+                                    relation=self.__query.get_relation(),
+                                    base_predicate='r.partition_id=' + str(partition),
+                                    attribute=attr,
+                                    duplicate_vector=[num_duplicates]
+                                ).get_values()
+                    
+                    for attr in self.__stochastic_attributes:
+                        for chosen_tuple in chosen_tuples_per_bin[-1]:
+                            del self.__chosen_tuple_optimization_scenarios[attr][chosen_tuple]
+                            del self.__chosen_tuple_validation_scenarios[attr][chosen_tuple]
+                        
+                        for partition in forward_bins[group_index]:
+                            num_duplicates = \
+                                self.__get_materialized_duplicate_count(
+                                    partition
+                                )
+
+                            self.__partition_optimization_scenarios[attr][partition] = \
+                                self.__generate_partition_representative_scenarios(
+                                    attribute=attr,
+                                    partition=partition,
+                                    num_duplicates=num_duplicates,
+                                    seed=Hyperparameters.INIT_SEED,
+                                    no_of_scenarios=self.__no_of_optimization_scenarios,
+                                    use_correlation=\
+                                        self.__is_cvar_objective_attribute(attr)
+                                )
+
+                            if self.__dbInfo.has_inter_tuple_correlations():
+                                self.__partition_validation_scenarios[attr][partition] = \
+                                    RepresentativeScenarioGenerator(
+                                        relation=self.__query.get_relation(),
+                                        attr=attr,
+                                        dbInfo=self.__dbInfo
+                                    ).generate_scenarios(
+                                        seed=Hyperparameters.VALIDATION_SEED,
+                                        no_of_scenarios=Hyperparameters.NO_OF_VALIDATION_SCENARIOS,
+                                        pid=partition,
+                                        duplicates_to_use=num_duplicates
+                                    )
+                            else:
+                                self.__partition_validation_scenarios[attr][partition] = \
+                                    RepresentativeScenarioGeneratorWithoutCorrelation(
+                                        relation=self.__query.get_relation(),
+                                        attr=attr, 
+                                        scenario_generator=\
+                                            self.__dbInfo.get_variable_generator_function(attr),
+                                        base_predicate='partition_id=' + str(partition),
+                                        duplicates=[num_duplicates]
+                                    ).generate_scenarios(
+                                        seed=Hyperparameters.VALIDATION_SEED,
+                                        no_of_scenarios=Hyperparameters.NO_OF_VALIDATION_SCENARIOS
+                                    )
+
+                    for partition in forward_bins[group_index]:
+                        self.__partition_variable_multiplicity[partition] = \
+                            self.__get_partition_variable_multiplicities(
+                                partition
+                            )
+
                     chosen_tuples_per_bin.pop()
                     group_index -= 1
                 else:
                     print('Sketch package could not be refined')
+                    return None, 0.0
             
             else:
-                number_of_tuples_in_group = 0
-                for pid in forward_bins[group_index]:
-                    number_of_tuples_in_group += \
-                        len(self.__tuples_in_partition[pid])
-                
-                tuple_ids = []
-
-                for id in package.keys():
-                    if id < number_of_tuples_in_group:
-                        tuple_ids.append(id)
-                
-                tuple_ids.sort()
-
-                pid_index = 0
-                sum = 0
                 chosen_tuples_per_bin.append([])
-
-                for tuple_id in tuple_ids:
-                    while tuple_id >= sum +\
-                        len(self.__tuples_in_partition[
-                            forward_bins[group_index][pid_index]]):
-                        sum += len(self.__tuples_in_partition[
-                            forward_bins[group_index][pid_index]])
-                        pid_index += 1
-                    
-                    id = self.__tuples_in_partition[
-                        forward_bins[group_index][pid_index]][tuple_id - sum]
-                    chosen_tuples_per_bin[-1].append((id, package[tuple_id]))
-
+                for tuple_id in package:
+                    chosen_tuples_per_bin[-1].append(tuple_id)
                 group_index += 1
-        
+                
         refined_package = dict()
 
-        for chosen_tuples_in_bin in chosen_tuples_per_bin:
-            for chosen_tuple, multiplicity in chosen_tuples_in_bin:
-                refined_package[chosen_tuple] = multiplicity
+        for chosen_tuple in self.__chosen_tuple_multiplicity:
+            refined_package[chosen_tuple] = \
+                self.__chosen_tuple_multiplicity[chosen_tuple]
         
         return refined_package, objective_value
 
 
     def solve_partition(
         self, 
-        partition_group,
-        chosen_tuples_with_multiplicity,
-        remaining_partitions_with_multiplicity):
+        partition_group
+    ):
 
-        sizes = []
-        for attribute in self.__stochastic_attributes:
-            self.__scenarios[attribute] = []
+        chosen_partition_optimization_scenarios = dict()
 
-            # Get scenarios for tuples in partition_group from pre-loaded data
-            for partition_id in partition_group:
-                tuple_ids_in_partition = self.__tuples_in_partition[partition_id]
-                sizes.append(len(tuple_ids_in_partition))
-                for tid in tuple_ids_in_partition:
-                    scenario = self.__all_scenarios_by_id[attribute][tid][:self.__no_of_optimization_scenarios]
-                    self.__scenarios[attribute].append(scenario)
-
-            # Get scenarios for chosen tuples from pre-loaded data
-            for tuple_id, _ in chosen_tuples_with_multiplicity:
-                scenario = self.__all_scenarios_by_id[attribute][tuple_id][:self.__no_of_optimization_scenarios]
-                sizes.append(1)
-                self.__scenarios[attribute].append(scenario)
-
-            # Get scenarios for representatives of remaining partitions from pre-loaded data
-            for partition_id, multiplicity in remaining_partitions_with_multiplicity:
-                representative_id = self.__representatives[
-                        (partition_id, attribute)]
-
-                no_of_duplicates = self.__max_no_of_duplicates[
-                    partition_id]
-
-                if multiplicity < no_of_duplicates:
-                    no_of_duplicates = multiplicity
-
-                rep_scenarios = self.__all_scenarios_by_id[attribute][representative_id]
-                # Reshape for duplicates
-                needed = self.__no_of_optimization_scenarios * no_of_duplicates
-                if len(rep_scenarios) >= needed:
-                    sliced = rep_scenarios[:needed]
-                else:
-                    sliced = list(rep_scenarios) * (needed // len(rep_scenarios) + 1)
-                    sliced = sliced[:needed]
-                reshaped = np.reshape(sliced, (no_of_duplicates, self.__no_of_optimization_scenarios))
-
-                sizes.append(no_of_duplicates)
-
-                for scenario in reshaped:
-                    self.__scenarios[attribute].append(scenario)
-
-        for attribute in self.__get_deterministic_attributes():
-            self.__values[attribute] = []
+        for attr in self.__stochastic_attributes:
+            chosen_partition_optimization_scenarios[attr] = []
             
             for partition_id in partition_group:
-                value_generator = ValueGenerator(
+                optimization_scenarios_for_partition = \
+                    self.__dbInfo.get_variable_generator_function(attr)(
+                        relation=self.__query.get_relation(),
+                        base_predicate=self.__query.get_base_predicate()
+                    ).generate_scenarios_from_partition(
+                        seed=Hyperparameters.INIT_SEED,
+                        no_of_scenarios=self.__no_of_optimization_scenarios,
+                        partition_id=partition_id
+                    )
+                for scenario in optimization_scenarios_for_partition:
+                    chosen_partition_optimization_scenarios[attr].append(scenario)
+            
+        chosen_partition_values = dict()
+        for attr in self.__deterministic_attributes:
+            chosen_partition_values[attr] = []
+            
+            for partition_id in partition_group:
+                values = ValueGenerator(
                     relation=self.__query.get_relation(),
                     base_predicate=self.__query.get_base_predicate(),
-                    attribute=attribute
-                )
-                values = value_generator.get_values_from_partition(
-                    partition_id
-                )
+                    attribute=attr
+                ).get_values_from_partition(partition_id)
 
                 for value in values:
-                    self.__values[attribute].append(value)
+                    chosen_partition_values[attr].append(value)
+        
+        partition_group_set = set(partition_group)
+
+        filtered_partition_opt_scenarios = {
+            attr: {
+                p: self.__partition_optimization_scenarios[attr][p]
+                for p in self.__partition_optimization_scenarios[attr]
+                if p not in partition_group_set
+            }
+            for attr in self.__stochastic_attributes
+        }
+
+        filtered_partition_val_scenarios = {
+            attr: {
+                p: self.__partition_validation_scenarios[attr][p]
+                for p in self.__partition_validation_scenarios[attr]
+                if p not in partition_group_set
+            }
+            for attr in self.__stochastic_attributes
+        }
+
+        filtered_partition_values = {
+            attr: {
+                p: self.__partition_values[attr][p]
+                for p in self.__partition_values[attr]
+                if p not in partition_group_set
+            }
+            for attr in self.__deterministic_attributes
+        }
+
+        filtered_partition_var_multiplicity = {
+            p: self.__partition_variable_multiplicity[p]
+            for p in self.__partition_variable_multiplicity
+            if p not in partition_group_set
+        }
+
+        validator = RefineValidator(
+            query=self.__query,
+            dbInfo=self.__dbInfo,
+            no_of_validation_scenarios=self.__no_of_validation_scenarios,
+            partition_validation_scenarios=filtered_partition_val_scenarios,
+            chosen_tuple_validation_scenarios=self.__chosen_tuple_validation_scenarios,
+            partition_values=filtered_partition_values,
+            chosen_tuple_values=self.__chosen_tuple_values,
+            partition_variable_multiplicities=filtered_partition_var_multiplicity,
+            chosen_tuple_multiplicities=self.__chosen_tuple_multiplicity
+        )
+
+        tuple_ids = []
+        for partition in partition_group:
+            for id in self.__tuples_in_partition[partition]:
+                tuple_ids.append(id)
+
+        refineRCLSolve = RefineRCLSolve(
+            query=self.__query,
+            linear_relaxation=self.__is_linear_relaxation,
+            chosen_partition_optimization_scenarios=\
+                chosen_partition_optimization_scenarios,
+            chosen_partition_values=\
+                chosen_partition_values,
+            partition_optimization_scenarios=\
+                filtered_partition_opt_scenarios,
+            partition_values=\
+                filtered_partition_values,
+            chosen_tuple_optimization_scenarios=\
+                self.__chosen_tuple_optimization_scenarios,
+            chosen_tuple_values=\
+                self.__chosen_tuple_values,
+            validator=validator,
+            approximation_bound=\
+                Hyperparameters.APPROXIMATION_BOUND,
+            bisection_threshold=\
+                Hyperparameters.BISECTION_THRESHOLD,
+            partition_variable_multiplicity=\
+                filtered_partition_var_multiplicity,
+            chosen_tuple_multiplicity=\
+                self.__chosen_tuple_multiplicity,
+            tuple_ids=tuple_ids,
+            sketch_objective_value=\
+                self.__sketch_objective_value,
+            check_feasibility=self.__check_feasibility,
+            optimize_lcvar=self.__optimize_lcvar,
+            gurobi_env=self.__gurobi_env,
+            early_termination=self.__early_termination
+        )
+
+        refined_package, objective_value,\
+            needs_more_scenarios = refineRCLSolve.solve()
+        m = refineRCLSolve.get_metrics()
+        self.__total_optimizer_runtime += m.get_optimizer_runtime()
+        self.__total_optimization_calls += m.get_number_of_optimization_calls()
+
+        if refined_package is None:
+            return refined_package, 0.0
+        
+        for partition_id in partition_group:
+            for attr in self.__stochastic_attributes:
+                del self.__partition_optimization_scenarios[attr][partition_id]
+                del self.__partition_validation_scenarios[attr][partition_id]
             
-            for tuple_id, _ in chosen_tuples_with_multiplicity:
-                value_generator =\
+            for attr in self.__deterministic_attributes:
+                del self.__partition_values[attr][partition_id]
+
+            del self.__partition_variable_multiplicity[partition_id]
+        
+        for tuple_id in refined_package:
+            self.__chosen_tuple_multiplicity[tuple_id] = \
+                self.__normalize_tuple_multiplicity(
+                    refined_package[tuple_id]
+                )
+            
+            for attr in self.__stochastic_attributes:
+                self.__chosen_tuple_optimization_scenarios[attr][tuple_id] =\
+                    self.__dbInfo.get_variable_generator_function(
+                        attr)(
+                            relation=self.__query.get_relation(),
+                            base_predicate=' id=' + str(tuple_id)
+                        ).generate_scenarios(
+                            seed=Hyperparameters.INIT_SEED,
+                            no_of_scenarios = self.__no_of_optimization_scenarios,
+                        )
+                
+                self.__chosen_tuple_validation_scenarios[attr][tuple_id] =\
+                    self.__dbInfo.get_variable_generator_function(
+                        attr)(
+                            relation=self.__query.get_relation(),
+                            base_predicate=' id=' + str(tuple_id)
+                        ).generate_scenarios(
+                            seed=Hyperparameters.VALIDATION_SEED,
+                            no_of_scenarios=Hyperparameters.NO_OF_VALIDATION_SCENARIOS
+                        )
+            
+            for attr in self.__deterministic_attributes:
+                self.__chosen_tuple_values[attr][tuple_id] =\
                     ValueGenerator(
                         relation=self.__query.get_relation(),
-                        base_predicate='id=' + str(tuple_id),
-                        attribute=attribute
-                    )
-                
-                values = value_generator.get_values_from_partition()
-
-                for value in values:
-                    self.__values[attribute].append(value)
+                        base_predicate=' id=' + str(tuple_id),
+                        attribute=attr
+                    ).get_values()
             
-            for partition_id, multiplicity in remaining_partitions_with_multiplicity:
-                representative_id = self.__representatives[(partition_id, attribute)]
-                    
-                no_of_duplicates = self.__max_no_of_duplicates[partition_id]
-
-                if multiplicity < no_of_duplicates:
-                    no_of_duplicates = multiplicity
-
-                representative_value_generator =\
-                    RepresentativeValueGenerator(
-                        relation=self.__query.get_relation(),
-                        base_predicate='partition_id='+str(partition_id),
-                        attribute=attribute,
-                        duplicate_vector=[no_of_duplicates]
-                    )
-                    
-                values = representative_value_generator.get_values()
-
-                for value in values:
-                    self.__values[attribute].append(value)
-        
+        return refined_package, objective_value

@@ -8,6 +8,9 @@ class CVaRificationSearchResults:
         self.__cvar_thresholds = []
         self.__scenarios_to_consider = []
         self.__validation_objective_value = 0.0
+        self.__best_feasible_package = None
+        self.__best_feasible_objective = None
+        self.__found_non_none_infeasible = False
 
     def get_needs_more_scenarios(self):
         return self.__needs_more_scenarios
@@ -59,8 +62,26 @@ class CVaRificationSearchResults:
     
     def get_objective_value(self):
         return self.__validation_objective_value
-    
+
     def set_objective_value(
             self, objective_value):
         self.__validation_objective_value =\
             objective_value
+
+    def get_best_feasible_package(self):
+        return self.__best_feasible_package
+
+    def set_best_feasible_package(self, package):
+        self.__best_feasible_package = package
+
+    def get_best_feasible_objective(self):
+        return self.__best_feasible_objective
+
+    def set_best_feasible_objective(self, objective):
+        self.__best_feasible_objective = objective
+
+    def get_found_non_none_infeasible(self):
+        return self.__found_non_none_infeasible
+
+    def set_found_non_none_infeasible(self, value):
+        self.__found_non_none_infeasible = value

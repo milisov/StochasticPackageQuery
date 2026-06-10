@@ -4,6 +4,8 @@
 
 using namespace std;
 
+std::map<std::string, std::vector<double>> Formulator::lcvarCoeffsCache;
+
 Formulator::Formulator() : data(Data::getInstance()) { env.set(GRB_IntParam_OutputFlag, 0); }
 
 Formulator::Formulator(shared_ptr<StochasticPackageQuery> spqPtr) : env(), spq(spqPtr), data(Data::getInstance())
@@ -53,12 +55,12 @@ void Formulator::formCountCons(GRBModel &model, shared_ptr<Constraint> cons, GRB
     shared_ptr<CountConstraint> cntCons = getCount(cons);
     double ub_eps = 1e30;
     double lb_eps = -1e30;
-    
+
     if (!cntCons)
     {
         return;
     }
-    cout<<"FORMULATING COUNT CONSTRAINT"<<endl;
+    cout << "FORMULATING COUNT CONSTRAINT" << endl;
 
     GRBLinExpr cntConsExpr;
     if (options.reduced)
@@ -83,16 +85,20 @@ void Formulator::formCountCons(GRBModel &model, shared_ptr<Constraint> cons, GRB
 
     double lb = spq->getValue(cntCons->lb);
     double ub = spq->getValue(cntCons->ub);
+    cout << "DEBUG formCountCons: lb=" << lb << ", ub=" << ub
+         << ", lb_eps=" << lb_eps << ", ub_eps=" << ub_eps << endl;
 
     try
     {
         if (ub < ub_eps)
         {
-            model.addConstr(cntConsExpr <= ub);
+            model.addConstr(cntConsExpr <= ub, "count_constraint_ub");
+            cout << "DEBUG: Added count_constraint_ub (<= " << ub << ")" << endl;
         }
         if (lb > lb_eps)
         {
-            model.addConstr(cntConsExpr >= lb);
+            model.addConstr(cntConsExpr >= lb, "count_constraint_lb");
+            cout << "DEBUG: Added count_constraint_lb (>= " << lb << ")" << endl;
         }
     }
     catch (GRBException e)
@@ -160,7 +166,7 @@ void Formulator::formSumCons(GRBModel &model, shared_ptr<Constraint> cons, GRBVa
         cout << "Error code 7 = " << e.getErrorCode() << endl;
         cout << e.getMessage() << endl;
     }
-    // cout << "formulated sum constraint" << endl;
+    cout << "formulated sum constraint" << endl;
 }
 
 /*
@@ -292,6 +298,7 @@ void Formulator::formExpSumObj(GRBModel &model, shared_ptr<Objective> obj, GRBVa
         return;
     }
 
+    cout << "I AM FORMULATING EXP SUM OBJECTIVE" << endl;
     GRBLinExpr expSumObjExpr;
     if (options.reduced)
     {
@@ -388,65 +395,45 @@ int getQuantileIdx(double p, int n)
     return idx;
 }
 
-// void Formulator::formLCVaR(GRBModel &model, shared_ptr<Constraint> cons, GRBVar *xx, FormulateOptions &options)
-// {
-//     shared_ptr<ProbConstraint> probCon;
-//     shared_ptr<AttrConstraint> attrCon;
+std::vector<double> Formulator::computeLCVaRCoeffs(std::shared_ptr<AttrConstraint> attrCon, double p, FormulateOptions &formOptions)
+{
+    if (formOptions.clearLCVaRCache)
+    {
+        lcvarCoeffsCache.clear();
+        formOptions.clearLCVaRCache = false;
+    }
 
-//     bool isstoch = isStochastic(cons, probCon, attrCon);
-//     if (!isstoch)
-//     {
-//         return;
-//     }
-//     // cout << "Formulating CVAR" << endl;
-//     double v = spq->getValue(probCon->v);
-//     double p = spq->getValue(probCon->p);
+    std::string cacheKey = attrCon->attr + "_p" + std::to_string(p);
+    auto cacheIt = lcvarCoeffsCache.find(cacheKey);
+    if (cacheIt != lcvarCoeffsCache.end())
+    {
+        cout << "using cached lcvar coeffs" << endl;
+        return cacheIt->second;
+    }
 
-//     string selectcols = fmt::format("{},{}_{}", "id", attrCon->attr, "quantiles");
-//     string table = fmt::format("{}_{}", DB_optim, "summary");
-//     int qtileNumber = pg.getColumnLength(table, fmt::format("{}_{}", attrCon->attr, "quantiles"));
-//     // cout << "qtileNumber" << qtileNumber << endl;
-//     int qtileIdx = getQuantileIdx(1 - p, qtileNumber);
+    cout << "computing lcvar coeffs" << endl;
+    std::vector<double> lcvarCoeffs;
 
-//     string sql = fmt::format(
-//         "SELECT id, "
-//         "AVG(unnested_value) AS avg_quantiles "
-//         "FROM ( "
-//         "  SELECT id, unnest(profit_quantiles[1:{}]) AS unnested_value "
-//         "  FROM \"{}\" "
-//         ") AS unnested_table "
-//         "GROUP BY id",
-//         qtileIdx, table);
+    int quantile = (int)std::max(1.0, std::ceil((1.0 - p) * cntScenarios));
+    auto &scenarios = data.stochAttrs[attrCon->attr];
 
-//     SingleRow sr = SingleRow(sql);
-//     GRBLinExpr CVarExpr;
+    for (int i = 0; i < NTuples; i++)
+    {
+        std::vector<double> tmp = scenarios[i];
+        std::nth_element(tmp.begin(), tmp.begin() + quantile, tmp.end());
 
-//     if (probCon->psign == Inequality::gteq && probCon->vsign == Inequality::gteq)
-//     {
-//         Profiler timer;
-//         timer.clock("fetching");
-//         double coeff[NTuples];
-//         while (sr.fetchRow())
-//         {
-//             int id = sr.getBigInt(0) - 1;
-//             double coeffVal = sr.getNumeric(1);
-//             coeff[id] = coeffVal;
-//         }
-//         timer.stop("fetching");
-//         fetchRuntime += timer.getTime("fetching");
+        double coeff = 0.0;
+        for (int j = 0; j < quantile; j++)
+            coeff += tmp[j];
+        coeff /= quantile;
+        lcvarCoeffs.push_back(coeff);
+    }
+    lcvarCoeffsCache[cacheKey] = lcvarCoeffs;
+    cout << "computed and cached lcvar coeffs" << endl;
+    return lcvarCoeffs;
+}
 
-//         GRBLinExpr CVar_m;
-//         CVar_m.addTerms(coeff, xx, NTuples);
-//         model.addConstr(CVar_m, GRB_GREATER_EQUAL, v);
-//     }
-//     else
-//     {
-//         cout << "Currently There's no Implementation for this combination psign and vsign" << endl;
-//     }
-//     // cout << "formulated CVaR" << endl;
-// }
-
-// figure out which cvar corresponds to each var
+// this function assumes that the VaR constraint is P(X>=v)>=p meaning that any VaR constraint in the query needs to be reformulated to P(X>=v)>=p
 void Formulator::formLCVaR(GRBModel &model, shared_ptr<Constraint> cons, GRBVar *xx, FormulateOptions &options)
 {
     shared_ptr<ProbConstraint> probCon;
@@ -454,41 +441,30 @@ void Formulator::formLCVaR(GRBModel &model, shared_ptr<Constraint> cons, GRBVar 
 
     bool isstoch = isStochastic(cons, probCon, attrCon);
     if (!isstoch)
-    {
         return;
-    }
-    GRBLinExpr lcvarExpr;
-    // cout << "Formulating CVAR" << endl;
-    // double v = spq->getValue(probCon->v);
-    // double p = spq->getValue(probCon->p);
-    double p = 1 - 0.28;
-    double v = -2875.0167797102013;
 
-    vector<double> coeffs;
-    int quantile = (1 - p) * cntScenarios;
-    auto &scenarios = data.stochAttrs[attrCon->attr];
-    for (int i = 0; i < NTuples; i++)
+    double v = spq->getValue(probCon->v);
+    double p = spq->getValue(probCon->p);
+
+    std::vector<double> lcvarCoeffs = computeLCVaRCoeffs(attrCon, p, options);
+    if (lcvarCoeffs.empty())
+        throw std::runtime_error("LCVaR Coefficients cannot be empty");
+
+    GRBLinExpr lcvarExpr;
+    if (options.reduced)
     {
-        std::vector<double> tmp = scenarios[i];
-        std::nth_element(tmp.begin(), tmp.begin() + quantile, tmp.end());
-        int j = 0;
-        double coeff = 0.0;
-        while (true)
+        for (int i = 0; i < options.reducedIds.size(); i++)
         {
-            if (j < quantile)
-            {
-                coeff += tmp[j];
-                coeffs.push_back(coeff);
-                j++;
-            }
-            else
-            {
-                coeff /= j;
-                lcvarExpr += coeff * xx[i];
-                break;
-            }
+            int id = options.reducedIds[i] - 1;
+            lcvarExpr += lcvarCoeffs[id] * xx[i];
         }
     }
+    else
+    {
+        for (int i = 0; i < NTuples; i++)
+            lcvarExpr += lcvarCoeffs[i] * xx[i];
+    }
+
     model.addConstr(lcvarExpr, GRB_GREATER_EQUAL, v);
 }
 
@@ -554,16 +530,15 @@ void Formulator::createPartitions(shared_ptr<StochasticPackageQuery> spq, Formul
             double p = spq->getValue(probCon->p);
             if (formOptions.partitionMostActive)
             {
-                formOptions.posNegActiveness = false;
                 stage3Partition(formOptions, p, order, attrCon);
             }
             else if (formOptions.partitionSpreadActiveness)
             {
-                formOptions.posNegActiveness = false;
                 activenessPartition(formOptions, formOptions.activeness[order], formOptions.innerConstraints[order], p);
             }
             else
             {
+                cout << "standard partitioning" << endl;
                 partition(formOptions.Z, formOptions, formOptions.innerConstraints[order], shuffler, order, attrCon);
             }
             order++;
@@ -608,7 +583,6 @@ void Formulator::activenessPartition(FormulateOptions &options, vector<pair<int,
 
     // Append to the class member
     partitions.push_back(std::move(partitionsForConstraint));
-    deb(partitions[0][0]);
 }
 
 // get the vector pairs with realizations and scores
@@ -620,12 +594,12 @@ void Formulator::partition(int Z, FormulateOptions &formOptions, std::vector<pai
     int totalLength = innerConstraints.size();
     int baseSize = totalLength / Z;  // minimum size per partition
     int remainder = totalLength % Z; // number of partitions that get +1 element
+    deb(Z, totalLength);
 
     // Access the scenarios data using the new attrCon parameter
     auto &scenarios = data.stochAttrs[attrCon->attr];
 
     bool computeMaximumsForConstraint = formOptions.partitionMaximums.empty() || formOptions.partitionMaximums[conOrder].empty();
-    deb(computeMaximumsForConstraint, formOptions.partitionMaximums.empty());
 
     if (computeMaximumsForConstraint)
     {
@@ -638,16 +612,15 @@ void Formulator::partition(int Z, FormulateOptions &formOptions, std::vector<pai
         {
             int reducedSize = formOptions.reducedIds.size();
             formOptions.partitionMaximums[conOrder].assign(reducedSize, std::vector<double>(Z, -std::numeric_limits<double>::infinity()));
-            deb(formOptions.partitionMaximums[conOrder].size());
         }
         else
         {
             formOptions.partitionMaximums[conOrder].assign(NTuples, std::vector<double>(Z, -std::numeric_limits<double>::infinity()));
-            deb(formOptions.    partitionMaximums[conOrder].size());
         }
     }
-
+    cout << "computed partition maximums" << formOptions.partitionMaximums.size() << " " << formOptions.partitionMaximums[0].size() << endl;
     std::vector<vector<pair<int, double>>> partitionsForConstraint;
+    // deb(shuffler);
     reshuffleShuffler(shuffler);
     int idx = 0;
 
@@ -670,9 +643,9 @@ void Formulator::partition(int Z, FormulateOptions &formOptions, std::vector<pai
                     {
                         int id = formOptions.reducedIds[i] - 1;
                         double val = scenarios[id][currentScenario];
-                        if (val > formOptions.partitionMaximums[conOrder][id][z])
+                        if (val > formOptions.partitionMaximums[conOrder][i][z])
                         {
-                            formOptions.partitionMaximums[conOrder][id][z] = val;
+                            formOptions.partitionMaximums[conOrder][i][z] = val;
                         }
                     }
                 }
@@ -693,6 +666,36 @@ void Formulator::partition(int Z, FormulateOptions &formOptions, std::vector<pai
     }
     partitions.push_back(partitionsForConstraint);
     deb(formOptions.partitionMaximums[conOrder][0]);
+}
+
+std::set<int> Formulator::getReducedScenariosFromActiveness(vector<pair<int, double>> &activeness, int Z, double p)
+{
+    set<int> reducedScenarios;
+    sort(activeness.begin(), activeness.end(),
+         [](const pair<int, double> &a, const pair<int, double> &b)
+         {
+             return a.second < b.second;
+         });
+
+    int scDimension = min(Z, cntScenarios);
+    if (scDimension == cntScenarios)
+    {
+        for (int i = 0; i < activeness.size(); i++)
+        {
+            reducedScenarios.insert(activeness[i].first);
+        }
+        return reducedScenarios;
+    }
+
+    int elementsPerGroup = activeness.size() / Z;
+    int startIdx = elementsPerGroup / 2;
+
+    for (int i = startIdx; i < activeness.size(); i += elementsPerGroup)
+    {
+        reducedScenarios.insert(activeness[i].first);
+    }
+    deb(reducedScenarios.size());
+    return reducedScenarios;
 }
 
 std::set<int> Formulator::getMostActiveScenarios(vector<pair<int, double>> &activeness, int Z, double p)
@@ -717,64 +720,6 @@ std::set<int> Formulator::getMostActiveScenarios(vector<pair<int, double>> &acti
     for (int i = 0; i < scDimension; i++)
     {
         mostActiveScenarios.insert(activeness[i].first);
-    }
-    return mostActiveScenarios;
-}
-
-std::set<int> Formulator::getMostActiveScenarios(vector<pair<int, double>> &posActiveness, vector<pair<int, double>> &negActiveness, int Z, double p)
-{
-    set<int> mostActiveScenarios;
-    sort(posActiveness.begin(), posActiveness.end(),
-         [](const pair<int, double> &a, const pair<int, double> &b)
-         {
-             return a.second < b.second;
-         });
-
-    sort(negActiveness.begin(), negActiveness.end(),
-         [](const pair<int, double> &a, const pair<int, double> &b)
-         {
-             return a.second > b.second;
-         });
-
-    // deb(posActiveness, negActiveness, posActiveness.size(), negActiveness.size());
-
-    int posTarget = 0;
-    int negTarget = 0;
-    int scDimension = min(Z, cntScenarios);
-
-    if (scDimension == cntScenarios)
-    {
-        for (int i = 0; i < posActiveness.size(); i++)
-        {
-            mostActiveScenarios.insert(posActiveness[i].first);
-        }
-        for (int i = 0; i < negActiveness.size(); i++)
-        {
-            mostActiveScenarios.insert(negActiveness[i].first);
-        }
-        return mostActiveScenarios;
-    }
-
-    if (posActiveness.size() >= (int)(p * cntScenarios))
-    {
-        posTarget = scDimension;
-    }
-    else
-    {
-        int negativeNeeded = (int)(p * cntScenarios) - posActiveness.size();
-        deb(negativeNeeded, scDimension);
-        negTarget = min(scDimension, negativeNeeded);
-        posTarget = scDimension - negTarget;
-    }
-
-    deb(posTarget, negTarget);
-    for (int i = 0; i < posTarget; i++)
-    {
-        mostActiveScenarios.insert(posActiveness[i].first);
-    }
-    for (int i = 0; i < negTarget; i++)
-    {
-        mostActiveScenarios.insert(negActiveness[i].first);
     }
     return mostActiveScenarios;
 }
@@ -849,14 +794,7 @@ void Formulator::stage3Partition(FormulateOptions &options, double p, int conOrd
     deb(options.partitionMaximums.size(), options.partitionMaximums[conOrder].size(), options.partitionMaximums[conOrder][0].size());
 
     std::set<int> mostActiveScenarios;
-    if (options.posNegActiveness)
-    {
-        mostActiveScenarios = getMostActiveScenarios(options.posActiveness[conOrder], options.negActiveness[conOrder], Z, p);
-    }
-    else
-    {
-        mostActiveScenarios = getMostActiveScenarios(options.activeness[conOrder], Z, p);
-    }
+    mostActiveScenarios = getMostActiveScenarios(options.activeness[conOrder], Z, p);
 
     int current_z = 0; // Track the current partition index during the seed setup
     for (int scenario : mostActiveScenarios)
@@ -920,7 +858,7 @@ void Formulator::stage3Partition(FormulateOptions &options, double p, int conOrd
                     {
                         int id = options.reducedIds[i] - 1;
                         double val = scenarios[id][currentScenario];
-                        if (val >  options.partitionMaximums[conOrder][i][z])
+                        if (val > options.partitionMaximums[conOrder][i][z])
                         {
                             options.partitionMaximums[conOrder][i][z] = val;
                         }
@@ -961,26 +899,18 @@ std::vector<std::vector<double>> Formulator::summarize(FormulateOptions &formOpt
     vector<int> mostActiveScenariosIdx;
     if (formOptions.finalStage)
     {
-        if(formOptions.posNegActiveness)
-        {
-            mostActiveScenarios = getMostActiveScenarios(formOptions.posActiveness[conOrder], formOptions.negActiveness[conOrder], formOptions.Z, spq->getValue(probCon->p));
-            for (int idx : mostActiveScenarios)
-            {
-                mostActiveScenariosIdx.push_back(idx);
-            }
-        }else
-        if(formOptions.partitionMostActive)
+        if (formOptions.partitionMostActive)
         {
             mostActiveScenarios = getMostActiveScenarios(formOptions.activeness[conOrder], formOptions.Z, spq->getValue(probCon->p));
             for (int idx : mostActiveScenarios)
             {
                 mostActiveScenariosIdx.push_back(idx);
             }
-        }else
-        if(formOptions.partitionSpreadActiveness)
+        }
+        else if (formOptions.partitionSpreadActiveness)
         {
             mostActiveScenariosIdx = getMostActiveScenariosPerPartition(formOptions.Z, formOptions.activeness[conOrder]);
-            cout<<"MOST ACTIVE SCENARIOS PER PARTITION"<<endl;
+            cout << "MOST ACTIVE SCENARIOS PER PARTITION" << endl;
             deb(mostActiveScenariosIdx);
         }
     }
@@ -1034,6 +964,10 @@ std::vector<std::vector<double>> Formulator::summarize(FormulateOptions &formOpt
                     {
                         // summary = POS_INF;
                         double mostActiveCoef = scenarios[id][mostActiveScenariosIdx[i]];
+                        if (i == 0 && j == 0)
+                        {
+                            deb(scenarios[id], partitionMax, partitions[conOrder][i], mostActiveScenariosIdx[i], mostActiveCoef, summary);
+                        }
                         if (mostActiveCoef < summary)
                         {
                             summary = mostActiveCoef;

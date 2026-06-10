@@ -1,0 +1,9 @@
+Relation                        Solver                           Obj Value    Runtime(s)   Pkg Size     Actual Gain      DOW Profit   S&P500 Profit   NASDAQ Profit  Russell2000 Profit
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+GARCH_Portfolio_2021            SketchRefine/Q1                     0.0000       101.694          0             N/A             N/A             N/A             N/A             N/A
+GARCH_Portfolio_2022            SketchRefine/Q1                   179.5439        75.747         41        -61.7422         30.7089         49.4446        145.8313         48.0661
+GARCH_Portfolio_2022            SketchRefine/CVaR(L-CVaR)        -123.9990       121.067         29         70.4999         16.0404         25.8268         76.1733         25.1068
+GARCH_Portfolio_2023            SketchRefine/Q1                   149.5715        79.623         58        214.5091         24.2417         75.4065        154.9401        143.6293
+GARCH_Portfolio_2023            SketchRefine/CVaR(L-CVaR)        -206.6040       166.613         26        260.7900         14.2918         44.4562         91.3455         84.6772
+GARCH_Portfolio_2024            SketchRefine/Q1                     0.0000       121.422          0             N/A             N/A             N/A             N/A             N/A
+GARCH_Portfolio_2025            SketchRefine/Q1                     0.0000       144.175          0             N/A             N/A             N/A             N/A             N/A
