@@ -12,6 +12,8 @@ public:
     SolutionMetadata<int> bestSolGlobal;
     std::vector<std::vector<pair<int, double>>> bestPosActiveness;
     std::vector<std::vector<pair<int, double>>> bestNegActiveness;
+    vector<pair<int, double>> rankingNonZero;
+    vector<std::tuple<int, double, double>> rankingZero;
     RobustSatisficing(int M = 1e4,
                       std::shared_ptr<StochasticPackageQuery> spq = nullptr,
                       double epsilon = 1e-5, string validateTableNameBase = "")
@@ -65,6 +67,11 @@ public:
     void getReduced(vector<int> &reducedIds, vector<double> &solDet, vector<double> &solStage1, int qTarget);
     void getReducedFromRS(vector<int> &reducedIds, vector<double> &solStage1, int qTarget);
 
+    void randomScenarioSelection(int Z, int conOrder, std::set<int> &selectedScenarios, unsigned int seed = 42);
+
+    void selectTuplesFromRanking(vector<int> &reducedIds, int qTarget,
+                                  vector<pair<int, double>> &rankingNonzero,
+                                  vector<std::tuple<int, double, double>> &rankingZero);
 
     // Warmstart helper functions
     void applyWarmstart(GRBModel &model, const std::vector<int> &vbasis, const std::vector<int> &cbasis);
@@ -78,13 +85,21 @@ public:
                                         FormulateOptions &formOptions,
                                         SolveOptions &solveOptions, vector<double> &solDet, int qTarget);
 
-    void reduceTuplesAndScenarios(std::shared_ptr<StochasticPackageQuery> spq,
+    void reduceTuples(std::shared_ptr<StochasticPackageQuery> spq,
                                   FormulateOptions &formOptions,
                                   SolveOptions &solveOptions, vector<double> &solDet, int qTarget);
+
+    void reduceScenarios(std::shared_ptr<StochasticPackageQuery> spq,
+                                    FormulateOptions &formOptions,
+                                    SolveOptions &solveOptions, int qTarget);
 
     void reduceTuplesLCVaR(std::shared_ptr<StochasticPackageQuery> spq,
                            FormulateOptions &formOptions,
                            SolveOptions &solveOptions, vector<double> &solDet, int qTarget);
+
+    void reduceTuplesRobustSatisficingRelaxLP(std::shared_ptr<StochasticPackageQuery> spq,
+                                   FormulateOptions &formOptions,
+                                   SolveOptions &solveOptions, vector<double> &solDet, int qTarget);
 
     vector<int> reduceTuplesStageNoObjConsUpdatingBounds(std::shared_ptr<StochasticPackageQuery> spq,
                                                          FormulateOptions &formOptions,
@@ -118,6 +133,8 @@ public:
                                         SolveOptions &solveOptions,
                                         vector<int> &finalReducedIds,
                                         int qTarget);
+
+    bool finalStageTerminate(SolutionMetadata<int> &sol1, SolutionMetadata<int> &sol2, double bound, double threshold, int sense);
 
     SolutionMetadata<int> runNaiveVarianceControl(std::shared_ptr<StochasticPackageQuery> spq,
                                         FormulateOptions &formOptions,

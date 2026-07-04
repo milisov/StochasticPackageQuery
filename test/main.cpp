@@ -140,7 +140,7 @@ void deterministicSolutionForHardness(int N)
 	}
 }
 
-void testRSSeed(int M_input, int N_input, map<string, int> hyperParam = {{"reducedTuples", 512}, {"reducedScenarios", 50}, {"cap", 5}, {"benchmark", -1}}, 
+void testRSSeed(int M_input, int N_input, map<string, double> hyperParam = {{"reducedTuples", 512}, {"reducedScenarios", 25}, {"cap", 5}, {"threshold", 0.3}, {"benchmark", -1}},
 										  map<string, bool> ablate = {{"stage1lcvar", false},{"stage1random", false}, {"stage1", false}, {"stage2", false}, {"ablate", false}})
 {
 	int M = M_input;
@@ -157,16 +157,31 @@ void testRSSeed(int M_input, int N_input, map<string, int> hyperParam = {{"reduc
 	{
 		validateTable = fmt::format("stocks_{}", N);
 		outPath = fmt::format("stocks_{}_{}", N, M);
-		string dir = fmt::format("/home/fm2288/StochasticPackageQuery/test/RS_MAD/");
+		string dir;
+		if (hyperParam.count("terminateTuples"))
+		{
+			dir = fmt::format("/home/fm2288/StochasticPackageQuery/test/RS_MAD/{}/", (int)hyperParam["terminateTuples"]);
+		}else
+		{
+			dir = fmt::format("/home/fm2288/StochasticPackageQuery/test/RS_MAD/");
+		}
 		create_nested_directories(dir);
-		output = "/home/fm2288/StochasticPackageQuery/test/RS_MAD/RS" + outPath + ".csv";
+		output = dir + "RS" + outPath + ".csv";
 	}
 	else if (ablate["ablate"])
 	{
 		validateTable = fmt::format("stocks_{}", N);
 		outPath = fmt::format("stocks_{}_{}", N, M);
 		string study = ablate["stage2"] ? "stage2" : ablate["stage1lcvar"] ? "stage1lcvar" : ablate["stage1random"] ? "stage1random" : "stage1fixedN";
-		string dir = fmt::format("/home/fm2288/StochasticPackageQuery/test/AblationStudy2/{}/", study);
+		string dir = fmt::format("/home/fm2288/StochasticPackageQuery/test/AblationStudyFixedN/{}/{}/", hyperParam["reducedTuples"],study);
+		create_nested_directories(dir);
+		output = dir + outPath + ".csv";
+	}
+	else if (hyperParam["benchmark"] == 3)
+	{
+		validateTable = fmt::format("stocks_{}", N);
+		outPath = fmt::format("stocks_{}_{}", N, M);
+		string dir = fmt::format("/home/fm2288/StochasticPackageQuery/test/HyperParameterBenchmark3RSRelaxedObjCons/threshold_{:.6f}/", hyperParam["threshold"]);
 		create_nested_directories(dir);
 		output = dir + outPath + ".csv";
 	}
@@ -174,9 +189,9 @@ void testRSSeed(int M_input, int N_input, map<string, int> hyperParam = {{"reduc
 	{
 		validateTable = fmt::format("stocks_{}", N);
 		outPath = fmt::format("stocks_{}_{}", N, M);
-		string dir = fmt::format("/home/fm2288/StochasticPackageQuery/test/HyperParameterBenchmark{}/N_{}_M_{}_cap_{}/", hyperParam["benchmark"], hyperParam["reducedTuples"], hyperParam["reducedScenarios"], hyperParam["cap"]);
+		string dir = fmt::format("/home/fm2288/StochasticPackageQuery/test/HyperParameterBenchmark{}/N_{}_scenarios_{}_cap_{}_threshold_{:.6f}/", (int)hyperParam["benchmark"], (int)hyperParam["reducedTuples"], (int)hyperParam["reducedScenarios"], (int)hyperParam["cap"], hyperParam["threshold"]);
 		create_nested_directories(dir);
-		output = fmt::format("/home/fm2288/StochasticPackageQuery/test/HyperParameterBenchmark{}/N_{}_M_{}_cap_{}/" + outPath + ".csv", hyperParam["benchmark"], hyperParam["reducedTuples"], hyperParam["reducedScenarios"], hyperParam["cap"], N, M);
+		output = dir + outPath + ".csv";
 	}
 	DataWriter writer(output, headers);
 	writer.writeHeaders();
@@ -192,10 +207,10 @@ void testRSSeed(int M_input, int N_input, map<string, int> hyperParam = {{"reduc
 	}
 	int active_processes = 0;
 
-	for (int h = 0; h <= 5; h++)
+	for (int h = 0; h <= 0; h++)
 	{
 		double deterObjective = getObjective(deter, N, h);
-		for (int seed = 1; seed <= 10; seed = seed + 1)
+		for (int seed = 1; seed <= 1; seed = seed + 1)
 		{
 			// check if any existing children finished
 			int status;
@@ -491,7 +506,7 @@ std::string transform_query(
 
 void runAllRSSeed()
 {
-	std::vector<int> Ns = {3, 4, 5};
+	std::vector<int> Ns = {3,4,5};
 	std::vector<int> Ms = {10, 100, 10000};
 	for (int N : Ns)
 	{
@@ -504,26 +519,29 @@ void runAllRSSeed()
 
 void runAblationStudy()
 {
-	std::vector<int> Ns = {3,4,5};
+	std::vector<int> Ns = {5};
 	std::vector<int> Ms = {10,100,10000};
 	for (int M : Ms)
 	{
 		for (int N : Ns)
 		{
-			testRSSeed(M, N, {{"reducedTuples", 512}, {"reducedScenarios", 50}, {"cap", 5}, {"benchmark", -1}}, {{"stage1lcvar", false},{"stage1random", false}, {"stage1", true}, {"stage2", false}, {"ablate", true}}); //original algorithm early stop in stage 2
-			testRSSeed(M, N, {{"reducedTuples", 512}, {"reducedScenarios", 50}, {"cap", 5}, {"benchmark", -1}}, {{"stage1lcvar", true},{"stage1random", false}, {"stage1", true}, {"stage2", false}, {"ablate", true}}); //stage 1 with lcvar
-			testRSSeed(M, N, {{"reducedTuples", 512}, {"reducedScenarios", 50}, {"cap", 5}, {"benchmark", -1}}, {{"stage1lcvar", false},{"stage1random", true}, {"stage1", true}, {"stage2", false}, {"ablate", true}}); //random in stage 1
-			testRSSeed(M, N, {{"reducedTuples", 512}, {"reducedScenarios", 50}, {"cap", 5}, {"benchmark", -1}}, {{"stage1lcvar", false},{"stage1random", false}, {"stage1", false}, {"stage2", true}, {"ablate", true}}); //stage 2 it will runNaiveFinalStage
-			testRSSeed(M, N); //full feedback original algorithm			
+			for(int i = 7; i <= 16; i++)
+			{
+				int tuples = pow(2,i);
+				testRSSeed(M, N, {{"reducedTuples", tuples}, {"reducedScenarios", 25}, {"threshold", 0.1}, {"cap", 5}, {"benchmark", -1}, {"terminateTuples", tuples}}, {{"stage1lcvar", false},{"stage1random", true}, {"stage1", true}, {"stage2", false}, {"ablate", true}}); //random in stage 1
+				testRSSeed(M, N, {{"reducedTuples", tuples}, {"reducedScenarios", 25}, {"threshold", 0.1}, {"cap", 5}, {"benchmark", -1}, {"terminateTuples", tuples}}, {{"stage1lcvar", true},{"stage1random", false}, {"stage1", true}, {"stage2", false}, {"ablate", true}}); //stage 1 with lcvar
+				// testRSSeed(M, N, {{"reducedTuples", tuples}, {"reducedScenarios", 25}, {"threshold", 0.01}, {"cap", 5}, {"benchmark", -1}, {"terminateTuples", tuples}});
+			}
 		}
 	}
 }
 
-void runBenchmarkScenariosCap(int N_input)
+void runBenchmarkPrimary(int N_input)
 {
-	std::vector<int> reducedTuples = {128};
-	std::vector<int> reducedScenariosValues = {10, 25, 50, 100};
-	std::vector<int> capValues = {1, 3, 5, 10};
+	std::vector<int> reducedTuples = {512};
+	std::vector<int> reducedScenariosValues = {25, 50, 100};
+	std::vector<int> capValues = {1, 3, 5};
+	std::vector<double> thresholds = {0.01, 0.025, 0.05, 0.1};
 	std::vector<int> M = {10, 100, 10000};
 
 	for (int m : M)
@@ -535,12 +553,16 @@ void runBenchmarkScenariosCap(int N_input)
 			{
 				for (int cap : capValues)
 				{
-					std::map<std::string, int> hyperParams = {
-						{"reducedTuples", reducedTuples},
-						{"reducedScenarios", reducedScenarios},
-						{"cap", cap},
-						{"benchmark", 1}};
-					testRSSeed(m, N_input, hyperParams);
+					for(double thresh: thresholds)
+					{
+						std::map<std::string, double> hyperParams = {
+							{"reducedTuples", reducedTuples},
+							{"reducedScenarios", reducedScenarios},
+							{"cap", cap},
+							{"threshold", thresh},
+							{"benchmark", 1}};
+						testRSSeed(m, N_input, hyperParams);
+					}
 				}
 			}
 		}
@@ -561,7 +583,7 @@ void allBenchmarkTuples()
 			for (int i = 7; i <= 16; i++)
 			{
 				int reducedTuples = pow(2, i);
-				std::map<std::string, int> hyperParams = {
+				std::map<std::string, double> hyperParams = {
 					{"reducedTuples", reducedTuples},
 					{"reducedScenarios", 50},
 					{"cap", 5},
@@ -572,12 +594,40 @@ void allBenchmarkTuples()
 	}
 }
 
-void allBenchmarkScenariosCap()
+void allBenchmarkPrimary()
 {
 	std::vector<int> Ns = {3, 4};
 	for (int N : Ns)
 	{
-		runBenchmarkScenariosCap(N);
+		runBenchmarkPrimary(N);
+	}
+}
+
+void benchmarkThreshold()
+{
+	vector<int> Ns = {3, 4};
+	vector<int> Ms = {10, 100, 10000};
+	vector<double> thresholds = {0.01, 0.02, 0.05};
+	for(double thresh = 0.1; thresh <= 0.5; thresh += 0.05)
+	{
+		thresholds.push_back(thresh);
+	}
+	for(int n: Ns)
+	{
+		for(int m:Ms)
+		{
+
+			for(double thresh: thresholds)
+			{
+				std::map<std::string, double> hyperParams = {
+					{"reducedTuples", 512},
+					{"reducedScenarios", 50},
+					{"cap", 5},
+					{"threshold", thresh},
+					{"benchmark", 3}};
+					testRSSeed(m, n, hyperParams);
+			}
+		}
 	}
 }
 
@@ -734,13 +784,16 @@ int main(int argc, char *argv[])
 		// New option to generate seeded queries with hardness structure
 		generateSeededQueries(N, M);
 	}
-	else if (algorithm == "allBenchmarkScenariosCap")
+	else if (algorithm == "allBenchmarkPrimary")
 	{
-		allBenchmarkScenariosCap();
+		allBenchmarkPrimary();
 	}
 	else if (algorithm == "allBenchmarkTuples")
 	{
 		allBenchmarkTuples();
+	}else if(algorithm == "benchmarkThreshold")
+	{
+		benchmarkThreshold();
 	}
 	else if (algorithm == "summaryTables")
 	{

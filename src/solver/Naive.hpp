@@ -30,11 +30,9 @@ inline int computeBinarySearchIterations(double T, double t, double c)
     return d_max;
 }
 
-inline int computeBinarySearchIterationsForN(double T, double t, int cntScenarios, int NTuples, int N_start, SolveOptions &options)
+inline int computeBinarySearchIterationsForN(int cntScenarios, int NTuples, int N_start, SolveOptions &options)
 {
-    int c = computeIterationsToNTuples(N_start, NTuples);
-    int d_max = std::min(computeBinarySearchIterations(T, t, c), options.hyperParams["cap"]);
-    deb(d_max);
+    int d_max = static_cast<int>(options.hyperParams["cap"]);
     if (cntScenarios <= 10)
         return 1;
     if (cntScenarios >= 10000)
@@ -45,10 +43,9 @@ inline int computeBinarySearchIterationsForN(double T, double t, int cntScenario
     return (int)std::floor(1 + (d_max - 1) * log_t);
 }
 
-inline double computeEpsilon(double T, double t, int cntScenarios, int NTuples, SolveOptions &options)
+inline double computeEpsilon(int cntScenarios, int NTuples, SolveOptions &options)
 {
-    int d = computeBinarySearchIterationsForN(T, t, cntScenarios, NTuples, options.hyperParams["reducedTuples"], options);
-    deb(d);
+    int d = computeBinarySearchIterationsForN(cntScenarios, NTuples, static_cast<int>(options.hyperParams["reducedTuples"]), options);
     return std::sqrt(2.0 * M_PI) / std::pow(2.0, d);
 }
 
@@ -171,11 +168,8 @@ SolutionMetadata<T> Naive::formulateAndSolve(shared_ptr<StochasticPackageQuery> 
     SolutionMetadata<int> bestSol;
     vector<double> low;
     vector<double> high;
-    double epsilon;
-    if (solveOptions.computedBinarySearchDetails)
-    {
-        epsilon = solveOptions.kBinarySearchEpsilon;
-    }
+    double epsilon = computeEpsilon(cntScenarios, NTuples, solveOptions);
+
     if (low.empty())
     {
         for (int i = 0; i < probConstCnt; i++)
@@ -208,29 +202,18 @@ SolutionMetadata<T> Naive::formulateAndSolve(shared_ptr<StochasticPackageQuery> 
         }
 
         deb(low, high, formOptions.kMADValues);
-        gpro.clock("timeToSolveSystem");
+       
         SolutionMetadata<int> sol;
         NaiveFormulator formulator(spq);
         GRBModel model = formulator.formulate(spq, formOptions);
         vector<int> x;
         initializeVector(x, NTuples, 0);
-        solveOptions.enableRelaxation = true;
-        solve(model, x, solveOptions);
-        gpro.stop("timeToSolveSystem");
-
-        if (!solveOptions.computedBinarySearchDetails)
         {
-            double t = gpro.getTime("timeToSolveSystem") / 1000.0;
-            gpro.stop("effectiveRuntime");
-            double TT = solveOptions.timeBudget - gpro.getTime("effectiveRuntime") / 1000.0;
-            gpro.clock("effectiveRuntime");
-
-            double eps = computeEpsilon(TT, t, cntScenarios, NTuples, solveOptions);
-            solveOptions.kBinarySearchEpsilon = eps;
-            epsilon = eps;
-            solveOptions.computedBinarySearchDetails = true;
+            int terminateTuples = solveOptions.hyperParams.count("terminateTuples") ? static_cast<int>(solveOptions.hyperParams["terminateTuples"]) : NTuples;
+            bool atTerminationSize = ((int)formOptions.reducedIds.size() >= NTuples) || ((int)formOptions.reducedIds.size() >= terminateTuples);
+            solveOptions.enableRelaxation = atTerminationSize;
         }
-
+        solve(model, x, solveOptions);
         if (!x.empty())
         {
             validate(model, x, spq, solveOptions);

@@ -1,6 +1,21 @@
 #include "RobustSatisficing.hpp"
 #include "StochDualReducer.hpp"
 
+
+void RobustSatisficing::randomScenarioSelection(int Z, int conOrder, set<int> &selectedScenarios, unsigned int seed)
+{
+    Z = std::min(Z, cntScenarios);
+    if (Z <= 0) return;
+    std::mt19937 gen(seed + static_cast<unsigned int>(conOrder));
+    std::uniform_int_distribution<int> dist(0, cntScenarios - 1);
+
+    while ((int)selectedScenarios.size() < Z)
+    {
+        selectedScenarios.insert(dist(gen));
+    }
+}
+
+
 std::vector<int> randomTupleSelect(
     int NTuples,
     int qTarget,
@@ -25,6 +40,30 @@ std::vector<int> randomTupleSelect(
     }
 
     return reducedIds;
+}
+
+void RobustSatisficing::selectTuplesFromRanking(
+    vector<int> &reducedIds,
+    int qTarget,
+    vector<pair<int, double>> &rankingNonzero,
+    vector<tuple<int, double, double>> &rankingZero)
+{
+    int nNonzero = (int)rankingNonzero.size();
+    int alreadyTaken = (int)reducedIds.size();
+
+    int startNonzero = min(alreadyTaken, nNonzero);
+    for (int i = startNonzero; i < nNonzero; i++)
+    {
+        if ((int)reducedIds.size() >= qTarget) break;
+        reducedIds.push_back(rankingNonzero[i].first);
+    }
+
+    int startZero = max(0, alreadyTaken - nNonzero);
+    for (int i = startZero; i < (int)rankingZero.size(); i++)
+    {
+        if ((int)reducedIds.size() >= qTarget) break;
+        reducedIds.push_back(get<0>(rankingZero[i]));
+    }
 }
 
 void RobustSatisficing::populateMapNonZero(map<int, double> &reducedIdsMap, const vector<double> &sol)
@@ -214,7 +253,8 @@ SolutionMetadata<int> RobustSatisficing::solveDeterministic(std::shared_ptr<Stoc
 
 SolutionMetadata<int> RobustSatisficing::stochasticDualReducer(std::shared_ptr<StochasticPackageQuery> spq, SolveOptions &solveOptions, map<string, bool> ablate)
 {
-    int qTarget = solveOptions.hyperParams["reducedTuples"];
+    int qTarget = static_cast<int>(solveOptions.hyperParams["reducedTuples"]);
+    int qTargetScenarios = static_cast<int>(solveOptions.hyperParams["reducedScenarios"]);
     RSFormulator formulator(spq);
     DecisionVarOptions decVarOptions;
     setDecisionVarOptions(decVarOptions, 0.0, 1.0, 0.0, GrbVarType::Continuous);
@@ -232,12 +272,16 @@ SolutionMetadata<int> RobustSatisficing::stochasticDualReducer(std::shared_ptr<S
     solve(formulator.modelBestObj, solDet, solveOptions);
     double Z0 = formulator.modelBestObj.get(GRB_DoubleAttr_ObjVal);
     validate(formulator.modelBestObj, solDet, spq, solveOptions);
+
+    formOptions.objValue = Z0;
     // //--------------------- STAGE 1 -----------------------------//
     // this map contains the reducedIds and the expected profit for each id
     // formOptions.stage1 = true;
     formOptions.innerConstraints = this->innerConstraints;
     formOptions.Z = 1;
     formOptions.Zinit = formOptions.Z;
+    
+    reduceScenarios(spq, formOptions, solveOptions, qTargetScenarios); //after this function the reducedScenarios are stored in formOptions
     if(formOptions.ablate["ablate"] && formOptions.ablate["stage1lcvar"])
     {
         reduceTuplesLCVaR(spq, formOptions, solveOptions, solDet, qTarget);
@@ -251,7 +295,9 @@ SolutionMetadata<int> RobustSatisficing::stochasticDualReducer(std::shared_ptr<S
         formOptions.reduced = true;
     }else
     {
-        reduceTuplesAndScenarios(spq, formOptions, solveOptions, solDet, qTarget);
+        reduceTuplesLCVaR(spq, formOptions, solveOptions, solDet, qTarget);
+        // reduceTuples(spq, formOptions, solveOptions, solDet, qTarget);
+        // reduceTuplesRobustSatisficingRelaxLP(spq, formOptions, solveOptions, solDet, qTarget);
     }
     
     if(formOptions.ablate["stage2"])
@@ -261,13 +307,61 @@ SolutionMetadata<int> RobustSatisficing::stochasticDualReducer(std::shared_ptr<S
     return runNaiveVarianceControl(spq, formOptions, solveOptions, qTarget);
 }
 
+//objective1 is bestObjective so far, objective2 is bestSolObjective for particular N', bound is deter solution 
+bool RobustSatisficing::finalStageTerminate(SolutionMetadata<int> &sol1, SolutionMetadata<int> &sol2, double bound, double threshold, int sense)
+{
+    //if first is feasible and the new is infeasible return
+    if(sol1.isFeasible && !sol2.isFeasible)
+    {
+        return true;
+    }
+    
+    //if sol1 is infeasible you can't compare for objective...wait until both are feasible to check improvement
+    if(!sol1.isFeasible)
+    {
+        return false;
+    }    
+    
+    double objective1 = sol1.w;
+    double objective2 = sol2.w;
+    deb(objective1, objective2);
+    double eps = 0.0;
+    if (sense == GRB_MAXIMIZE)
+    {
+        if(objective1 > objective2)
+        {
+            cout<<"OBJECTIVE 1 IS GREATER"<<endl; 
+            return true;
+        }
+        eps = (objective2 - objective1) / objective1;
+        if(eps < threshold)
+        {
+            return true;
+        }
+    }else
+    {
+        cout<<"MINIMIZE"<<endl;
+        if(objective1 < objective2)
+        {
+            return true;
+        }
+        eps = (objective1 - objective2) / objective1; 
+        if(eps < threshold)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+
 SolutionMetadata<int> RobustSatisficing::runNaiveVarianceControl(std::shared_ptr<StochasticPackageQuery> spq,
                                                                   FormulateOptions &formOptions,
                                                                   SolveOptions &solveOptions,
                                                                   int qTarget)
 {
+    int qTargetScenarios = static_cast<int>(solveOptions.hyperParams["reducedScenarios"]);
     DecisionVarOptions decVarOptions;
-    int qTargetScenarios = solveOptions.hyperParams["reducedScenarios"];
     int exp = 2;
 
     // Enable variance control
@@ -277,6 +371,9 @@ SolutionMetadata<int> RobustSatisficing::runNaiveVarianceControl(std::shared_ptr
     formOptions.varianceControl = true;
     formOptions.includeObjectiveFunction = true;
     solveOptions.includeObjectiveFunction = true;
+
+    double threshold = solveOptions.hyperParams["threshold"];
+    bool terminateConditionMet = false;
 
     while (true)
     {
@@ -298,7 +395,19 @@ SolutionMetadata<int> RobustSatisficing::runNaiveVarianceControl(std::shared_ptr
         if (sol.x.size() > 0)
         {
             bestSolGlobal.solutions.insert(bestSolGlobal.solutions.end(), sol.solutions.begin(), sol.solutions.end());
-            bool isCurrentBetter = isCurrentBetterThanBest(sol.bestRk, sol.w, bestSolGlobal, spq->obj->objSense);
+            
+            int sense;
+            if(spq->obj->objSense == maximize)
+            {
+                sense = GRB_MAXIMIZE;
+            }else
+            {
+                sense = GRB_MINIMIZE;
+            }
+            terminateConditionMet = finalStageTerminate(bestSolGlobal, sol, formOptions.objValue, threshold, sense);
+            deb(terminateConditionMet);
+            
+            bool isCurrentBetter = isCurrentBetterThanBest(sol.bestRk, sol.w, bestSolGlobal, sense);
             if(isCurrentBetter)
             {
                 // Last solution is always the best
@@ -310,17 +419,15 @@ SolutionMetadata<int> RobustSatisficing::runNaiveVarianceControl(std::shared_ptr
                 bestSolGlobal.qScenarios = formOptions.Z;
             }
         }
-        if(solveOptions.hyperParams["benchmark"] == 2 || formOptions.ablate["stage1"])
+
         {
-            bestSolGlobal.terminate = (qTarget >= solveOptions.hyperParams["reducedTuples"]);
-        }else
-        {
-            bestSolGlobal.terminate = (qTarget >= NTuples);
+            int terminateTuples = solveOptions.hyperParams.count("terminateTuples") ? static_cast<int>(solveOptions.hyperParams["terminateTuples"]) : NTuples;
+            bestSolGlobal.terminate = (qTarget >= NTuples) || (qTarget >= terminateTuples);
         }
         gpro.stop("effectiveRuntime");
         bool timeOut = (gpro.getTime("effectiveRuntime") / 1000 > solveOptions.timeout_seconds);
-        
-        if (timeOut || bestSolGlobal.terminate)
+
+        if (timeOut || bestSolGlobal.terminate || terminateConditionMet)
         {
             cout << "EXITING NAIVE VARIANCE CONTROL" << endl;
             return bestSolGlobal;
@@ -329,14 +436,22 @@ SolutionMetadata<int> RobustSatisficing::runNaiveVarianceControl(std::shared_ptr
         
         qTarget *= exp;
         qTarget = min(NTuples, qTarget);
-        randomTupleSelect(NTuples, qTarget, formOptions.reducedIds, solveOptions.randomSeed);
+        if(formOptions.ablate["ablate"] && formOptions.ablate["stage1random"])
+        {
+            cout<<"RANDOM"<<endl;
+            randomTupleSelect(NTuples, qTarget, formOptions.reducedIds, solveOptions.randomSeed);
+        }else
+        {
+            cout<<"RANKING"<<endl;
+            selectTuplesFromRanking(formOptions.reducedIds, qTarget, this->rankingNonZero, this->rankingZero);
+        }
     }
     return bestSolGlobal;
 }
 
-void RobustSatisficing::reduceTuplesAndScenarios(std::shared_ptr<StochasticPackageQuery> spq,
-                                                  FormulateOptions &formOptions,
-                                                  SolveOptions &solveOptions, vector<double> &solDet, int qTarget)
+void RobustSatisficing::reduceTuples(std::shared_ptr<StochasticPackageQuery> spq,
+                                    FormulateOptions &formOptions,
+                                    SolveOptions &solveOptions, vector<double> &solDet, int qTarget)
 {
     formOptions.includeObjectiveFunction = false;
     formOptions.lcvarFormulation = true;
@@ -361,7 +476,7 @@ void RobustSatisficing::reduceTuplesAndScenarios(std::shared_ptr<StochasticPacka
 
         // Fresh model each iteration with UB = mid.
         // LCVaR coefficients are cached statically in RSFormulator, so the O(N×M log M)
-        formOptions.objCons = false;
+        formOptions.objCons = true;
         formOptions.iteration = 0;
         DecisionVarOptions decVarOptions;
         setDecisionVarOptions(decVarOptions, 0.0, mid, 0.0, GrbVarType::Continuous);
@@ -435,18 +550,46 @@ void RobustSatisficing::reduceTuplesAndScenarios(std::shared_ptr<StochasticPacka
         }
     }
 
-    vector<int> finalReducedIds;
-    getReducedFromRS(finalReducedIds, best.x, qTarget);
-    if(finalReducedIds.size() < qTarget)
+    if(best.x.empty())
     {
-        randomTupleSelect(NTuples, qTarget, finalReducedIds, solveOptions.randomSeed);
+        best.x = solDet;
     }
+
+    this->rankingNonZero = getNonZeroTuplesRanking(best.x);
+    this->rankingZero = getZeroTuplesRanking(best.x, spq, solveOptions);
+
+    vector<int> finalReducedIds;
+    selectTuplesFromRanking(finalReducedIds, qTarget, this->rankingNonZero, this->rankingZero);
     formOptions.qSz = finalReducedIds.size();
     formOptions.reducedIds = finalReducedIds;
     formOptions.reduced = true;
     formOptions.activenessNoAbsValue = best.bestActivenessNoAbsValue;
     formOptions.activeness = best.bestActiveness;
     gpro.stop("fetchingToEndOfFirstStage");
+}
+
+void RobustSatisficing::reduceScenarios(std::shared_ptr<StochasticPackageQuery> spq,
+                                                    FormulateOptions &formOptions,
+                                                    SolveOptions &solveOptions, int qTarget)
+{
+    vector<set<int>> reducedScenariosPerConstraint;
+    int numCons = spq->cons.size();
+    int conOrder = 0;
+    for (int i = 0; i < numCons; i++)
+    {
+        set<int>reducedScenarios;
+        shared_ptr<ProbConstraint> probCon;
+        shared_ptr<AttrConstraint> attrCon;
+
+        bool isstoch = isStochastic(spq->cons[i], probCon, attrCon);
+        if (isstoch)
+        {
+            randomScenarioSelection(qTarget, conOrder, reducedScenarios, formOptions.randomSeed);
+            reducedScenariosPerConstraint.push_back(reducedScenarios);
+        }
+    }
+    formOptions.reducedScenariosPerConstraint = reducedScenariosPerConstraint;
+    solveOptions.reducedScenariosPerConstraint = reducedScenariosPerConstraint;
 }
 
 
@@ -458,103 +601,41 @@ void RobustSatisficing::reduceTuplesLCVaR(std::shared_ptr<StochasticPackageQuery
     formOptions.lcvarFormulation = true;
     solveOptions.includeObjectiveFunction = false;
     solveOptions.enableRelaxation = true;
-    double low = 0.0;
-    double high = 1.0;
-    double epsBinSearch = 1e-5;
-
     formOptions.partitionMaximums.clear();
     formOptions.clearLCVaRCache = true;
+
+    formOptions.objCons = false;
+    formOptions.iteration = 0;
+    DecisionVarOptions decVarOptions;
+    setDecisionVarOptions(decVarOptions, 0.0, 1.0, 0.0, GrbVarType::Continuous);
+    formOptions.decisionVarOptions = decVarOptions;
+
+    SDRFormulator formulator(spq);
+    GRBModel model = formulator.formulate(spq, formOptions);
+
+    vector<double> x;
+    initializeVector(x, NTuples, 0.0);
+    solve(model, x, solveOptions);
+
     SolutionMetadata<double> best;
-
-    // Warmstart basis vectors
-    std::vector<int> vbasis;
-    std::vector<int> cbasis;
-
-    while (high - low > epsBinSearch)
+    if (!x.empty())
     {
-        double mid = low + (high - low) / 2;
-        deb(low, mid, high);
-
-        formOptions.objCons = false;
-        formOptions.iteration = 0;
-        DecisionVarOptions decVarOptions;
-        setDecisionVarOptions(decVarOptions, 0.0, mid, 0.0, GrbVarType::Continuous);
-        formOptions.decisionVarOptions = decVarOptions;
-
-        SDRFormulator formulator(spq);
-        GRBModel model = formulator.formulate(spq, formOptions);
-
-        applyWarmstart(model, vbasis, cbasis);
-
-        vector<double> x;
-        initializeVector(x, NTuples, 0.0);
-        solve(model, x, solveOptions);
-
-        SolutionMetadata<double> sol;
-        if (!x.empty())
-        {
-            if (solveOptions.foundSolutionUsingGurobiRelax)
-            {
-                vbasis.clear();
-                cbasis.clear();
-                solveOptions.foundSolutionUsingGurobiRelax = false;
-            }
-            else
-            {
-                saveWarmstart(model, vbasis, cbasis);
-            }
-
-            validate(model, x, spq, solveOptions);
-            sol.x = x;
-            sol.w = this->W_q;
-            sol.bestRk = this->r;
-            sol.isFeasible = isFeasible(this->r);
-            sol.bestActiveness = this->activeness;
-            sol.bestActivenessNoAbsValue = this->activenessNoAbsValue;
-
-            if (sol.isFeasible)
-            {
-                high = mid;
-                int sense = GRB_MAXIMIZE;
-                bool currentIsBetter = isCurrentBetterThanBest(sol.bestRk, sol.w, best, sense);
-                if (currentIsBetter)
-                {
-                    best.bestRk = sol.bestRk;
-                    best.w = sol.w;
-                    best.isFeasible = sol.isFeasible;
-                    best.bestActivenessNoAbsValue = sol.bestActivenessNoAbsValue;
-                    best.bestActiveness = sol.bestActiveness;
-                    best.x = sol.x;
-                }
-            }
-            else
-            {
-                low = mid;
-                int sense = GRB_MAXIMIZE;
-                bool currentIsBetter = isCurrentBetterThanBest(sol.bestRk, sol.w, best, sense);
-                if (currentIsBetter)
-                {
-                    best.bestRk = sol.bestRk;
-                    best.w = sol.w;
-                    best.isFeasible = sol.isFeasible;
-                    best.x = sol.x;
-                    best.bestActivenessNoAbsValue = sol.bestActivenessNoAbsValue;
-                    best.bestActiveness = sol.bestActiveness;
-                }
-            }
-        }
-        else
-        {
-            low = mid;
-        }
+        validate(model, x, spq, solveOptions);
+        best.x = x;
+        best.bestActiveness = this->activeness;
+        best.bestActivenessNoAbsValue = this->activenessNoAbsValue;
+    }else
+    {
+        validate(model, solDet, spq, solveOptions);
+        best.x = solDet;
+        best.bestActiveness = this->activeness;
+        best.bestActivenessNoAbsValue = this->activenessNoAbsValue;
     }
 
+    this->rankingNonZero = getNonZeroTuplesRanking(best.x);
+    this->rankingZero = getZeroTuplesRanking(best.x, spq, solveOptions);
     vector<int> finalReducedIds;
-    getReducedFromRS(finalReducedIds, best.x, qTarget);
-    if(finalReducedIds.size() < qTarget)
-    {
-        randomTupleSelect(NTuples, qTarget, finalReducedIds, solveOptions.randomSeed);
-    }
+    selectTuplesFromRanking(finalReducedIds, qTarget, this->rankingNonZero, this->rankingZero);
 
     formOptions.qSz = finalReducedIds.size();
     formOptions.reducedIds = finalReducedIds;
@@ -581,6 +662,9 @@ SolutionMetadata<int> RobustSatisficing::runNaiveFinalStage(std::shared_ptr<Stoc
     formOptions.includeObjectiveFunction = true;
     solveOptions.includeObjectiveFunction = true;
 
+    double threshold = solveOptions.hyperParams["threshold"];
+    bool terminateConditionMet = false;
+
     while (true)
     {
         Naive naiveSolver(spq, this->DB_valid);
@@ -601,6 +685,18 @@ SolutionMetadata<int> RobustSatisficing::runNaiveFinalStage(std::shared_ptr<Stoc
         if (sol.x.size() > 0)
         {
             bestSolGlobal.solutions.insert(bestSolGlobal.solutions.end(), sol.solutions.begin(), sol.solutions.end());
+
+            int sense;
+            if(spq->obj->objSense == maximize)
+            {
+                sense = GRB_MAXIMIZE;
+            }else
+            {
+                sense = GRB_MINIMIZE;
+            }
+            terminateConditionMet = finalStageTerminate(bestSolGlobal, sol, formOptions.objValue, threshold, sense);
+            deb(terminateConditionMet);
+
             bool isCurrentBetter = isCurrentBetterThanBest(sol.bestRk, sol.w, bestSolGlobal, spq->obj->objSense);
             if(isCurrentBetter)
             {
@@ -614,12 +710,14 @@ SolutionMetadata<int> RobustSatisficing::runNaiveFinalStage(std::shared_ptr<Stoc
             }
         }
 
-
-        bestSolGlobal.terminate = (qTarget >= NTuples);
+        {
+            int terminateTuples = solveOptions.hyperParams.count("terminateTuples") ? static_cast<int>(solveOptions.hyperParams["terminateTuples"]) : NTuples;
+            bestSolGlobal.terminate = (qTarget >= NTuples) || (qTarget >= terminateTuples);
+        }
         gpro.stop("effectiveRuntime");
         bool timeOut = (gpro.getTime("effectiveRuntime") / 1000 > solveOptions.timeout_seconds);
-        
-        if (timeOut || bestSolGlobal.terminate)
+
+        if (timeOut || bestSolGlobal.terminate || terminateConditionMet)
         {
             return bestSolGlobal;
         }
@@ -627,9 +725,9 @@ SolutionMetadata<int> RobustSatisficing::runNaiveFinalStage(std::shared_ptr<Stoc
         
         qTarget *= exp;
         qTarget = min(NTuples, qTarget);
-        randomTupleSelect(NTuples, qTarget, formOptions.reducedIds, solveOptions.randomSeed);
+        selectTuplesFromRanking(formOptions.reducedIds, qTarget, this->rankingNonZero, this->rankingZero);
     }
-    return bestSolGlobal;    
+    return bestSolGlobal;
 }
 
 

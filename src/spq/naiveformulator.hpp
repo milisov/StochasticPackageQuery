@@ -31,6 +31,4 @@ public:
                                       GRBVar *xx,
                                       FormulateOptions &options,
                                       int &conOrder);
-
-    void randomScenarioSelection(int Z, int conOrder, std::set<int> &selectedScenarios, unsigned int seed = 42);
 };

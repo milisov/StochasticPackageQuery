@@ -447,6 +447,7 @@ void Formulator::formLCVaR(GRBModel &model, shared_ptr<Constraint> cons, GRBVar 
     double p = spq->getValue(probCon->p);
 
     std::vector<double> lcvarCoeffs = computeLCVaRCoeffs(attrCon, p, options);
+    // deb(lcvarCoeffs);
     if (lcvarCoeffs.empty())
         throw std::runtime_error("LCVaR Coefficients cannot be empty");
 

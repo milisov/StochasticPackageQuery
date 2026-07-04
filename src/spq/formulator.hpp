@@ -170,6 +170,7 @@ struct FormulateOptions{
     vector<double> minInnerConstPerVaR;
     bool varianceControl = false;
     std::vector<std::set<int>> mostActiveScenariosPerConstraint;  // Fixed active scenarios per constraint (if set, used instead of computing)
+    std::vector<std::set<int>> reducedScenariosPerConstraint;
     vector<double> kMADValues;
 
 

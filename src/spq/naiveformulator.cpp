@@ -7,19 +7,6 @@
 using namespace std;
 
 
-void NaiveFormulator::randomScenarioSelection(int Z, int conOrder, set<int> &selectedScenarios, unsigned int seed)
-{
-    Z = std::min(Z, cntScenarios);
-    if (Z <= 0) return;
-    std::mt19937 gen(seed + static_cast<unsigned int>(conOrder));
-    std::uniform_int_distribution<int> dist(0, cntScenarios - 1);
-
-    while ((int)selectedScenarios.size() < Z)
-    {
-        selectedScenarios.insert(dist(gen));
-    }
-}
-
 void NaiveFormulator::formProbCons(GRBModel &model, std::shared_ptr<Constraint> cons, GRBVar *xx, FormulateOptions &options, int conOrder)
 {
     deb("formulating Prob Cons here");
@@ -35,8 +22,7 @@ void NaiveFormulator::formProbCons(GRBModel &model, std::shared_ptr<Constraint> 
     double v = spq->getValue(probCon->v);
     double p = options.p;
 
-    set<int> selectedScenarios;
-    randomScenarioSelection(options.Z, conOrder, selectedScenarios, options.randomSeed);
+    set<int> selectedScenarios = options.reducedScenariosPerConstraint[conOrder];
     int Z = selectedScenarios.size();
     double pM = ceil(p * Z);
 
@@ -179,9 +165,7 @@ void NaiveFormulator::formMADVarianceControlConstr(GRBModel &model,
     const std::vector<std::vector<double>> &scenarios = data.stochAttrs[attrName];
 
     int n = options.reduced ? options.reducedIds.size() : NTuples;
-    set<int>activeScenarios;
-    //activeScenarios = getReducedScenariosFromActiveness(options.activenessNoAbsValue[conOrder],options.Z, p);
-    randomScenarioSelection(options.Z, conOrder, activeScenarios, options.randomSeed);
+    set<int> activeScenarios = options.reducedScenariosPerConstraint[conOrder];
     int Z = activeScenarios.size();
 
     // Create auxiliary variables d_k for each active scenario

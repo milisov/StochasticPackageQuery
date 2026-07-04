@@ -15,6 +15,7 @@
 #include <util/data.hpp>
 #include <fstream>
 #include <tuple>
+#include <set>
 #pragma once
 
 struct SolveOptions
@@ -27,11 +28,11 @@ struct SolveOptions
     bool reduced = false;
     vector<int> reducedIds;
     bool enableRelaxation = false;
-    bool computedBinarySearchDetails = false;
-    double kBinarySearchEpsilon;
+    bool enableRelaxationLP = false;
     bool foundSolutionUsingGurobiRelax = false;
+    std::vector<std::set<int>> reducedScenariosPerConstraint;
 
-    map<string, int> hyperParams;
+    map<string, double> hyperParams;
     unsigned int randomSeed = 42;
 };
 
@@ -119,6 +120,12 @@ public:
     vector<double> minInnerConstPerVaR;
 
     template <typename T>
+    vector<std::tuple<int, double, double>> getZeroTuplesRanking(std::vector<T> &x, std::shared_ptr<StochasticPackageQuery> spq, SolveOptions &options);
+
+    template <typename T>
+    vector<pair<int, T>> getNonZeroTuplesRanking(std::vector<T> &x);
+
+    template <typename T>
     void validate(GRBModel &model, std::vector<T> &x,
                   std::shared_ptr<StochasticPackageQuery> spq,
                   SolveOptions &options);
@@ -130,23 +137,23 @@ public:
     int getNonZeroCount(std::vector<T> &x);
 
     template <typename T>
-    double calculateObj(std::vector<T> &x,
-                        std::vector<int> &selectIds,
+    double calculateObj(vector<pair<int, T>> &package,
                         std::shared_ptr<Objective> obj);
 
     template <typename T>
-    double calculateCntObj(std::vector<T> &x,
-                           std::vector<int> &selectIds,
+    double calculateCntObj(vector<pair<int, T>> &package,
                            std::shared_ptr<CountObjective> cntObj);
 
     template <typename T>
-    double calculateSumObj(std::vector<T> &x,
-                           std::vector<int> &selectIds,
+    double calculateSumObj(vector<pair<int, T>> &package,
                            std::shared_ptr<AttrObjective> attrObj);
 
     template <typename T>
-    double calculateExpSumObj(std::vector<T> &x,
+    double calculateExpSumObj(vector<pair<int, T>> &package,
                               std::shared_ptr<AttrObjective> attrObj);
+
+    template <typename T>
+    vector<pair<int, T>> getPackage(std::vector<T> &x);
 
     bool isFeasible(std::vector<double> &r);
 
@@ -172,33 +179,18 @@ public:
     bool isCurrentBetterThanBest(vector<double> r, double W_q, SolutionMetadata<T> &bestSol, int sense);
 };
 
-inline void printVariableNames(GRBModel &model)
+template <typename T>
+inline vector<pair<int, T>> Solver::getPackage(std::vector<T> &x)
 {
-    try
+    std::vector<pair<int, T>> package;
+    for (int i = 0; i < x.size(); i++)
     {
-        // Get all the variables in the model
-        int numVars = model.get(GRB_IntAttr_NumVars);
-        GRBVar *vars = model.getVars();
-
-        // Print the names of each variable
-        for (int i = 0; i < numVars; i++)
+        if (x[i] > 0)
         {
-            GRBVar var = vars[i];
-            std::string varName = var.get(GRB_StringAttr_VarName);
-            std::cout << "Variable " << i << ": " << varName << std::endl;
+            package.push_back(make_pair(i, x[i]));
         }
-
-        delete[] vars;
     }
-    catch (GRBException &e)
-    {
-        std::cout << "Error code = " << e.getErrorCode() << std::endl;
-        std::cout << e.getMessage() << std::endl;
-    }
-    catch (...)
-    {
-        std::cout << "Exception during printing variable names" << std::endl;
-    }
+    return package;
 }
 
 template <typename T>
@@ -305,74 +297,58 @@ inline double Solver::calculateRk(shared_ptr<ProbConstraint> probCon, int satisf
 }
 
 template <typename T>
-inline double Solver::calculateCntObj(std::vector<T> &x, std::vector<int> &selectIds, shared_ptr<CountObjective> cntObj)
+inline double Solver::calculateCntObj(vector<pair<int, T>> &package, shared_ptr<CountObjective> cntObj)
 {
     double sum = 0;
-    for (int i = 0; i < x.size(); i++)
-    {
-        sum += x[i];
-    }
+    for (auto &[id, val] : package)
+        sum += static_cast<double>(val);
     return sum;
 }
 
 template <typename T>
-inline double Solver::calculateSumObj(std::vector<T> &x, std::vector<int> &selectIds, shared_ptr<AttrObjective> attrObj)
+inline double Solver::calculateSumObj(vector<pair<int, T>> &package, shared_ptr<AttrObjective> attrObj)
 {
     double sum = 0;
     auto &detAttr = data.detAttrs[attrObj->obj];
-    for (int i = 0; i < NTuples; i++)
-    {
-        sum += x[i] * detAttr[i];
-    }
+    for (auto &[id, val] : package)
+        sum += static_cast<double>(val) * detAttr[id];
     return sum;
 }
 
 template <typename T>
-inline double Solver::calculateExpSumObj(std::vector<T> &x, shared_ptr<AttrObjective> attrObj)
+inline double Solver::calculateExpSumObj(vector<pair<int, T>> &package, shared_ptr<AttrObjective> attrObj)
 {
     double sum = 0;
-    deb(x.size(), NTuples);
-    for (int i = 0; i < x.size(); i++)
-    {
-        sum += x[i] * data.stockExpectedProfit[i];
-    }
+    for (auto &[id, val] : package)
+        sum += static_cast<double>(val) * data.stockExpectedProfit[id];
     return sum;
 }
 
 template <typename T>
-inline double Solver::calculateObj(std::vector<T> &x, std::vector<int> &selectIds, shared_ptr<Objective> obj)
+inline double Solver::calculateObj(vector<pair<int, T>> &package, shared_ptr<Objective> obj)
 {
     double w = 0;
     shared_ptr<CountObjective> cntObj = getCount(obj);
     if (cntObj)
-    {
-        w = calculateCntObj(x, selectIds, cntObj);
-        return w;
-    }
+        return calculateCntObj(package, cntObj);
 
     shared_ptr<AttrObjective> attrObj;
     bool isDet = isDeterministic(obj, attrObj);
     if (isDet && attrObj->objType == numeric_type)
-    {
-        w = calculateSumObj(x, selectIds, attrObj);
-        return w;
-    }
+        return calculateSumObj(package, attrObj);
 
     shared_ptr<AttrObjective> attrObj2;
     bool isDet2 = isDeterministic(obj, attrObj2);
     if (isDet2 && attrObj2->objType == array_type)
-    {
-        w = calculateExpSumObj(x, selectIds, attrObj2);
-        return w;
-    }
+        return calculateExpSumObj(package, attrObj2);
+
     return -1;
 }
 
 template <typename T>
 inline void Solver::validate(GRBModel &model, std::vector<T> &x, shared_ptr<StochasticPackageQuery> spq, SolveOptions &options)
 {
-    // empty previous surplus vector
-    // cout << "Validating!" << endl;
+    vector<pair<int, T>> package = getPackage(x);
     // clear r from previous iteration -> holds all of the rk values for each iteration
     this->r.clear();
     this->satisfiedScenarios.clear();
@@ -384,7 +360,6 @@ inline void Solver::validate(GRBModel &model, std::vector<T> &x, shared_ptr<Stoc
     // because we get row by row we need a way to compute the innerConst for all scenarios in the same time
     int cons_num = spq->cons.size();
     // for all of the constrants, check if they are probConstraints
-    // query the optim table
     // for each tuple update innerConst
     for (int i = 0; i < cons_num; i++)
     {
@@ -399,31 +374,19 @@ inline void Solver::validate(GRBModel &model, std::vector<T> &x, shared_ptr<Stoc
                 innerConst.emplace_back(i, 0.0);
             }
             auto &scenarios = data.stochAttrs[attrCon->attr];
-            if (options.reduced)
+
+            for (auto &p : package)
             {
-                for (int i = 0; i < options.reducedIds.size(); i++)
+                int id = p.first;
+                T val = p.second;
+                for (int j = 0; j < cntScenarios; j++)
                 {
-                    int id = options.reducedIds[i] - 1;
-                    for (int j = 0; j < cntScenarios; j++)
-                    {
-                        innerConst[j].second += x[id] * scenarios[id][j];
-                    }
-                }
-            }
-            else
-            {
-                for (int i = 0; i < NTuples; i++)
-                {
-                    for (int j = 0; j < cntScenarios; j++)
-                    {
-                        innerConst[j].second += x[i] * scenarios[i][j];
-                    }
+                    innerConst[j].second += val * scenarios[id][j];
                 }
             }
             // push innerConst to innerConstraints
             this->innerConstraints.push_back(innerConst);
             int satisfied = countSatisfied(options, cntScenarios, innerConst, probCon, spq);
-            cout << "satisfied scenarios = " << satisfied << " " << spq->getValue(probCon->v) << endl;
             double rk = calculateRk(probCon, satisfied, cntScenarios, spq);
             double satisfiedScenarios = (double)satisfied / cntScenarios;
             deb(rk, satisfiedScenarios);
@@ -434,41 +397,236 @@ inline void Solver::validate(GRBModel &model, std::vector<T> &x, shared_ptr<Stoc
     if (options.includeObjectiveFunction)
     {
         this->W_q = model.get(GRB_DoubleAttr_ObjVal);
-        cout << "MinMax Objective = " << W_q << endl;
-        shared_ptr<AttrObjective> attrObj;
-        bool isDet = isDeterministic(spq->obj, attrObj);
-        if (isDet)
-        {
-            double obj = calculateExpSumObj(x, attrObj);
-            cout << "Actual Objective = " << obj << endl;
-        }
     }
     else
     {
         this->W_q = getNonZeroCount(x);
         cout << "Non-zero count objective" << " " << W_q << endl;
     }
-    vector<int> selectIds;
-    findNonzero(selectIds, x);
-    cout << "Non-zero variables in this iteration = " << selectIds.size() << endl;
+}
+
+template <typename T>
+inline vector<std::tuple<int, double, double>> Solver::getZeroTuplesRanking(std::vector<T> &x, std::shared_ptr<StochasticPackageQuery> spq, SolveOptions &options)
+{
+    vector<pair<int, T>> package = getPackage(x);
+
+    // Find element with minimum value in the package
+    double minValue = static_cast<double>(package[0].second);
+    int minId = package[0].first;
+    for (auto &p : package)
+    {
+        double val = static_cast<double>(p.second);
+        if (val < minValue) 
+        {
+            minValue = val; 
+            minId = p.first; 
+        }
+    }
+
+    deb(minValue, minId);
+
+    int cons_num = spq->cons.size();
+    int conOrder = 0;
+    vector<vector<pair<int, double>>> innerCons;
+    vector<shared_ptr<ProbConstraint>> probCons;
+    vector<shared_ptr<AttrConstraint>> attrCons;
+
+    for (int i = 0; i < cons_num; i++)
+    {
+        shared_ptr<ProbConstraint> probCon;
+        shared_ptr<AttrConstraint> attrCon;
+        if (!isStochastic(spq->cons[i], probCon, attrCon)) continue;
+
+        auto &reducedScenarios = options.reducedScenariosPerConstraint[conOrder];
+        auto &scenarios = data.stochAttrs[attrCon->attr];
+
+        vector<pair<int, double>> innerConst;
+        for (int k : reducedScenarios)
+        {
+            innerConst.emplace_back(k, 0.0);
+        }
+
+        for (auto &p : package)
+        {
+            if (p.first == minId) continue;
+            double val = static_cast<double>(p.second);
+            int j = 0;
+            for (int k : reducedScenarios)
+            {
+                innerConst[j++].second += val * scenarios[p.first][k];
+            }
+        }
+
+        innerCons.push_back(innerConst);
+        probCons.push_back(probCon);
+        attrCons.push_back(attrCon);
+        conOrder++;
+    }
+    int numProbCons = conOrder;
+
+    // Base objective from package \ {minId}
+    vector<pair<int, T>> basePackage;
+    for (auto &p : package)
+    {
+        if (p.first != minId)
+        {
+            basePackage.push_back(p);
+        }
+    }
+    double baseObj = calculateObj(basePackage, spq->obj);
+
+    double epsilon = Config::getInstance()->pt.get<double>("parameters.numeric_eps");
+    vector<std::tuple<int, double, double>> ranking;
+
+    for (int i = 0; i < NTuples; i++)
+    {
+        if (x[i] != 0) continue;
+
+        double worstRk = 1e7;
+        for (int c = 0; c < numProbCons; c++)
+        {
+            auto &probCon = probCons[c];
+            auto &scenarios = data.stochAttrs[attrCons[c]->attr];
+            int Z = (int)innerCons[c].size();
+            int satisfied = 0;
+            for (auto &[k, baseInner] : innerCons[c])
+            {
+                double newInner = baseInner + minValue * scenarios[i][k];
+                if (probCon->vsign == Inequality::gteq)
+                {
+                    satisfied += (newInner >= spq->getValue(probCon->v) - epsilon) ? 1 : 0;
+                }
+                else
+                {
+                    satisfied += (newInner <= spq->getValue(probCon->v) + epsilon) ? 1 : 0;
+                }
+            }
+            double rk = calculateRk(probCon, satisfied, Z, spq);
+            if (rk < worstRk)
+            {
+                worstRk = rk;
+            }
+        }
+
+        // Objective delta: contribution of adding (i, minValue)
+        vector<pair<int, T>> elem = {{i, static_cast<T>(minValue)}};
+        double candidateObj = baseObj + calculateObj(elem, spq->obj);
+
+        ranking.emplace_back(i+1, worstRk, candidateObj);
+    }
+
+    sort(ranking.begin(), ranking.end(), [](const auto &a, const auto &b)
+    {
+        if (std::get<1>(a) != std::get<1>(b))
+        {
+            return std::get<1>(a) > std::get<1>(b);
+        }
+        return std::get<2>(a) > std::get<2>(b);
+    });
+
+    return ranking;
 }
 
 
+template<typename T>
+inline vector<pair<int, T>> Solver::getNonZeroTuplesRanking(vector<T> &x)
+{
+    vector<pair<int, T>> solutions;
+    for(int i = 0; i < x.size(); i++)
+    {
+        if (x[i] != 0)
+        {
+            solutions.push_back(make_pair(i+1, x[i]));
+        }
+    }
+    sort(solutions.begin(), solutions.end(), [](const pair<int, double> &a, const pair<int, double> &b)
+    {
+        return a.second > b.second;
+    });
+    return solutions;
+}
+
 template <typename T>
-inline T extractGRBVar(GRBVar &var) {
+inline T extractGRBVar(GRBVar &var)
+{
     double val = var.get(GRB_DoubleAttr_X);
     char vtype = var.get(GRB_CharAttr_VType);
-    if (vtype == GRB_INTEGER) {
+    if (vtype == GRB_INTEGER)
+    {
         return static_cast<T>(std::round(val));
-    } else if (vtype == GRB_BINARY) {
+    }
+    else if (vtype == GRB_BINARY)
+    {
         return static_cast<T>(std::round(std::clamp(val, 0.0, 1.0)));
-    } else {
+    }
+    else
+    {
         return static_cast<T>(val);
     }
 }
 
-// Attempts to relax variance constraint and returns the solution
-// Returns true if successful, fills x with the solution values
+inline bool applyTimeBudget(GRBModel &model, SolveOptions &options)
+{
+    gpro.stop("effectiveRuntime");
+    double remainingTime = options.timeBudget - (gpro.getTime("effectiveRuntime") / 1000);
+    gpro.clock("effectiveRuntime");
+    if (remainingTime <= 0)
+    {
+        cout << "Time Budget Exceeded" << endl;
+        return false;
+    }
+    model.set(GRB_DoubleParam_TimeLimit, remainingTime);
+    return true;
+}
+
+inline bool optimizeRelaxed(GRBModel &model)
+{
+    model.set(GRB_IntParam_OutputFlag, 0);
+    model.set(GRB_IntParam_StartNodeLimit, 0);
+    model.optimize();
+    int status = model.get(GRB_IntAttr_Status);
+    if (status == GRB_TIME_LIMIT)
+    {
+        if (model.get(GRB_IntAttr_SolCount) == 0)
+        {
+            cout << "Relaxed optimization: Time limit with no solution" << endl;
+            return false;
+        }
+        cout << "Relaxed optimization: Time limit, using best incumbent" << endl;
+    }
+    else if (status != GRB_OPTIMAL && status != GRB_SUBOPTIMAL)
+    {
+        cout << "Relaxed optimization ended with status: " << status << endl;
+        return false;
+    }
+    return true;
+}
+
+template <typename T>
+inline void extractXSolution(GRBModel &model, std::vector<T> &x,
+                              int numVars, bool reduced,
+                              const vector<int> &reducedIds)
+{
+    std::fill(x.begin(), x.end(), T(0));
+    if (reduced)
+    {
+        for (size_t i = 0; i < reducedIds.size(); i++)
+        {
+            int id = reducedIds[i] - 1;
+            GRBVar var = model.getVarByName("xx[" + std::to_string(i) + "]");
+            x[id] = extractGRBVar<T>(var);
+        }
+    }
+    else
+    {
+        for (int i = 0; i < numVars; i++)
+        {
+            GRBVar var = model.getVarByName("xx[" + std::to_string(i) + "]");
+            x[i] = extractGRBVar<T>(var);
+        }
+    }
+}
+
 template <typename T>
 inline bool relaxVarianceConstraint(GRBModel &model, std::vector<T> &x,
                                     int numVars, bool reduced,
@@ -479,16 +637,13 @@ inline bool relaxVarianceConstraint(GRBModel &model, std::vector<T> &x,
     {
         GRBConstr *constrs = model.getConstrs();
         int numConstrs = model.get(GRB_IntAttr_NumConstrs);
-
         double *rhspen = new double[numConstrs];
         bool foundVarianceConstr = false;
 
-        // Only allow relaxation of variance/cvar constraints - all others are GRB_INFINITY (cannot be relaxed)
         cout << "IN RELAX SOLVE" << numConstrs << endl;
         for (int i = 0; i < numConstrs; i++)
         {
             string name = constrs[i].get(GRB_StringAttr_ConstrName);
-
             if (name.find("mad_control") != string::npos ||
                 name.find("variance_control") != string::npos ||
                 name.find("prob_control") != string::npos ||
@@ -499,85 +654,18 @@ inline bool relaxVarianceConstraint(GRBModel &model, std::vector<T> &x,
                 cout << "Relaxing constraint: " << name << endl;
             }
             else
-            {
                 rhspen[i] = GRB_INFINITY;
-            }
-            // Debug: print count constraint info
-            if (name.find("count") != string::npos)
-            {
-                cout << "DEBUG: Constraint '" << name << "' has rhspen="
-                     << (rhspen[i] == GRB_INFINITY ? "INFINITY" : to_string(rhspen[i]))
-                     << ", RHS=" << constrs[i].get(GRB_DoubleAttr_RHS) << endl;
-            }
         }
 
         double feasObj = model.feasRelax(0, true, 0, nullptr, nullptr, nullptr,
                                          numConstrs, constrs, rhspen);
         cout << "Variance relaxation amount: " << feasObj << endl;
-
         delete[] rhspen;
         delete[] constrs;
 
-        // Apply time budget if set
-        if (options.timeBudgeted)
-        {
-            gpro.stop("effectiveRuntime");
-            double remainingTime = options.timeBudget - (gpro.getTime("effectiveRuntime") / 1000);
-            gpro.clock("effectiveRuntime");
-            if (remainingTime <= 0)
-            {
-                cout << "Time Budget Exceeded before relaxed optimization" << endl;
-                return false;
-            }
-            model.set(GRB_DoubleParam_TimeLimit, remainingTime);
-        }
-
-        model.set(GRB_IntParam_OutputFlag, 0);
-        model.set(GRB_IntParam_StartNodeLimit, 0);  // Ignore MIP starts, preserve LP basis
-        model.optimize();
-
-        int status = model.get(GRB_IntAttr_Status);
-        if (status == GRB_TIME_LIMIT)
-        {
-            int solCount = model.get(GRB_IntAttr_SolCount);
-            if (solCount == 0)
-            {
-                cout << "Relaxed optimization: Time limit with no solution" << endl;
-                return false;
-            }
-            cout << "Relaxed optimization: Time limit, using best incumbent" << endl;
-        }
-        else if (status != GRB_OPTIMAL && status != GRB_SUBOPTIMAL)
-        {
-            cout<<"Relaxed optimization ended with status: " << status << endl;
-            return false;
-        }
-
-        // Extract solution using variable names - this guarantees correct variable access
-        // even after feasRelax adds slack variables to the model
-        std::fill(x.begin(), x.end(), T(0));
-        if (reduced)
-        {
-            for (size_t i = 0; i < reducedIds.size(); i++)
-            {
-                int id = reducedIds[i] - 1;
-                string varName = "xx[" + std::to_string(i) + "]";
-                GRBVar var = model.getVarByName(varName);
-                // x[id] = static_cast<T>(var.get(GRB_DoubleAttr_X));
-                x[id] = extractGRBVar<T>(var);
-            }
-        }
-        else
-        {
-            for (int i = 0; i < numVars; i++)
-            {
-                string varName = "xx[" + std::to_string(i) + "]";
-                GRBVar var = model.getVarByName(varName);
-                // x[i] = static_cast<T>(var.get(GRB_DoubleAttr_X));
-                x[i] = extractGRBVar<T>(var);
-            }
-        }
-
+        if (options.timeBudgeted && !applyTimeBudget(model, options)) return false;
+        if (!optimizeRelaxed(model)) return false;
+        extractXSolution(model, x, numVars, reduced, reducedIds);
         return true;
     }
     catch (GRBException &e)
@@ -626,9 +714,8 @@ inline void Solver::solve(GRBModel &model, std::vector<T> &x, SolveOptions &opti
             options.foundSolutionUsingGurobiRelax = true;
             cout << "Found solution with relaxed variance constraint" << std::endl;
             gpro.stop("gurobi");
-            return; // Solution already extracted in relaxVarianceConstraint, don't overwrite
-        }
-        else
+            return;
+        }else
         {
             x.clear();
             return;
@@ -656,30 +743,7 @@ inline void Solver::solve(GRBModel &model, std::vector<T> &x, SolveOptions &opti
     }
 
     cout << "Solution Found" << endl;
-
-    // Extract solution using variable names for consistency and safety
-    std::fill(x.begin(), x.end(), T(0));
-    if (options.reduced)
-    {
-        for (size_t i = 0; i < options.reducedIds.size(); i++)
-        {
-            int id = options.reducedIds[i] - 1;
-            string varName = "xx[" + std::to_string(i) + "]";
-            GRBVar var = model.getVarByName(varName);
-            //x[id] = static_cast<T>(var.get(GRB_DoubleAttr_X));
-            x[id] = extractGRBVar<T>(var);
-        }
-    }
-    else
-    {
-        for (int i = 0; i < this->NTuples; i++)
-        {
-            string varName = "xx[" + std::to_string(i) + "]";
-            GRBVar var = model.getVarByName(varName);
-           //x[i] = static_cast<T>(var.get(GRB_DoubleAttr_X));
-            x[i] = extractGRBVar<T>(var);
-        }
-    }
+    extractXSolution(model, x, this->NTuples, options.reduced, options.reducedIds);
     gpro.stop("gurobi");
 }
 

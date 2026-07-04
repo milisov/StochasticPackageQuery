@@ -208,7 +208,7 @@ def process_single_task(args):
                 params = {
                     'query': query, 'linear_relaxation': False, 'dbInfo': PortfolioInfo,
                     'init_no_of_scenarios': min(M, 100), 'no_of_validation_scenarios': M,
-                    'approximation_bound': 0.0
+                    'approximation_bound': 0.05
                 }
 
                 # Algorithm Mapping
@@ -285,7 +285,7 @@ def run_experiment(workload_directory, algorithm, M, N, relation_name):
         results_dir = os.path.join("results", "DETER")
         csv_path = os.path.join(results_dir, f"{algorithm.upper()}.csv")
     else:
-        results_dir = os.path.join("results", "ImputedDataTolerance")
+        results_dir = os.path.join("results", "ImputedDataToleranceApproximationBound")
         csv_path = os.path.join(results_dir, f"{algorithm.upper()}_{relation_name}.csv")
     os.makedirs(results_dir, exist_ok=True)
 
@@ -347,7 +347,7 @@ def run_experiment(workload_directory, algorithm, M, N, relation_name):
                     
     print("Experiment Complete.")
 
-def run_all_rs_seed():
+def run_all_rcl_seed():
     Ns = [3, 4, 5]
     Ms = [10, 100, 10000]
     for N in Ns:
@@ -362,7 +362,7 @@ def run_all_rs_seed():
 if __name__ == '__main__':
     warnings.filterwarnings('ignore')
     parser = argparse.ArgumentParser()
-    parser.add_argument('algorithm', type=str, choices=['RCL', 'SS', 'Naive', 'DETER', 'HARDNESS', 'RCLSeed', 'SSSeed', 'RCLSeedTimeBudget', 'SketchRefineSeed', 'stddev', 'AllRSSeed'])
+    parser.add_argument('algorithm', type=str, choices=['RCL', 'SS', 'Naive', 'DETER', 'HARDNESS', 'RCLSeed', 'SSSeed', 'RCLSeedTimeBudget', 'SketchRefineSeed', 'stddev', 'AllRCLSeed'])
     parser.add_argument('N', type=int, nargs='?', default=5)
     parser.add_argument('M', type=int, nargs='?', default=100)
     parser.add_argument('--seeded', action='store_true', help='Run partitioning for all 10 seeds (only for partition command)')
@@ -371,8 +371,8 @@ if __name__ == '__main__':
     # --- Handle stddev command ---
     if args.algorithm.lower() == 'stddev':
         get_and_plot_profit_stddev(f"stocks_{args.N}_validate", "profit")
-    elif args.algorithm == 'AllRSSeed':
-        run_all_rs_seed()
+    elif args.algorithm == 'AllRCLSeed':
+        run_all_rcl_seed()
     else:
         # --- Directory Logic ---
         if args.algorithm.upper() in ['RCLSEED', 'SSSEED', 'RCLSEEDTIMEBUDGET', 'SKETCHREFINESEED', "DETER"]:

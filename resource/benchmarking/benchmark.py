@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 
 dir = "/home/fm2288/StochasticPackageQuery/test/HyperParameterBenchmark1/"
 
-outputdir = "/home/fm2288/StochasticPackageQuery/test/HyperParameterBenchmark1/benchmark_summary_scenarios_cap.pdf"
+outputdir = "/home/fm2288/StochasticPackageQuery/test/HyperParameterBenchmark1/benchmark_summary_scenarios_cap_threshold.pdf"
 
-result_df = pd.DataFrame(columns=['Tuples', 'Scenarios', 'Cap', 'M',
+result_df = pd.DataFrame(columns=['Tuples', 'Scenarios', 'Cap', 'Threshold','M',
                                   'NumberFeasibleMean', 'NumberFeasibleStd',
                                   'ObjRatioMean', 'ObjRatioStd',
                                   'RuntimeMean', 'RuntimeStd'])
@@ -17,6 +17,7 @@ for hyperparam in os.listdir(dir):
     tuples = hyperparam.split("_")[1]
     scenarios = hyperparam.split("_")[3]
     cap = hyperparam.split("_")[5]
+    thresh = hyperparam.split("_")[7]
 
     tablesByM = {}
     for table in os.listdir(os.path.join(dir, hyperparam)):
@@ -46,6 +47,7 @@ for hyperparam in os.listdir(dir):
             'Tuples': tuples,
             'Scenarios': scenarios,
             'Cap': cap,
+            'Threshold': thresh,
             'M': M,
             'NumberFeasibleMean': numFeasibleMean,
             'NumberFeasibleStd': numFeasibleStd,
@@ -58,21 +60,26 @@ for hyperparam in os.listdir(dir):
 result_df['NumberFeasible'] = result_df['NumberFeasibleMean'].astype(str) + ' ± ' + result_df['NumberFeasibleStd'].astype(str)
 result_df['ObjRatio'] = result_df['ObjRatioMean'].astype(str) + ' ± ' + result_df['ObjRatioStd'].astype(str)
 
-feasible_pivot = result_df.pivot_table(index=['Tuples', 'Scenarios', 'Cap'], columns='M', values='NumberFeasible', aggfunc='first').reset_index()
+print(result_df)
+
+feasible_pivot = result_df.pivot_table(index=['Tuples', 'Scenarios', 'Cap', 'Threshold'], columns='M', values='NumberFeasible', aggfunc='first').reset_index()
 feasible_pivot.columns.name = None
 feasible_pivot.rename(columns={m: f'NumberFeasible_{m}' for m in ['10', '100', '10000']}, inplace=True)
 
-objratio_pivot = result_df.pivot_table(index=['Tuples', 'Scenarios', 'Cap'], columns='M', values='ObjRatio', aggfunc='first').reset_index()
+objratio_pivot = result_df.pivot_table(index=['Tuples', 'Scenarios', 'Cap', 'Threshold'], columns='M', values='ObjRatio', aggfunc='first').reset_index()
 objratio_pivot.columns.name = None
 objratio_pivot.rename(columns={m: f'ObjRatio_{m}' for m in ['10', '100', '10000']}, inplace=True)
 
-display_df = feasible_pivot.merge(objratio_pivot, on=['Tuples', 'Scenarios', 'Cap'])
+display_df = feasible_pivot.merge(objratio_pivot, on=['Tuples', 'Scenarios', 'Cap', 'Threshold'])
 
-sum_feasible = result_df.groupby(['Tuples', 'Scenarios', 'Cap'])['NumberFeasibleMean'].sum().reset_index(name='SumNumberFeasibleMean')
-sum_obj = result_df.groupby(['Tuples', 'Scenarios', 'Cap'])['ObjRatioMean'].sum().reset_index(name='SumObjRatioMean')
-display_df = display_df.merge(sum_feasible, on=['Tuples', 'Scenarios', 'Cap'])
-display_df = display_df.merge(sum_obj, on=['Tuples', 'Scenarios', 'Cap'])
-display_df.sort_values(by=['SumNumberFeasibleMean', 'SumObjRatioMean'], ascending=False, inplace=True)
+sum_feasible = result_df.groupby(['Tuples', 'Scenarios', 'Cap', 'Threshold'])['NumberFeasibleMean'].mean().reset_index(name='AvgNumberFeasibleMean')
+sum_obj = result_df.groupby(['Tuples', 'Scenarios', 'Cap', 'Threshold'])['ObjRatioMean'].mean().reset_index(name='AvgObjRatioMean')
+sum_runtime = result_df.groupby(['Tuples', 'Scenarios', 'Cap', 'Threshold'])['RuntimeMean'].mean().reset_index(name='AvgRuntimeMean')
+
+display_df = display_df.merge(sum_feasible, on=['Tuples', 'Scenarios', 'Cap', 'Threshold'])
+display_df = display_df.merge(sum_obj, on=['Tuples', 'Scenarios', 'Cap', 'Threshold'])
+display_df = display_df.merge(sum_runtime, on = ['Tuples', 'Scenarios', 'Cap', 'Threshold'])
+display_df.sort_values(by=['AvgObjRatioMean','AvgNumberFeasibleMean','AvgRuntimeMean'], ascending=[False, False, True], inplace=True)
 # display_df.drop(columns=['SumNumberFeasibleMean'], inplace=True)
 
 print(display_df)
